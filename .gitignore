@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.next/
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+.cursor/
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Databases
+*.db
+*.db-journal
+
+# Prisma generated client (regenerated via postinstall / prisma generate)
+/src/generated/prisma
