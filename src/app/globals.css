@@ -1,0 +1,360 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --animate-shiny-text: shiny-text 8s infinite;
+  @keyframes shiny-text {
+  0%, 90%, 100% {
+    background-position: calc(-100% - var(--shiny-width)) 0;
+    }
+  30%, 60% {
+    background-position: calc(100% + var(--shiny-width)) 0;
+    }
+  }
+  --animate-rainbow: rainbow var(--speed, 2s) infinite linear;
+  --color-color-5: var(--color-5);
+  --color-color-4: var(--color-4);
+  --color-color-3: var(--color-3);
+  --color-color-2: var(--color-2);
+  --color-color-1: var(--color-1)
+;
+  @keyframes rainbow {
+  0% {
+    background-position: 0%;}
+  100% {
+    background-position: 200%;}}}
+
+/* tweakcn Twitter theme — hex tokens */
+:root {
+  --background: #ffffff;
+  --foreground: #0f1419;
+  --card: #f7f8f8;
+  --card-foreground: #0f1419;
+  --popover: #ffffff;
+  --popover-foreground: #0f1419;
+  --primary: #1e9df1;
+  --primary-foreground: #ffffff;
+  --secondary: #0f1419;
+  --secondary-foreground: #ffffff;
+  --muted: #e5e5e6;
+  /* Secondary text — keep ≥4.5:1 on white for small UI copy */
+  --muted-foreground: #3d4f5f;
+  --accent: #e3ecf6;
+  --accent-foreground: #1e9df1;
+  --destructive: #f4212e;
+  --destructive-foreground: #ffffff;
+  --border: #e1eaef;
+  --input: #f7f9fa;
+  --ring: #1da1f2;
+  --chart-1: #1e9df1;
+  --chart-2: #00b87a;
+  --chart-3: #f7b928;
+  --chart-4: #17bf63;
+  --chart-5: #e0245e;
+  --sidebar: #f7f8f8;
+  --sidebar-foreground: #0f1419;
+  --sidebar-primary: #1e9df1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e3ecf6;
+  --sidebar-accent-foreground: #1e9df1;
+  --sidebar-border: #e1e8ed;
+  --sidebar-ring: #1da1f2;
+  --radius: 1.3rem;
+  --shadow-x: 0px;
+  --shadow-y: 2px;
+  --shadow-blur: 0px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0;
+  --shadow-color: rgba(29, 161, 242, 0.15);
+  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-sm:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-md:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-lg:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xl:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  /* HeroUI form fields use --muted for placeholders */
+  --field-placeholder: var(--muted-foreground);
+
+  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --color-1: oklch(66.2% 0.225 25.9);
+  --color-2: oklch(60.4% 0.26 302);
+  --color-3: oklch(69.6% 0.165 251);
+  --color-4: oklch(80.2% 0.134 225);
+  --color-5: oklch(90.7% 0.231 133);
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #e7e9ea;
+  --card: #17181c;
+  --card-foreground: #d9d9d9;
+  --popover: #000000;
+  --popover-foreground: #e7e9ea;
+  --primary: #1c9cf0;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f3f4;
+  --secondary-foreground: #0f1419;
+  --muted: #181818;
+  --muted-foreground: #9aa5b1;
+  --accent: #061622;
+  --accent-foreground: #1c9cf0;
+  --destructive: #f4212e;
+  --destructive-foreground: #ffffff;
+  --border: #242628;
+  --input: #22303c;
+  --ring: #1da1f2;
+  --chart-1: #1e9df1;
+  --chart-2: #00b87a;
+  --chart-3: #f7b928;
+  --chart-4: #17bf63;
+  --chart-5: #e0245e;
+  --sidebar: #17181c;
+  --sidebar-foreground: #d9d9d9;
+  --sidebar-primary: #1da1f2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #061622;
+  --sidebar-accent-foreground: #1c9cf0;
+  --sidebar-border: #38444d;
+  --sidebar-ring: #1da1f2;
+  --radius: 1.3rem;
+  --shadow-x: 0px;
+  --shadow-y: 2px;
+  --shadow-blur: 0px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0;
+  --shadow-color: rgba(29, 161, 242, 0.25);
+  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-sm:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-md:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-lg:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-xl:
+    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
+    0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0);
+  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
+  --color-1: oklch(66.2% 0.225 25.9);
+  --color-2: oklch(60.4% 0.26 302);
+  --color-3: oklch(69.6% 0.165 251);
+  --color-4: oklch(80.2% 0.134 225);
+  --color-5: oklch(90.7% 0.231 133);
+}
+
+/*
+ * Dashboard (HeroUI) expects --accent as brand color and --muted as secondary TEXT.
+ * Shadcn uses --muted for backgrounds and --accent as a soft highlight — remap inside the app shell.
+ */
+.drive-app {
+  /* HeroUI modal body / text-muted read --muted as a text color */
+  --muted: var(--muted-foreground);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --accent-hover: color-mix(
+    in oklab,
+    var(--primary) 90%,
+    var(--primary-foreground) 10%
+  );
+  --accent-soft: color-mix(in oklab, var(--primary) 15%, transparent);
+  /* Secondary buttons (Recents/Starred) — darker mix for readable blue-on-gray */
+  --accent-soft-foreground: color-mix(
+    in oklab,
+    var(--primary) 40%,
+    var(--foreground) 60%
+  );
+  --accent-soft-hover: color-mix(in oklab, var(--primary) 20%, transparent);
+  --focus: var(--primary);
+  --default-foreground: var(--foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer utilities {
+  /* HeroUI dashboard uses text-muted; shadcn uses bg-muted + text-muted-foreground */
+  .text-muted {
+    color: var(--muted-foreground);
+  }
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  letter-spacing: var(--tracking-normal);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+/*
+ * Opal primary CTA look: vertical primary→darker gradient + soft colored drop shadow.
+ * Applied to HeroUI primary buttons site-wide.
+ */
+.button--primary {
+  --button-bg: var(--primary);
+  --button-bg-hover: var(--primary);
+  --button-bg-pressed: var(--primary);
+  --button-fg: var(--primary-foreground);
+  background-image: linear-gradient(
+    to bottom,
+    var(--primary),
+    color-mix(in srgb, var(--primary) 85%, black)
+  );
+  border-color: transparent;
+  box-shadow: 0 6px 14px -8px
+    color-mix(in oklch, var(--primary) 10%, transparent);
+  transition:
+    transform 250ms var(--ease-smooth),
+    background-color 100ms var(--ease-out),
+    box-shadow 100ms var(--ease-out),
+    opacity 100ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .button--primary:hover,
+  .button--primary[data-hovered="true"] {
+    opacity: 0.95;
+  }
+}
+
+.button--primary:active,
+.button--primary[data-pressed="true"] {
+  opacity: 0.9;
+}
+
+/* Disabled primary: avoid 50% opacity white-on-blue (unreadable) */
+.button--primary:disabled,
+.button--primary[aria-disabled="true"] {
+  opacity: 1;
+  background-image: none;
+  background-color: color-mix(in srgb, var(--primary) 45%, #cbd5e1);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.dark .button--primary:disabled,
+.dark .button--primary[aria-disabled="true"] {
+  background-color: color-mix(in srgb, var(--primary) 40%, #334155);
+  color: #e2e8f0;
+}
+
+.file-selected {
+  background: #c2e7ff;
+  border-color: #0b57d0;
+}
+
+.dark .file-selected {
+  background: color-mix(in oklab, var(--primary) 25%, transparent);
+  border-color: var(--primary);
+}
+
+.shared-video-shell {
+  align-items: center;
+  background: #000;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.shared-video-shell .plyr,
+.shared-video-shell .plyr__video-wrapper,
+.shared-video-shell video {
+  height: 100%;
+  width: 100%;
+}
+
+.shared-video-shell video {
+  object-fit: contain;
+}
+
+.drive-preview-video-shell {
+  align-items: center;
+  background: #000;
+  display: flex;
+  height: 70vh;
+  justify-content: center;
+  width: 100%;
+}
+
+.drive-preview-video-shell .plyr,
+.drive-preview-video-shell .plyr__video-wrapper,
+.drive-preview-video-shell video {
+  height: 100%;
+  width: 100%;
+}
+
+.drive-preview-video-shell video {
+  object-fit: contain;
+}
