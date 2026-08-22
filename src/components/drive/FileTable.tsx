@@ -1,0 +1,327 @@
+import { FolderOpen, EllipsisVertical, Star } from "@gravity-ui/icons";
+import { type MouseEvent, useState } from "react";
+import { AvatarStack } from "@/components/drive/AvatarStack";
+import { FileIcon } from "@/components/drive/FileIcon";
+import type { FileItem } from "@/data/drive-data";
+import { apiFetch } from "@/lib/api";
+
+export function FileTable({
+  files,
+  mode = "default",
+  selectedFileIds = new Set<string>(),
+  allSelected = false,
+  onFileContextMenu,
+  onToggleFile,
+  onToggleAll,
+}: {
+  files: FileItem[];
+  mode?: "default" | "shared" | "starred" | "archived" | "recent";
+  selectedFileIds?: Set<string>;
+  allSelected?: boolean;
+  onFileContextMenu?: (event: MouseEvent<HTMLElement>, file: FileItem) => void;
+  onToggleFile?: (file: FileItem) => void;
+  onToggleAll?: () => void;
+}) {
+  const [copiedFileId, setCopiedFileId] = useState<string | null>(null);
+
+  return (
+    <div className="mt-4">
+      {}
+      <div className="grid gap-2.5 sm:hidden">
+        {onToggleAll ? (
+          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-bold shadow-sm">
+            <span>Select all files</span>
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-accent"
+              checked={allSelected}
+              onChange={onToggleAll}
+            />
+          </label>
+        ) : null}
+        {files.map((file) => {
+          const selected = selectedFileIds.has(file.id ?? "");
+          const meta =
+            mode === "archived"
+              ? file.location
+              : mode === "starred"
+                ? file.starredDate
+                : file.date;
+          return (
+            // biome-ignore lint/a11y/useKeyWithClickEvents: file row supports click-to-select alongside drag
+            <article
+              key={file.id ?? file.name}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData("text/plain", file.id ?? "");
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              onClick={() => onToggleFile?.(file)}
+              onContextMenu={(event) => onFileContextMenu?.(event, file)}
+              className={
+                selected
+                  ? "overflow-hidden rounded-2xl border file-selected p-3.5 shadow-sm cursor-grab active:cursor-grabbing"
+                  : "overflow-hidden rounded-2xl border border-border bg-surface p-3.5 shadow-sm cursor-grab active:cursor-grabbing"
+              }
+            >
+              <div className="flex items-center gap-3">
+                {onToggleFile ? (
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-accent"
+                    checked={selected}
+                    onChange={() => onToggleFile?.(file)}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                ) : null}
+                <div className="shrink-0">
+                  {mode === "starred" ? (
+                    <Star className="h-4 w-4 fill-warning text-muted" />
+                  ) : (
+                    <FileIcon kind={file.kind} />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <h3
+                    className="truncate text-sm font-bold leading-snug text-foreground"
+                    title={file.name}
+                  >
+                    {file.name}
+                  </h3>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                    <span>{meta}</span>
+                    <span>·</span>
+                    <span>{file.size}</span>
+                    {file.folderName && (
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5 text-muted">
+                          <FolderOpen className="h-3 w-3" />
+                          {file.folderName}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface-secondary"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onFileContextMenu?.(event, file);
+                  }}
+                  aria-label={`Open ${file.name} menu`}
+                >
+                  <EllipsisVertical className="h-4 w-4" />
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {}
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-border/20 text-foreground">
+              <th className="w-9 py-2.5">
+                {onToggleAll ? (
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-accent"
+                    checked={allSelected}
+                    onChange={onToggleAll}
+                    aria-label="Select all files"
+                  />
+                ) : null}
+              </th>
+              <th className="py-2.5 font-extrabold">Name</th>
+              {mode === "default" ? (
+                <th className="py-2.5 font-extrabold text-muted font-semibold">
+                  Folder
+                </th>
+              ) : null}
+              {mode === "shared" ? (
+                <th className="py-2.5 font-extrabold">Owner</th>
+              ) : null}
+              {mode === "starred" ? (
+                <th className="py-2.5 font-extrabold">Starred On</th>
+              ) : null}
+              {mode === "archived" ? (
+                <th className="py-2.5 font-extrabold">Archived Date</th>
+              ) : null}
+              {mode === "archived" ? (
+                <th className="py-2.5 font-extrabold">Original Location</th>
+              ) : mode === "recent" ? (
+                <th className="py-2.5 font-extrabold">Opened</th>
+              ) : (
+                <th className="py-2.5 font-extrabold">Last Modified</th>
+              )}
+              <th className="py-2.5 font-extrabold">Size</th>
+              <th className="py-2.5 font-extrabold">Access</th>
+              <th className="py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {files.map((file) => (
+              <tr
+                key={file.id ?? file.name}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("text/plain", file.id ?? "");
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onContextMenu={(event) => onFileContextMenu?.(event, file)}
+                onClick={() => onToggleFile?.(file)}
+                className={
+                  selectedFileIds.has(file.id ?? "")
+                    ? "group border-b file-selected transition cursor-grab active:cursor-grabbing"
+                    : "group border-b border-border/10 transition hover:bg-surface-secondary cursor-grab active:cursor-grabbing"
+                }
+              >
+                <td className="py-2.5">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-accent"
+                    checked={selectedFileIds.has(file.id ?? "")}
+                    onChange={() => onToggleFile?.(file)}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </td>
+                <td className="py-2.5 font-semibold">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    {mode === "starred" ? (
+                      <Star className="h-4 w-4 shrink-0 fill-warning text-muted" />
+                    ) : (
+                      <FileIcon kind={file.kind} />
+                    )}
+                    <span
+                      className="truncate max-w-[200px] lg:max-w-[280px]"
+                      title={file.name}
+                    >
+                      {file.name}
+                    </span>
+                  </span>
+                </td>
+                {}
+                {mode === "default" ? (
+                  <td className="py-2.5 text-muted">
+                    {file.folderName ? (
+                      <span className="flex items-center gap-1 text-xs font-medium text-muted">
+                        <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate max-w-[120px]">
+                          {file.folderName}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted">—</span>
+                    )}
+                  </td>
+                ) : null}
+                {mode === "shared" ? (
+                  <td className="py-2.5 text-muted">{file.owner}</td>
+                ) : null}
+                {mode === "starred" ? (
+                  <td className="py-2.5 text-muted">{file.starredDate}</td>
+                ) : null}
+                {mode === "archived" ? (
+                  <td className="py-2.5 text-muted">{file.archivedDate}</td>
+                ) : null}
+                <td className="py-2.5 text-muted">
+                  {mode === "archived"
+                    ? file.location
+                    : mode === "recent"
+                      ? (file.openedDate ?? file.date)
+                      : file.date}
+                </td>
+                <td className="py-2.5 text-muted">{file.size}</td>
+                <td className="py-2.5 text-muted">
+                  <span className="flex items-center gap-2">
+                    <AvatarStack count={file.shared} />
+                    {file.access}
+                  </span>
+                </td>
+                <td className="py-2.5 text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    {}
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex gap-1.5">
+                      <button
+                        type="button"
+                        title="Copy Link"
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          try {
+                            const data = await apiFetch<{ url: string | null }>(
+                              `/files/${file.id}/view-url`,
+                            );
+                            if (data.url) {
+                              await navigator.clipboard.writeText(data.url);
+                              setCopiedFileId(file.id ?? null);
+                              setTimeout(() => setCopiedFileId(null), 2000);
+                            } else {
+                              const shareData = await apiFetch<{ url: string }>(
+                                `/files/${file.id}/share`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ rotate: true }),
+                                },
+                              );
+                              await navigator.clipboard.writeText(
+                                shareData.url,
+                              );
+                              setCopiedFileId(file.id ?? null);
+                              setTimeout(() => setCopiedFileId(null), 2000);
+                            }
+                          } catch {
+                            
+                          }
+                        }}
+                        className={
+                          copiedFileId === file.id
+                            ? "inline-flex h-7 px-2 items-center justify-center rounded-lg text-[11px] font-bold text-foreground bg-surface-secondary hover:bg-default transition-all scale-95"
+                            : "inline-flex h-7 px-2 items-center justify-center rounded-lg text-[11px] font-bold text-foreground bg-surface-secondary hover:bg-surface-secondary transition-colors"
+                        }
+                      >
+                        {copiedFileId === file.id ? "Copied!" : "Copy Link"}
+                      </button>
+                      <button
+                        type="button"
+                        title="Move File"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          window.dispatchEvent(
+                            new CustomEvent("archivecloud:open-move-modal", {
+                              detail: file,
+                            }),
+                          );
+                        }}
+                        className="inline-flex h-7 px-2 items-center justify-center rounded-lg text-[11px] font-bold text-muted bg-surface-secondary hover:bg-default transition-colors"
+                      >
+                        Move
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:bg-surface-secondary shrink-0"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onFileContextMenu?.(event, file);
+                      }}
+                      aria-label={`Open ${file.name} menu`}
+                    >
+                      <EllipsisVertical className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
