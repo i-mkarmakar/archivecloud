@@ -1,11 +1,11 @@
 "use client";
 
-import { useSignIn, useSignUp } from "@clerk/nextjs";
-import { toast } from "@heroui/react";
+import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/nextjs";
 import { Eye, EyeSlash } from "@gravity-ui/icons";
+import { toast } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { FacebookLogo } from "@/components/auth/FacebookLogo";
 import { GoogleLogo } from "@/components/auth/GoogleLogo";
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,27 @@ import { cn } from "@/lib/utils";
 type AuthMode = "signin" | "signup";
 type OAuthProvider = "google" | "facebook";
 
+const HOME_PATH = "/all-files";
+
 const oauthStrategy: Record<OAuthProvider, "oauth_google" | "oauth_facebook"> =
   {
     google: "oauth_google",
     facebook: "oauth_facebook",
   };
+
+function navigateAfterAuth(
+  decorateUrl: (url: string) => string,
+  router: ReturnType<typeof useRouter>,
+) {
+  const url = decorateUrl(HOME_PATH);
+  // Absolute URLs are Clerk handshake redirects that sync the session cookie
+  // for middleware — client router.push alone leaves you stuck on /signin.
+  if (url.startsWith("http")) {
+    window.location.href = url;
+    return;
+  }
+  router.push(url);
+}
 
 export function LoginForm({
   mode,
@@ -36,6 +52,8 @@ export function LoginForm({
   className?: string;
 }) {
   const router = useRouter();
+  const clerk = useClerk();
+  const { isLoaded, isSignedIn } = useAuth();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
 
@@ -44,6 +62,13 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [ssoLoading, setSsoLoading] = useState<OAuthProvider | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      // Full navigation so middleware picks up the session cookie.
+      window.location.replace(HOME_PATH);
+    }
+  }, [isLoaded, isSignedIn]);
 
   const loading =
     mode === "signin"
@@ -62,7 +87,7 @@ export function LoginForm({
       const { error: ssoError } = await signIn.sso({
         strategy,
         redirectCallbackUrl: "/signin/sso-callback",
-        redirectUrl: "/all-files",
+        redirectUrl: HOME_PATH,
       });
       if (ssoError) {
         toast.danger(ssoError.message ?? `${providerLabel} sign-in failed`);
@@ -75,7 +100,7 @@ export function LoginForm({
     const { error: ssoError } = await signUp.sso({
       strategy,
       redirectCallbackUrl: "/signup/sso-callback",
-      redirectUrl: "/all-files",
+      redirectUrl: HOME_PATH,
       firstName: name.trim() || undefined,
     });
     if (ssoError) {
@@ -94,13 +119,26 @@ export function LoginForm({
         password,
       });
       if (passwordError) {
+        // Session already exists — activate it instead of showing a dead-end error.
+        const existingSessionId = signIn.existingSession?.sessionId;
+        if (existingSessionId) {
+          await clerk.setActive({
+            session: existingSessionId,
+            navigate: ({ session, decorateUrl }) => {
+              if (session?.currentTask) return;
+              navigateAfterAuth(decorateUrl, router);
+            },
+          });
+          return;
+        }
         toast.danger(passwordError.message ?? "Sign-in failed");
         return;
       }
       if (signIn.status === "complete") {
         await signIn.finalize({
-          navigate: ({ decorateUrl }) => {
-            router.push(decorateUrl("/all-files"));
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) return;
+            navigateAfterAuth(decorateUrl, router);
           },
         });
         return;
@@ -123,8 +161,9 @@ export function LoginForm({
     }
     if (signUp.status === "complete") {
       await signUp.finalize({
-        navigate: ({ decorateUrl }) => {
-          router.push(decorateUrl("/all-files"));
+        navigate: ({ session, decorateUrl }) => {
+          if (session?.currentTask) return;
+          navigateAfterAuth(decorateUrl, router);
         },
       });
       return;
@@ -141,6 +180,14 @@ export function LoginForm({
 
   const authReady = isSignIn ? Boolean(signIn) : Boolean(signUp);
   const ssoBusy = ssoLoading !== null;
+
+  if (!isLoaded || isSignedIn) {
+    return (
+      <p className="text-center text-sm text-muted-foreground">
+        Redirecting...
+      </p>
+    );
+  }
 
   return (
     <form className={cn("flex flex-col gap-6", className)} onSubmit={submit}>
