@@ -20,7 +20,10 @@ const folderIconOptionList = [
     label: "Folder Open",
     url: "https://api.iconify.design/gravity-ui/folder-open.svg",
   },
-  { label: "Folders", url: "https://api.iconify.design/gravity-ui/folders.svg" },
+  {
+    label: "Folders",
+    url: "https://api.iconify.design/gravity-ui/folders.svg",
+  },
   { label: "Files", url: "https://api.iconify.design/gravity-ui/files.svg" },
   {
     label: "File Text",
@@ -63,14 +66,20 @@ const folderIconOptionList = [
     label: "Hard Drive",
     url: "https://api.iconify.design/gravity-ui/hard-drive.svg",
   },
-  { label: "Database", url: "https://api.iconify.design/gravity-ui/database.svg" },
+  {
+    label: "Database",
+    url: "https://api.iconify.design/gravity-ui/database.svg",
+  },
   { label: "Server", url: "https://api.iconify.design/gravity-ui/server.svg" },
   {
     label: "Headphones",
     url: "https://api.iconify.design/gravity-ui/headphones.svg",
   },
   { label: "Code", url: "https://api.iconify.design/gravity-ui/code.svg" },
-  { label: "Terminal", url: "https://api.iconify.design/gravity-ui/terminal.svg" },
+  {
+    label: "Terminal",
+    url: "https://api.iconify.design/gravity-ui/terminal.svg",
+  },
   { label: "Package", url: "https://api.iconify.design/gravity-ui/box.svg" },
   {
     label: "Book Open",
@@ -80,10 +89,19 @@ const folderIconOptionList = [
     label: "Graduation Cap",
     url: "https://api.iconify.design/gravity-ui/graduation-cap.svg",
   },
-  { label: "Receipt", url: "https://api.iconify.design/gravity-ui/receipt.svg" },
+  {
+    label: "Receipt",
+    url: "https://api.iconify.design/gravity-ui/receipt.svg",
+  },
   { label: "Wallet", url: "https://api.iconify.design/gravity-ui/wallet.svg" },
-  { label: "Chart", url: "https://api.iconify.design/gravity-ui/chart-column.svg" },
-  { label: "Calendar", url: "https://api.iconify.design/gravity-ui/calendar.svg" },
+  {
+    label: "Chart",
+    url: "https://api.iconify.design/gravity-ui/chart-column.svg",
+  },
+  {
+    label: "Calendar",
+    url: "https://api.iconify.design/gravity-ui/calendar.svg",
+  },
   { label: "Clock", url: "https://api.iconify.design/gravity-ui/clock.svg" },
   { label: "Users", url: "https://api.iconify.design/gravity-ui/persons.svg" },
   {
@@ -96,7 +114,10 @@ const folderIconOptionList = [
   { label: "Star", url: "https://api.iconify.design/gravity-ui/star.svg" },
   { label: "Heart", url: "https://api.iconify.design/gravity-ui/heart.svg" },
   { label: "Rocket", url: "https://api.iconify.design/gravity-ui/rocket.svg" },
-  { label: "Sparkles", url: "https://api.iconify.design/gravity-ui/sparkles.svg" },
+  {
+    label: "Sparkles",
+    url: "https://api.iconify.design/gravity-ui/sparkles.svg",
+  },
 ] as const;
 
 export const folderIconOptions = folderIconOptionList.filter(

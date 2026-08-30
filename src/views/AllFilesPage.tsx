@@ -374,7 +374,10 @@ export function AllFilesPage() {
     window.addEventListener("archivecloud:open-move-modal", onOpenMoveShortcut);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("archivecloud:open-move-modal", onOpenMoveShortcut);
+      window.removeEventListener(
+        "archivecloud:open-move-modal",
+        onOpenMoveShortcut,
+      );
     };
   }, [activeFolderForMenu, cutFolder, activeFolderId]);
 
@@ -859,7 +862,10 @@ export function AllFilesPage() {
     function handleUploadCompleted() {
       loadAll().catch(() => undefined);
     }
-    window.addEventListener("archivecloud:upload-completed", handleUploadCompleted);
+    window.addEventListener(
+      "archivecloud:upload-completed",
+      handleUploadCompleted,
+    );
     return () =>
       window.removeEventListener(
         "archivecloud:upload-completed",
@@ -876,9 +882,7 @@ export function AllFilesPage() {
         onClick={syncGoogleDrive}
       >
         <ArrowRotateRight
-          className={
-            syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-          }
+          className={syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
         />
         {syncingDrive ? "Syncing..." : "Sync"}
       </Button>,

@@ -1,9 +1,5 @@
 import { Button, Card, toast } from "@heroui/react";
-import {
-  FileText,
-  ArrowRotateLeft,
-  TrashBin,
-} from "@gravity-ui/icons";
+import { FileText, ArrowRotateLeft, TrashBin } from "@gravity-ui/icons";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { apiFetch, formatBytes } from "@/lib/api";

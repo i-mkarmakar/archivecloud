@@ -117,7 +117,11 @@ export function FolderContextMenu({
           <MenuItem icon={Copy} label="Copy Link" onClick={onCopyLink} />
           <MenuItem icon={Scissors} label="Cut" onClick={onCut} kbd="⌘X" />
           <MenuItem icon={Pencil} label="Rename" onClick={onRename} />
-          <MenuItem icon={PersonPlus} label="Invite Member" onClick={onInvite} />
+          <MenuItem
+            icon={PersonPlus}
+            label="Invite Member"
+            onClick={onInvite}
+          />
           <div className="my-1 h-px bg-surface-secondary dark:bg-accent" />
           <MenuItem
             icon={TrashBin}

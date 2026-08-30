@@ -16,7 +16,10 @@ export const googleDriveOAuthScopes = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ];
 
-function isConfiguredEnvValue(value: string | undefined, placeholders: string[]) {
+function isConfiguredEnvValue(
+  value: string | undefined,
+  placeholders: string[],
+) {
   if (!value?.trim()) return false;
   return !placeholders.includes(value.trim());
 }

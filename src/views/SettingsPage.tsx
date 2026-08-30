@@ -153,9 +153,7 @@ export function SettingsPage() {
       ) {
         return;
       }
-      if (
-        event.data.status === "success"
-      ) {
+      if (event.data.status === "success") {
         toast.success("Google Drive connected.");
       } else {
         toast.danger("Google Drive connection failed.");
@@ -362,7 +360,9 @@ export function SettingsPage() {
                   onPress={handleEnableDeveloper}
                   isDisabled={developerLoading || enablingDeveloper}
                 >
-                  {enablingDeveloper ? "Enabling..." : "Enable Developer Console"}
+                  {enablingDeveloper
+                    ? "Enabling..."
+                    : "Enable Developer Console"}
                 </Button>
               )}
             </div>
@@ -416,7 +416,9 @@ export function SettingsPage() {
           </Card>
 
           <Card className="p-4">
-            <h2 className="text-[16px] font-bold">Connected Storage Accounts</h2>
+            <h2 className="text-[16px] font-bold">
+              Connected Storage Accounts
+            </h2>
             <div className="mt-3.5 grid gap-3">
               {accounts.length === 0 ? (
                 <p className="text-xs text-muted">
@@ -544,7 +546,9 @@ export function SettingsPage() {
                     <span className="font-semibold">
                       {log.action.replace(/_/g, " ")}
                     </span>
-                    <span className="text-muted">{formatDate(log.createdAt)}</span>
+                    <span className="text-muted">
+                      {formatDate(log.createdAt)}
+                    </span>
                   </div>
                 ))
               )}

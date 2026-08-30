@@ -172,7 +172,11 @@ export function FileContextMenu({
         {/* Actions */}
         <div className="p-1.5">
           <MenuItem icon={Eye} label="Preview" onClick={onView} kbd="↵" />
-          <MenuItem icon={ArrowDownToLine} label="Download" onClick={onDownload} />
+          <MenuItem
+            icon={ArrowDownToLine}
+            label="Download"
+            onClick={onDownload}
+          />
           <MenuItem icon={Pencil} label="Rename" onClick={onRename} />
           <MenuItem
             icon={FolderArrowRight}
@@ -203,7 +207,11 @@ export function FileContextMenu({
             onClick={handleCopyLink}
             kbd="Ctrl+L"
           />
-          <MenuItem icon={PersonPlus} label="Invite Member" onClick={onInvite} />
+          <MenuItem
+            icon={PersonPlus}
+            label="Invite Member"
+            onClick={onInvite}
+          />
 
           <div className="my-1 h-px bg-surface-secondary dark:bg-accent" />
 

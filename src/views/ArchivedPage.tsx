@@ -20,8 +20,7 @@ export function ArchivedPage() {
   const [busy, setBusy] = useState(false);
 
   const totalBytes = useMemo(
-    () =>
-      files.reduce((sum, file) => sum + Number(file.sizeBytes ?? 0), 0),
+    () => files.reduce((sum, file) => sum + Number(file.sizeBytes ?? 0), 0),
     [files],
   );
 

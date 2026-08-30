@@ -1,25 +1,39 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher([
+// Signed-out routes that must stay reachable. Native path checks —
+// createRouteMatcher is deprecated for middleware auth gating.
+const PUBLIC_PREFIXES = [
   "/signin",
   "/signup",
-  "/signin/sso-callback",
-  "/signup/sso-callback",
   "/google-auth",
   "/google-connected",
-  "/public/files(.*)",
-  "/api/public(.*)",
-  "/api/v1(.*)",
-  "/files/preview(.*)",
+  "/public/files",
+  "/api/public",
+  "/api/v1",
+  "/files/preview",
   "/health",
   "/connected-accounts/google/callback",
-]);
+  "/login",
+] as const;
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
-  }
-});
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+export default clerkMiddleware(
+  async (auth, request) => {
+    if (!isPublicPath(request.nextUrl.pathname)) {
+      await auth.protect();
+    }
+  },
+  {
+    frontendApiProxy: {
+      enabled: true,
+    },
+  },
+);
 
 export const config = {
   matcher: [
