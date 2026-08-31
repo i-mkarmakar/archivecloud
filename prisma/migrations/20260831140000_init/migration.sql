@@ -6,8 +6,11 @@ CREATE TABLE "users" (
     "id" CHAR(36) NOT NULL,
     "name" VARCHAR(191) NOT NULL,
     "email" VARCHAR(191) NOT NULL,
-    "password_hash" VARCHAR(255) NOT NULL,
+    "email_verified" BOOLEAN NOT NULL DEFAULT false,
+    "image" TEXT,
     "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "developer_mode_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "developer_mode_enabled_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -43,21 +46,6 @@ CREATE TABLE "upload_routing_policies" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "upload_routing_policies_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "user_sessions" (
-    "id" CHAR(36) NOT NULL,
-    "user_id" CHAR(36) NOT NULL,
-    "refresh_token_hash" VARCHAR(255) NOT NULL,
-    "user_agent" TEXT,
-    "ip_address" VARCHAR(64),
-    "expires_at" TIMESTAMP(3) NOT NULL,
-    "revoked_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "user_sessions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -173,6 +161,11 @@ CREATE TABLE "files" (
     "size_bytes" BIGINT NOT NULL,
     "checksum" VARCHAR(191),
     "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "is_starred" BOOLEAN NOT NULL DEFAULT false,
+    "starred_at" TIMESTAMP(3),
+    "is_archived" BOOLEAN NOT NULL DEFAULT false,
+    "archived_at" TIMESTAMP(3),
+    "last_accessed_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "deleted_at" TIMESTAMP(3),
@@ -217,7 +210,6 @@ CREATE TABLE "folders" (
     "provider_folder_id" VARCHAR(191),
     "name" VARCHAR(255) NOT NULL,
     "color" VARCHAR(64) NOT NULL DEFAULT 'text-blue-500',
-    "icon_url" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "deleted_at" TIMESTAMP(3),
@@ -273,6 +265,52 @@ CREATE TABLE "workspace_invites" (
     CONSTRAINT "workspace_invites_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "auth_sessions" (
+    "id" TEXT NOT NULL,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+    "token" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "ip_address" VARCHAR(64),
+    "user_agent" TEXT,
+    "user_id" CHAR(36) NOT NULL,
+
+    CONSTRAINT "auth_sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "auth_accounts" (
+    "id" TEXT NOT NULL,
+    "issuer" VARCHAR(191) NOT NULL,
+    "account_id" VARCHAR(191) NOT NULL,
+    "provider_id" VARCHAR(64) NOT NULL,
+    "user_id" CHAR(36) NOT NULL,
+    "access_token" TEXT,
+    "refresh_token" TEXT,
+    "id_token" TEXT,
+    "access_token_expires_at" TIMESTAMP(3),
+    "refresh_token_expires_at" TIMESTAMP(3),
+    "scope" TEXT,
+    "password" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "auth_accounts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "auth_verifications" (
+    "id" TEXT NOT NULL,
+    "identifier" VARCHAR(191) NOT NULL,
+    "value" TEXT NOT NULL,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "auth_verifications_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -287,12 +325,6 @@ CREATE INDEX "api_keys_user_id_status_created_at_idx" ON "api_keys"("user_id", "
 
 -- CreateIndex
 CREATE UNIQUE INDEX "upload_routing_policies_user_id_key" ON "upload_routing_policies"("user_id");
-
--- CreateIndex
-CREATE INDEX "user_sessions_user_id_idx" ON "user_sessions"("user_id");
-
--- CreateIndex
-CREATE INDEX "user_sessions_refresh_token_hash_idx" ON "user_sessions"("refresh_token_hash");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "auth_handoffs_token_hash_key" ON "auth_handoffs"("token_hash");
@@ -341,6 +373,15 @@ CREATE INDEX "files_user_id_status_created_at_idx" ON "files"("user_id", "status
 
 -- CreateIndex
 CREATE INDEX "files_user_id_status_folder_id_created_at_idx" ON "files"("user_id", "status", "folder_id", "created_at");
+
+-- CreateIndex
+CREATE INDEX "files_user_id_status_is_starred_starred_at_idx" ON "files"("user_id", "status", "is_starred", "starred_at");
+
+-- CreateIndex
+CREATE INDEX "files_user_id_status_is_archived_archived_at_idx" ON "files"("user_id", "status", "is_archived", "archived_at");
+
+-- CreateIndex
+CREATE INDEX "files_user_id_status_last_accessed_at_idx" ON "files"("user_id", "status", "last_accessed_at");
 
 -- CreateIndex
 CREATE INDEX "files_connected_account_id_idx" ON "files"("connected_account_id");
@@ -411,14 +452,26 @@ CREATE INDEX "workspace_invites_target_type_target_id_idx" ON "workspace_invites
 -- CreateIndex
 CREATE UNIQUE INDEX "workspace_invites_target_unique" ON "workspace_invites"("inviter_id", "invitee_email", "target_type", "target_id");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "auth_sessions_token_key" ON "auth_sessions"("token");
+
+-- CreateIndex
+CREATE INDEX "auth_sessions_user_id_idx" ON "auth_sessions"("user_id");
+
+-- CreateIndex
+CREATE INDEX "auth_accounts_user_id_idx" ON "auth_accounts"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "auth_accounts_issuer_account_id_uidx" ON "auth_accounts"("issuer", "account_id");
+
+-- CreateIndex
+CREATE INDEX "auth_verifications_identifier_idx" ON "auth_verifications"("identifier");
+
 -- AddForeignKey
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "upload_routing_policies" ADD CONSTRAINT "upload_routing_policies_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_sessions" ADD CONSTRAINT "user_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "auth_handoffs" ADD CONSTRAINT "auth_handoffs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -492,3 +545,8 @@ ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("
 -- AddForeignKey
 ALTER TABLE "workspace_invites" ADD CONSTRAINT "workspace_invites_inviter_id_fkey" FOREIGN KEY ("inviter_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "auth_sessions" ADD CONSTRAINT "auth_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "auth_accounts" ADD CONSTRAINT "auth_accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

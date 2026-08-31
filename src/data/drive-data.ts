@@ -3,7 +3,6 @@ export type FolderItem = {
   name: string;
   updated: string;
   color: string;
-  iconUrl?: string | null;
   parentId?: string | null;
   providerFolderId?: string | null;
 };

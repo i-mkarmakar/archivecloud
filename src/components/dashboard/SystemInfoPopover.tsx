@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, buttonVariants, Popover, Separator, Surface } from "@heroui/react";
+import { buttonVariants, Popover, Separator, Surface } from "@heroui/react";
 import { Bell, CircleInfo, HardDrive, ShieldCheck } from "@gravity-ui/icons";
 
 export function SystemInfoPopover({

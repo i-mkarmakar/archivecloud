@@ -1,30 +1,60 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-const isPublicRoute = createRouteMatcher([
+const publicRoutePrefixes = [
   "/signin",
   "/signup",
-  "/signin/sso-callback",
-  "/signup/sso-callback",
   "/google-auth",
   "/google-connected",
-  "/public/files(.*)",
-  "/api/public(.*)",
-  "/api/v1(.*)",
-  "/files/preview(.*)",
+  "/public/files",
+  "/api/public",
+  "/api/v1",
+  "/api/auth",
+  "/files/preview",
   "/health",
   "/connected-accounts/google/callback",
-]);
+];
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+function isPublicRoute(pathname: string) {
+  return publicRoutePrefixes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
+
+function hasAuthSession(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => {
+    const normalized = cookie.name.replace(/^(__Secure-|__Host-)/, "");
+    return (
+      normalized === "archivecloud.session_token" ||
+      normalized === "archivecloud.session_data"
+    );
+  });
+}
+
+export default async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isPublicRoute(pathname)) {
+    const isAuthPage = pathname === "/signin" || pathname === "/signup";
+    if (isAuthPage && hasAuthSession(request)) {
+      return NextResponse.redirect(new URL("/all-files", request.url));
+    }
+    return NextResponse.next();
   }
-});
+
+  if (!hasAuthSession(request)) {
+    const signInUrl = new URL("/signin", request.url);
+    if (pathname !== "/") {
+      signInUrl.searchParams.set("callbackUrl", pathname);
+    }
+    return NextResponse.redirect(signInUrl);
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
-    "/__clerk/(.*)",
   ],
 };

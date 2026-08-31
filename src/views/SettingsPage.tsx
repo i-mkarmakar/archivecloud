@@ -1,6 +1,5 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { Button, Card, Input, toast } from "@heroui/react";
 import {
   ArrowRotateRight,
@@ -20,7 +19,8 @@ import { DummyModal } from "@/components/drive/DummyModal";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { useDeveloperMode } from "@/context/DeveloperModeContext";
 import { apiFetch, formatBytes, formatDate } from "@/lib/api";
-import { clerkUserToAuthUser } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
+import { sessionUserToAuthUser } from "@/lib/auth-user";
 import { getGravatarUrl } from "@/lib/gravatar";
 
 type ConnectedAccount = {
@@ -66,8 +66,8 @@ function availableLabel(account: ConnectedAccount) {
 export function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user: clerkUser } = useUser();
-  const user = clerkUser ? clerkUserToAuthUser(clerkUser) : null;
+  const { data: session } = authClient.useSession();
+  const user = session?.user ? sessionUserToAuthUser(session.user) : null;
   const {
     developerModeEnabled,
     enableDeveloperMode,
@@ -153,9 +153,7 @@ export function SettingsPage() {
       ) {
         return;
       }
-      if (
-        event.data.status === "success"
-      ) {
+      if (event.data.status === "success") {
         toast.success("Google Drive connected.");
       } else {
         toast.danger("Google Drive connection failed.");
@@ -362,7 +360,9 @@ export function SettingsPage() {
                   onPress={handleEnableDeveloper}
                   isDisabled={developerLoading || enablingDeveloper}
                 >
-                  {enablingDeveloper ? "Enabling..." : "Enable Developer Console"}
+                  {enablingDeveloper
+                    ? "Enabling..."
+                    : "Enable Developer Console"}
                 </Button>
               )}
             </div>
@@ -416,7 +416,9 @@ export function SettingsPage() {
           </Card>
 
           <Card className="p-4">
-            <h2 className="text-[16px] font-bold">Connected Storage Accounts</h2>
+            <h2 className="text-[16px] font-bold">
+              Connected Storage Accounts
+            </h2>
             <div className="mt-3.5 grid gap-3">
               {accounts.length === 0 ? (
                 <p className="text-xs text-muted">
@@ -544,7 +546,9 @@ export function SettingsPage() {
                     <span className="font-semibold">
                       {log.action.replace(/_/g, " ")}
                     </span>
-                    <span className="text-muted">{formatDate(log.createdAt)}</span>
+                    <span className="text-muted">
+                      {formatDate(log.createdAt)}
+                    </span>
                   </div>
                 ))
               )}

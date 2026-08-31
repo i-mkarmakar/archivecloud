@@ -1,19 +1,15 @@
 "use client";
 
-import { useClerk } from "@clerk/nextjs";
+import { authClient } from "@/lib/auth-client";
 import { Button, Card } from "@heroui/react";
-import {
-  ArrowRotateRight,
-  Database,
-  HardDrive,
-} from "@gravity-ui/icons";
+import { ArrowRotateRight, Database, HardDrive } from "@gravity-ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { DummyModal } from "@/components/drive/DummyModal";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { API_URL, apiFetch } from "@/lib/api";
 
 export function DeveloperOpsPage() {
-  const { signOut } = useClerk();
+  const signOut = () => authClient.signOut();
   const [updatingSystem, setUpdatingSystem] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateModalTitle, setUpdateModalTitle] = useState("");
@@ -207,9 +203,7 @@ export function DeveloperOpsPage() {
               isDisabled={updatingSystem}
             >
               <ArrowRotateRight
-                className={
-                  updatingSystem ? "h-4 w-4 animate-spin" : "h-4 w-4"
-                }
+                className={updatingSystem ? "h-4 w-4 animate-spin" : "h-4 w-4"}
               />
               {updatingSystem ? "Updating..." : "Update Code"}
             </Button>
@@ -261,7 +255,8 @@ export function DeveloperOpsPage() {
                   <div>
                     <h3 className="text-sm font-bold">Restore Backup</h3>
                     <p className="mt-1 text-[12px] text-muted leading-normal">
-                      Upload a previously downloaded ArchiveCloud SQL backup file.
+                      Upload a previously downloaded ArchiveCloud SQL backup
+                      file.
                     </p>
                   </div>
                 </div>

@@ -10,17 +10,7 @@ import {
 } from "@/server/modules/google/google.service";
 import { createAuditLog } from "@/server/utils/audit";
 
-const defaultFolderColor = "#3b82f6";
-const defaultFolderIconUrl = "https://api.iconify.design/gravity-ui/folder.svg";
-const iconUrlSchema = z
-  .string()
-  .url()
-  .refine(
-    (url) =>
-      /^https:\/\/api\.iconify\.design\/(gravity-ui|lucide)([:/])/.test(url),
-    { message: "Icon URL must use Gravity UI or legacy Lucide Iconify URLs" },
-  )
-  .max(2048);
+const defaultFolderColor = "#50B1FD";
 const colorSchema = z
   .string()
   .regex(/^(#[0-9a-fA-F]{6}|text-[a-z]+-[0-9]+)$/)
@@ -29,7 +19,6 @@ const colorSchema = z
 const createSchema = z.object({
   name: z.string().min(1).max(255),
   color: colorSchema.optional(),
-  iconUrl: iconUrlSchema.nullable().optional(),
   parentId: z.string().nullable().optional(),
 });
 
@@ -37,7 +26,6 @@ function serializeFolder(folder: {
   id: string;
   name: string;
   color: string;
-  iconUrl?: string | null;
   parentId?: string | null;
   providerFolderId?: string | null;
   createdAt: Date;
@@ -134,7 +122,6 @@ export async function listFoldersHandler(request: Request) {
       id: true,
       name: true,
       color: true,
-      iconUrl: true,
       parentId: true,
       providerFolderId: true,
       createdAt: true,
@@ -157,7 +144,6 @@ export async function listRecentFoldersHandler(request: Request) {
       id: true,
       name: true,
       color: true,
-      iconUrl: true,
       parentId: true,
       providerFolderId: true,
       createdAt: true,
@@ -215,7 +201,6 @@ export async function createFolderHandler(request: Request) {
       userId: user.id,
       name: body.name,
       color: body.color ?? defaultFolderColor,
-      iconUrl: body.iconUrl ?? defaultFolderIconUrl,
       parentId: body.parentId ?? null,
       providerFolderId,
       connectedAccountId: connectedAccount?.id ?? null,
@@ -224,7 +209,6 @@ export async function createFolderHandler(request: Request) {
       id: true,
       name: true,
       color: true,
-      iconUrl: true,
       parentId: true,
       providerFolderId: true,
       createdAt: true,
@@ -350,7 +334,6 @@ export async function updateFolderHandler(
     data: {
       ...(body.name ? { name: body.name } : {}),
       ...(body.color ? { color: body.color } : {}),
-      ...(body.iconUrl !== undefined ? { iconUrl: body.iconUrl } : {}),
       ...(body.parentId !== undefined ? { parentId: body.parentId } : {}),
     },
   });
@@ -362,7 +345,6 @@ export async function updateFolderHandler(
       id: true,
       name: true,
       color: true,
-      iconUrl: true,
       parentId: true,
       providerFolderId: true,
       createdAt: true,
