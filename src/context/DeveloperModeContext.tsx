@@ -60,7 +60,12 @@ export function DeveloperModeProvider({ children }: { children: ReactNode }) {
       enableDeveloperMode,
       refreshAccount,
     }),
-    [account?.developerModeEnabled, enableDeveloperMode, loading, refreshAccount],
+    [
+      account?.developerModeEnabled,
+      enableDeveloperMode,
+      loading,
+      refreshAccount,
+    ],
   );
 
   return (
@@ -73,7 +78,9 @@ export function DeveloperModeProvider({ children }: { children: ReactNode }) {
 export function useDeveloperMode() {
   const context = useContext(DeveloperModeContext);
   if (!context) {
-    throw new Error("useDeveloperMode must be used within DeveloperModeProvider");
+    throw new Error(
+      "useDeveloperMode must be used within DeveloperModeProvider",
+    );
   }
   return context;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@heroui/react";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useDeveloperMode } from "@/context/DeveloperModeContext";
 
 export function DeveloperRoute({ children }: { children: ReactNode }) {
@@ -9,7 +9,9 @@ export function DeveloperRoute({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <Card className="p-6 text-sm text-muted">Loading Developer Console...</Card>
+      <Card className="p-6 text-sm text-muted">
+        Loading Developer Console...
+      </Card>
     );
   }
 

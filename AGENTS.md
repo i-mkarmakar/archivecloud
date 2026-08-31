@@ -29,22 +29,25 @@ Single full-stack Next.js app at the repo root:
 
 - Next.js 16 (App Router + Route Handlers) + React 19 + TypeScript + Tailwind CSS 4 + HeroUI v3 (`@heroui/react`, `@heroui/styles`)
 - Prisma 7 + PostgreSQL 18 (`@prisma/adapter-pg`, generated client in `src/generated/prisma`)
-- Zod, Clerk auth, Busboy streaming uploads, Google APIs client, Undici
+- Zod, Better Auth, Busboy streaming uploads, Google APIs client, Undici
 
 ## Important Files
 
 Server and API:
 - `src/app/**/route.ts`: native Next.js Route Handlers (e.g. `/files`, `/uploads`).
 - `src/server/handlers/**`: handler functions invoked by Route Handlers.
-- `src/server/http/auth.ts`: Clerk session auth (`requireAuthUser` resolves local `User` row).
-- `src/server/lib/resolve-app-user.ts`: maps Clerk user ID to Prisma `User`.
+- `src/server/http/auth.ts`: Better Auth session auth (`requireAuthUser` reads session user id).
+- `src/lib/auth.ts`: Better Auth server instance (`export const auth`).
+- `src/lib/auth-client.ts`: Better Auth React client (`createAuthClient`).
+- `src/lib/auth-user.ts`: UI helpers (`sessionUserToAuthUser`).
+- `src/app/api/auth/[...all]/route.ts`: Better Auth API handler.
 - `src/server/http/responses.ts`: `json`, `errorJson`, `handleRoute`.
 - `src/server/config/env.ts`: environment validation (`APP_URL`, `PORT`, etc.).
 - `prisma.config.ts`: database URL for Prisma CLI (migrations); uses `DIRECT_DATABASE_URL` when set.
 - `src/server/config/prisma.ts`: Prisma client singleton (`server-only`, `PrismaPg` adapter).
 - `src/server/modules/files/stream-google-file.ts`: Google file preview/download streaming.
 - `src/server/scripts/seed-google-config.ts`: stores encrypted global Google OAuth config.
-- `src/proxy.ts`: Clerk request proxy (`clerkMiddleware`) and public route list.
+- `src/proxy.ts`: session cookie gate and public route list.
 
 UI:
 - `src/layouts/DriveLayout.tsx`: protected app shell, sidebar, header search, storage sidebar stats.
@@ -52,11 +55,10 @@ UI:
 - `src/views/SharedPage.tsx`: shared links and invites UI.
 - `src/views/QuotaTrackerPage.tsx`: connected-account quota UI.
 - `src/views/SettingsPage.tsx`: Google account/settings UI.
-- `src/views/SignInPage.tsx`, `src/views/SignUpPage.tsx`: custom sign-in/sign-up UI via Clerk hooks.
-- `src/views/GoogleAuthPage.tsx`: legacy redirect to `/signin` (Clerk handles Google sign-in).
+- `src/views/SignInPage.tsx`, `src/views/SignUpPage.tsx`: custom sign-in/sign-up UI via Better Auth client.
+- `src/views/GoogleAuthPage.tsx`: legacy redirect to `/signin`.
 - `src/views/PublicFilePage.tsx`: public shared file viewer/embed page.
 - `src/lib/api.ts`: API helper (`API_URL` is same-origin `''`), same-origin cookies, formatting utilities.
-- `src/lib/auth.ts`: Clerk user display helpers (`clerkUserToAuthUser`).
 - `src/app/globals.css`: Tailwind import and global styles.
 
 ## Commands
@@ -82,13 +84,14 @@ Root `.env`:
 - `DIRECT_DATABASE_URL` (optional; direct URL for `pnpm prisma:migrate` on pooled hosts)
 - `SHADOW_DATABASE_URL` (optional; shadow DB for `prisma migrate dev`)
 - `PORT` (default 3000)
-- `APP_URL` (public app URL for OAuth redirects and CORS; e.g. `http://localhost:3000`)
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
+- `BETTER_AUTH_URL` (auth base URL; defaults to `NEXT_PUBLIC_APP_URL`)
+- `NEXT_PUBLIC_APP_URL` (public app URL for links, OAuth, client auth — same as freefallinterface)
+- `SITE_URL` (alternate public URL, same as freefallinterface)
 - `TOKEN_ENCRYPTION_KEY`
 - `MAX_UPLOAD_BYTES`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (Drive connect + seed script)
 
-API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) with Clerk session cookies; no separate `NEXT_PUBLIC_API_URL` is required.
+API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) with Better Auth session cookies; no separate `NEXT_PUBLIC_API_URL` is required.
 
 ## Backend Conventions
 
@@ -101,7 +104,7 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 - Convert `bigint` values to strings before sending JSON responses.
 - Keep Google-specific OAuth/Drive behavior in `src/server/modules/google/`.
 - Keep public-token routes unauthenticated; verify token hash, status, and expiry before streaming/returning data.
-- Google Drive connect OAuth is separate from Clerk login (`/connected-accounts/google/*`).
+- Google Drive connect OAuth is separate from app login (`/connected-accounts/google/*` vs `/api/auth/callback/google`).
 - Route Handlers that use Node APIs (uploads, streaming, Busboy) should export `runtime = 'nodejs'` and `dynamic = 'force-dynamic'`.
 
 ## Frontend Conventions
@@ -110,7 +113,7 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 - Keep route registration in `src/app/**`.
 - Use `apiFetch` for normal JSON API calls.
 - Use raw `fetch` with `credentials: 'same-origin'` when response streaming/blob/progress requires it.
-- Clerk handles sign-in state; use `useAuth` / `useUser` in client components.
+- Use `authClient.useSession()` for sign-in state in client components.
 - Use `@heroui/react` components (`Button`, `Card`, `Input`, `Modal`, etc.) before adding new UI primitives. Import `@heroui/styles` in `src/app/globals.css`.
 - Use `cn` from `src/lib/utils.ts` for conditional class names.
 - Preserve current Tailwind visual style unless task explicitly asks redesign.
@@ -120,11 +123,11 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 ## Security Rules
 
 - Never commit `.env` files or secrets.
-- Never log OAuth client secrets, Clerk secrets, encryption keys, or raw public share tokens.
+- Never log OAuth client secrets, Better Auth secrets, encryption keys, or raw public share tokens.
 - Google tokens are encrypted before database storage.
 - Share and preview tokens are stored as hashes where applicable.
 - Uploaded files must stream through backend to Google Drive folder `archivecloud`; do not store uploaded files on disk.
-- Keep Clerk session handling centralized; do not change without explicit reason.
+- Keep Better Auth session handling centralized; do not change without explicit reason.
 
 ## Database Rules
 
@@ -138,9 +141,9 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 
 General:
 - `GET /health`
-- Authenticated routes require a valid Clerk session (cookie) unless listed as public. API keys use `Authorization: Bearer <apiKey>` on `/api/v1/*`.
+- Authenticated routes require a valid Better Auth session (cookie) unless listed as public. API keys use `Authorization: Bearer <apiKey>` on `/api/v1/*`.
 
-Auth is handled by Clerk (custom sign-in/sign-up UI, not Clerk hosted components). Local `User` rows are linked via `clerkUserId`.
+Auth is handled by Better Auth (custom sign-in/sign-up UI). Users are stored in the local `users` table with Better Auth `auth_sessions` / `auth_accounts` tables.
 - `POST /provider-configs/google`
 - `GET /provider-configs`
 - `DELETE /provider-configs/:id`

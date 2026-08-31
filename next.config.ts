@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Custom server (server.ts) handles API routes + Next.js pages in one process.
+  transpilePackages: ["better-auth"],
 };
 
 export default nextConfig;

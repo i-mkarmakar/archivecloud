@@ -34,11 +34,9 @@ import { FolderContextMenu } from "@/components/drive/FolderContextMenu";
 import { FolderGrid } from "@/components/drive/FolderGrid";
 import {
   defaultFolderColor,
-  defaultFolderIconUrl,
   folderColorOptions,
-  folderIconOptions,
   normalizeFolderColor,
-} from "@/components/drive/FolderVisual";
+} from "@/components/drive/folder-colors";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { useUpload } from "@/context/UploadContext";
 import { updateFilesMetadata } from "@/hooks/useWorkspaceFiles";
@@ -54,7 +52,6 @@ type BackendFolder = {
   id: string;
   name: string;
   color: string;
-  iconUrl?: string | null;
   parentId?: string | null;
   providerFolderId?: string | null;
   updatedAt: string;
@@ -85,23 +82,18 @@ function mapFolder(folder: BackendFolder): FolderItem {
     id: folder.id,
     name: folder.name,
     color: folder.color,
-    iconUrl: folder.iconUrl,
     parentId: folder.parentId,
     providerFolderId: folder.providerFolderId,
     updated: `Updated ${formatDate(folder.updatedAt)}`,
   };
 }
 
-function FolderAppearanceFields({
+function FolderColorFields({
   color,
-  iconUrl,
   onColorChange,
-  onIconChange,
 }: {
   color: string;
-  iconUrl: string;
   onColorChange: (color: string) => void;
-  onIconChange: (iconUrl: string) => void;
 }) {
   const normalizedColor = normalizeFolderColor(color);
   return (
@@ -130,31 +122,6 @@ function FolderAppearanceFields({
             aria-label={`Use ${option} folder color`}
           />
         ))}
-      </div>
-      <div className="grid gap-2 text-sm font-semibold">
-        <span>Folder Icon</span>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {folderIconOptions.map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              onClick={() => onIconChange(option.url)}
-              className={
-                iconUrl === option.url
-                  ? "flex h-12 items-center justify-center rounded-xl border-2 border-border bg-surface-secondary p-2"
-                  : "flex h-12 items-center justify-center rounded-xl border border-border bg-background-secondary p-2 hover:bg-surface-secondary"
-              }
-              title={option.label}
-              aria-label={`Use ${option.label} icon`}
-            >
-              <img
-                src={`${option.url}?color=${encodeURIComponent(normalizedColor)}`}
-                alt=""
-                className="h-6 w-6"
-              />
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -197,13 +164,10 @@ export function AllFilesPage() {
   const [isUploadDragging, setIsUploadDragging] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [folderColor, setFolderColor] = useState(defaultFolderColor);
-  const [folderIconUrl, setFolderIconUrl] = useState(defaultFolderIconUrl);
   const [renameValue, setRenameValue] = useState("");
   const [folderRenameValue, setFolderRenameValue] = useState("");
   const [folderRenameColor, setFolderRenameColor] =
     useState(defaultFolderColor);
-  const [folderRenameIconUrl, setFolderRenameIconUrl] =
-    useState(defaultFolderIconUrl);
   const [activeFile, setActiveFile] = useState<FileItem | null>(null);
   const [activeFolderForMenu, setActiveFolderForMenu] =
     useState<FolderItem | null>(null);
@@ -374,7 +338,10 @@ export function AllFilesPage() {
     window.addEventListener("archivecloud:open-move-modal", onOpenMoveShortcut);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("archivecloud:open-move-modal", onOpenMoveShortcut);
+      window.removeEventListener(
+        "archivecloud:open-move-modal",
+        onOpenMoveShortcut,
+      );
     };
   }, [activeFolderForMenu, cutFolder, activeFolderId]);
 
@@ -409,13 +376,11 @@ export function AllFilesPage() {
         body: JSON.stringify({
           name: folderName,
           color: folderColor,
-          iconUrl: folderIconUrl,
           parentId: activeFolderId ?? null,
         }),
       });
       setFolderName("");
       setFolderColor(defaultFolderColor);
-      setFolderIconUrl(defaultFolderIconUrl);
       setFolderOpen(false);
       await loadFolders();
       toast.success("Folder created.");
@@ -814,7 +779,6 @@ export function AllFilesPage() {
       body: JSON.stringify({
         name: folderRenameValue,
         color: folderRenameColor,
-        iconUrl: folderRenameIconUrl,
       }),
     });
     setFolderRenameOpen(false);
@@ -859,7 +823,10 @@ export function AllFilesPage() {
     function handleUploadCompleted() {
       loadAll().catch(() => undefined);
     }
-    window.addEventListener("archivecloud:upload-completed", handleUploadCompleted);
+    window.addEventListener(
+      "archivecloud:upload-completed",
+      handleUploadCompleted,
+    );
     return () =>
       window.removeEventListener(
         "archivecloud:upload-completed",
@@ -876,9 +843,7 @@ export function AllFilesPage() {
         onClick={syncGoogleDrive}
       >
         <ArrowRotateRight
-          className={
-            syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-          }
+          className={syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
         />
         {syncingDrive ? "Syncing..." : "Sync"}
       </Button>,
@@ -1216,9 +1181,6 @@ export function AllFilesPage() {
           setFolderRenameColor(
             normalizeFolderColor(activeFolderForMenu?.color),
           );
-          setFolderRenameIconUrl(
-            activeFolderForMenu?.iconUrl ?? defaultFolderIconUrl,
-          );
           setFolderRenameOpen(true);
           setFolderContextMenu({ x: 0, y: 0, folder: null });
         }}
@@ -1383,11 +1345,9 @@ export function AllFilesPage() {
               required
             />
           </div>
-          <FolderAppearanceFields
+          <FolderColorFields
             color={folderColor}
-            iconUrl={folderIconUrl}
             onColorChange={setFolderColor}
-            onIconChange={setFolderIconUrl}
           />
           <div className="grid gap-3 pt-2 sm:flex sm:justify-end">
             <Button
@@ -1572,11 +1532,9 @@ export function AllFilesPage() {
             onChange={(event) => setFolderRenameValue(event.target.value)}
             required
           />
-          <FolderAppearanceFields
+          <FolderColorFields
             color={folderRenameColor}
-            iconUrl={folderRenameIconUrl}
             onColorChange={setFolderRenameColor}
-            onIconChange={setFolderRenameIconUrl}
           />
           <div className="flex justify-end gap-3">
             <Button

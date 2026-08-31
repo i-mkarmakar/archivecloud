@@ -44,7 +44,7 @@ export async function requireApiKeyUser(
       .update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } })
       .catch(() => undefined);
     return {
-      user: { id: apiKey.userId, clerkUserId: `api-key:${apiKey.id}` },
+      user: { id: apiKey.userId },
       apiKey: { id: apiKey.id, scopes },
     };
   } catch {

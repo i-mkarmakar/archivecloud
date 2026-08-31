@@ -1,17 +1,17 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { authClient } from "@/lib/auth-client";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { data: session, isPending } = authClient.useSession();
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.replace("/signin");
-  }, [isLoaded, isSignedIn, router]);
+    if (!isPending && !session) router.replace("/signin");
+  }, [isPending, session, router]);
 
-  if (!isLoaded || !isSignedIn) return null;
+  if (isPending || !session) return null;
   return <>{children}</>;
 }

@@ -1,12 +1,10 @@
 "use client";
 
-import { useSignIn, useSignUp } from "@clerk/nextjs";
 import { toast } from "@heroui/react";
 import { Eye, EyeSlash } from "@gravity-ui/icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { FacebookLogo } from "@/components/auth/FacebookLogo";
 import { GoogleLogo } from "@/components/auth/GoogleLogo";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,16 +15,10 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 type AuthMode = "signin" | "signup";
-type OAuthProvider = "google" | "facebook";
-
-const oauthStrategy: Record<OAuthProvider, "oauth_google" | "oauth_facebook"> =
-  {
-    google: "oauth_google",
-    facebook: "oauth_facebook",
-  };
 
 export function LoginForm({
   mode,
@@ -36,111 +28,66 @@ export function LoginForm({
   className?: string;
 }) {
   const router = useRouter();
-  const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
-  const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
-
-  const [name, setName] = useState("");
+  const searchParams = useSearchParams();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [ssoLoading, setSsoLoading] = useState<OAuthProvider | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const loading =
-    mode === "signin"
-      ? signInFetchStatus === "fetching"
-      : signUpFetchStatus === "fetching";
   const isSignIn = mode === "signin";
+  const callbackUrl = searchParams.get("callbackUrl");
+  const redirectPath =
+    callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/all-files";
 
-  async function continueWithOAuth(provider: OAuthProvider) {
-    setSsoLoading(provider);
-
-    const strategy = oauthStrategy[provider];
-    const providerLabel = provider === "google" ? "Google" : "Facebook";
-
-    if (isSignIn) {
-      if (!signIn) return;
-      const { error: ssoError } = await signIn.sso({
-        strategy,
-        redirectCallbackUrl: "/signin/sso-callback",
-        redirectUrl: "/all-files",
-      });
-      if (ssoError) {
-        toast.danger(ssoError.message ?? `${providerLabel} sign-in failed`);
-        setSsoLoading(null);
-      }
-      return;
-    }
-
-    if (!signUp) return;
-    const { error: ssoError } = await signUp.sso({
-      strategy,
-      redirectCallbackUrl: "/signup/sso-callback",
-      redirectUrl: "/all-files",
-      firstName: name.trim() || undefined,
+  async function continueWithGoogle() {
+    setGoogleLoading(true);
+    await authClient.signIn.social({
+      provider: "google",
+      callbackURL: redirectPath,
     });
-    if (ssoError) {
-      toast.danger(ssoError.message ?? `${providerLabel} sign-up failed`);
-      setSsoLoading(null);
-    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
 
     if (isSignIn) {
-      if (!signIn) return;
-      const { error: passwordError } = await signIn.password({
-        emailAddress: email,
+      const { data, error } = await authClient.signIn.email({
+        email,
         password,
       });
-      if (passwordError) {
-        toast.danger(passwordError.message ?? "Sign-in failed");
+      setLoading(false);
+      if (error) {
+        toast.danger(error.message ?? "Sign-in failed");
         return;
       }
-      if (signIn.status === "complete") {
-        await signIn.finalize({
-          navigate: ({ decorateUrl }) => {
-            router.push(decorateUrl("/all-files"));
-          },
-        });
-        return;
+      if (data) {
+        router.push(redirectPath);
+        router.refresh();
       }
-      toast.info(
-        "Additional verification is required. Try social sign-in or check your email.",
-      );
       return;
     }
 
-    if (!signUp) return;
-    const { error: passwordError } = await signUp.password({
-      emailAddress: email,
+    const { error } = await authClient.signUp.email({
+      email,
       password,
-      firstName: name.trim(),
+      name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      callbackURL: redirectPath,
     });
-    if (passwordError) {
-      toast.danger(passwordError.message ?? "Sign-up failed");
+    setLoading(false);
+    if (error) {
+      toast.danger(error.message ?? "Sign-up failed");
       return;
     }
-    if (signUp.status === "complete") {
-      await signUp.finalize({
-        navigate: ({ decorateUrl }) => {
-          router.push(decorateUrl("/all-files"));
-        },
-      });
-      return;
-    }
-    if (signUp.status === "missing_requirements") {
-      await signUp.verifications.sendEmailCode();
-      toast.info("Check your email for a verification code, then sign in.");
-      return;
-    }
-    toast.danger(
-      "Could not complete sign-up. Try Google or Facebook sign-up instead.",
-    );
+    toast.success("Account created. You can sign in now.");
+    router.push(redirectPath);
+    router.refresh();
   }
-
-  const authReady = isSignIn ? Boolean(signIn) : Boolean(signUp);
-  const ssoBusy = ssoLoading !== null;
 
   return (
     <form className={cn("flex flex-col gap-6", className)} onSubmit={submit}>
@@ -157,16 +104,28 @@ export function LoginForm({
         </div>
 
         {!isSignIn ? (
-          <Field>
-            <FieldLabel htmlFor="name">Name</FieldLabel>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              required
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+              <Input
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="John"
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+              <Input
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Doe"
+                required
+              />
+            </Field>
+          </div>
         ) : null}
 
         <Field>
@@ -213,7 +172,8 @@ export function LoginForm({
         <Field>
           <Button
             type="submit"
-            disabled={loading || !authReady}
+            disabled={loading || googleLoading}
+            size="lg"
             className="w-full"
           >
             {loading
@@ -229,33 +189,17 @@ export function LoginForm({
         <FieldSeparator>Or continue with</FieldSeparator>
 
         <Field>
-          <div className="grid gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              disabled={ssoBusy || !authReady}
-              className="w-full"
-              onClick={() => continueWithOAuth("google")}
-            >
-              <GoogleLogo />
-              {ssoLoading === "google"
-                ? "Redirecting..."
-                : "Continue with Google"}
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              disabled={ssoBusy || !authReady}
-              className="w-full"
-              onClick={() => continueWithOAuth("facebook")}
-            >
-              <FacebookLogo className="h-4 w-4 text-[#1877F2]" />
-              {ssoLoading === "facebook"
-                ? "Redirecting..."
-                : "Continue with Facebook"}
-            </Button>
-          </div>
-          {!isSignIn ? <div id="clerk-captcha" /> : null}
+          <Button
+            variant="outline"
+            type="button"
+            disabled={loading || googleLoading}
+            size="lg"
+            className="w-full"
+            onClick={continueWithGoogle}
+          >
+            <GoogleLogo />
+            {googleLoading ? "Redirecting..." : "Continue with Google"}
+          </Button>
           <FieldDescription className="text-center">
             {isSignIn ? (
               <>

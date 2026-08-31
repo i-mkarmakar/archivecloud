@@ -91,7 +91,9 @@ export function PublicFilePage({
   }, [token]);
 
   useEffect(() => {
-    document.title = file ? `${file.name} | ArchiveCloud` : "Shared file | ArchiveCloud";
+    document.title = file
+      ? `${file.name} | ArchiveCloud`
+      : "Shared file | ArchiveCloud";
     return () => {
       document.title = "ArchiveCloud";
     };

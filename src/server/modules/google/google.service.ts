@@ -16,7 +16,10 @@ export const googleDriveOAuthScopes = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ];
 
-function isConfiguredEnvValue(value: string | undefined, placeholders: string[]) {
+function isConfiguredEnvValue(
+  value: string | undefined,
+  placeholders: string[],
+) {
   if (!value?.trim()) return false;
   return !placeholders.includes(value.trim());
 }
@@ -28,11 +31,9 @@ export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig
   });
   if (existing) return existing;
 
-  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI?.trim() ||
-    `${env.APP_URL}/connected-accounts/google/callback`;
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+  const redirectUri = env.GOOGLE_REDIRECT_URI;
 
   const hasClientId = isConfiguredEnvValue(clientId, [
     "your-google-client-id",

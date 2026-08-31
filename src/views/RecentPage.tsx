@@ -1,12 +1,7 @@
 "use client";
 
 import { Card } from "@heroui/react";
-import {
-  ArrowDownToLine,
-  Clock,
-  Eye,
-  Pencil,
-} from "@gravity-ui/icons";
+import { ArrowDownToLine, Clock, Eye, Pencil } from "@gravity-ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "@/components/drive/MetricCard";
 import { PageHeader } from "@/components/drive/PageHeader";
@@ -39,8 +34,7 @@ function parseMetadata(raw: AuditLog["metadata"]) {
 }
 
 function activityLabel(action: string, metadata: Record<string, unknown>) {
-  const name =
-    typeof metadata.name === "string" ? metadata.name : "a file";
+  const name = typeof metadata.name === "string" ? metadata.name : "a file";
   switch (action) {
     case "PREVIEW_FILE":
       return `Opened ${name}`;
@@ -100,8 +94,7 @@ export function RecentPage() {
     () =>
       logs.filter(
         (log) =>
-          log.action === "DOWNLOAD_FILE" &&
-          new Date(log.createdAt) >= today,
+          log.action === "DOWNLOAD_FILE" && new Date(log.createdAt) >= today,
       ).length,
     [logs, today],
   );
@@ -131,8 +124,16 @@ export function RecentPage() {
         description="Latest opened and modified files."
       />
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <MetricCard label="Opened Today" value={String(openedToday)} icon={Eye} />
-        <MetricCard label="Modified" value={String(modifiedToday)} icon={Pencil} />
+        <MetricCard
+          label="Opened Today"
+          value={String(openedToday)}
+          icon={Eye}
+        />
+        <MetricCard
+          label="Modified"
+          value={String(modifiedToday)}
+          icon={Pencil}
+        />
         <MetricCard
           label="Downloads"
           value={String(downloadsToday)}

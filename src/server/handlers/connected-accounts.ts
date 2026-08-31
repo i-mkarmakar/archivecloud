@@ -1,3 +1,4 @@
+import type { ProviderConfig } from "@/generated/prisma/client";
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -38,7 +39,7 @@ export async function createGoogleConnectUrl(
     .object({ providerConfigId: z.string().min(1).optional() })
     .parse(Object.fromEntries(url.searchParams));
 
-  let config;
+  let config: ProviderConfig | null = null;
   if (query.providerConfigId) {
     config = await prisma.providerConfig.findFirst({
       where: {

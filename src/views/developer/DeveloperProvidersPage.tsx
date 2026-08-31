@@ -34,7 +34,9 @@ export function DeveloperProvidersPage() {
   useEffect(() => {
     load().catch((error) =>
       toast.danger(
-        error instanceof Error ? error.message : "Failed to load provider config",
+        error instanceof Error
+          ? error.message
+          : "Failed to load provider config",
       ),
     );
   }, []);
@@ -146,7 +148,9 @@ export function DeveloperProvidersPage() {
           <label className="grid gap-1.5 text-xs font-bold text-muted">
             Client Secret{" "}
             {hasSecret ? (
-              <span className="font-normal text-muted">(Already Configured)</span>
+              <span className="font-normal text-muted">
+                (Already Configured)
+              </span>
             ) : null}
             <input
               className="h-10 rounded-xl border border-border bg-white dark:bg-surface px-3 text-sm focus:outline-none"

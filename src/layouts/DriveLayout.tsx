@@ -1,6 +1,5 @@
 "use client";
 
-import { useClerk, useUser } from "@clerk/nextjs";
 import { Drawer, useOverlayState } from "@heroui/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,7 +16,8 @@ import { UploadProgressPanel } from "@/components/dashboard/UploadProgressPanel"
 import { useDeveloperMode } from "@/context/DeveloperModeContext";
 import { useUpload } from "@/context/UploadContext";
 import { apiFetch } from "@/lib/api";
-import { type AuthUser, clerkUserToAuthUser } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
+import { type AuthUser, sessionUserToAuthUser } from "@/lib/auth-user";
 
 type StorageSummary = {
   totalBytes: string;
@@ -61,10 +61,9 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     onOpenChange: setSidebarOpen,
   });
   const [searchValue, setSearchValue] = useState(sp.get("q") ?? "");
-  const { user: clerkUser, isLoaded: userLoaded } = useUser();
-  const { signOut } = useClerk();
-  const user: AuthUser | null = clerkUser
-    ? clerkUserToAuthUser(clerkUser)
+  const { data: session, isPending: userLoaded } = authClient.useSession();
+  const user: AuthUser | null = session?.user
+    ? sessionUserToAuthUser(session.user)
     : null;
   const [storage, setStorage] = useState<StorageSummary | null>(null);
   const [breakdown, setBreakdown] = useState<StorageBreakdown>({
@@ -76,8 +75,11 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   const { uploadProgress, setUploadProgress, retryFailedUpload } = useUpload();
   const [uploadProgressCollapsed, setUploadProgressCollapsed] = useState(false);
 
-  const { developerModeEnabled, loading: developerLoading } = useDeveloperMode();
-  const mode: AppMode = isDeveloperPath(safePathname) ? "developer" : "workspace";
+  const { developerModeEnabled, loading: developerLoading } =
+    useDeveloperMode();
+  const mode: AppMode = isDeveloperPath(safePathname)
+    ? "developer"
+    : "workspace";
 
   function switchMode(nextMode: "workspace" | "developer") {
     if (nextMode === "developer") {
@@ -169,7 +171,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   }, [sp]);
 
   async function logout() {
-    await signOut();
+    await authClient.signOut();
     router.replace("/signin");
   }
 
@@ -228,7 +230,10 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     loadConnectedAccounts().catch(() => undefined);
     window.addEventListener("archivecloud:storage-changed", loadSidebarStats);
     return () =>
-      window.removeEventListener("archivecloud:storage-changed", loadSidebarStats);
+      window.removeEventListener(
+        "archivecloud:storage-changed",
+        loadSidebarStats,
+      );
   }, [userLoaded]);
 
   const sidebarProps = {
