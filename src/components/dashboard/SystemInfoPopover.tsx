@@ -2,6 +2,7 @@
 
 import { buttonVariants, Popover, Separator, Surface } from "@heroui/react";
 import { Bell, CircleInfo, HardDrive, ShieldCheck } from "@gravity-ui/icons";
+import { GoogleDriveLogo } from "@/components/drive/GoogleDriveLogo";
 
 export function SystemInfoPopover({
   accounts,
@@ -25,7 +26,7 @@ export function SystemInfoPopover({
           size: "sm",
           isIconOnly: true,
         })}
-        aria-label="Workspace status"
+        aria-label="App status"
       >
         <Bell className="h-5 w-5" />
       </Popover.Trigger>
@@ -36,7 +37,7 @@ export function SystemInfoPopover({
         <Popover.Dialog>
           <div className="border-b border-separator px-4 py-3">
             <Popover.Heading className="text-sm font-extrabold">
-              Workspace Status & Info
+              Status & Info
             </Popover.Heading>
             <p className="text-xs text-muted">
               Overview of your connections & guidelines
@@ -53,7 +54,8 @@ export function SystemInfoPopover({
                 className="mt-2 rounded-xl border border-separator p-2.5"
               >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground">
+                  <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                    <GoogleDriveLogo className="h-3.5 w-3.5" />
                     Google Drive accounts
                   </span>
                   <span className="rounded-full border border-border bg-surface-secondary px-2 py-0.5 font-bold text-muted">

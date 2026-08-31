@@ -2,12 +2,44 @@ import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { json } from "@/server/http/responses";
+import {
+  syncGoogleDriveBreakdown,
+  syncGoogleQuota,
+} from "@/server/modules/google/google.service";
 
-type BreakdownRow = { kind: string; bytes: bigint | number | string | null };
+const breakdownStaleMs = 60 * 60 * 1000;
 
-function bytesToString(value: bigint | number | string | null | undefined) {
-  if (value === null || value === undefined) return "0";
-  return value.toString();
+function isBreakdownStale(breakdownSyncedAt: Date | null | undefined) {
+  if (!breakdownSyncedAt) return true;
+  return Date.now() - breakdownSyncedAt.getTime() > breakdownStaleMs;
+}
+
+async function computeConnectedDriveBreakdown(userId: string) {
+  const accounts = await prisma.connectedAccount.findMany({
+    where: { userId, status: "connected" },
+    include: { storageAccount: true },
+  });
+
+  const totals = { photo: 0n, video: 0n, document: 0n, other: 0n };
+  for (const account of accounts) {
+    const storage = account.storageAccount;
+    const photo = storage?.photoBytes ?? 0n;
+    const video = storage?.videoBytes ?? 0n;
+    const document = storage?.documentBytes ?? 0n;
+    const used = storage?.usedBytes ?? 0n;
+    const categorized = photo + video + document;
+    totals.photo += photo;
+    totals.video += video;
+    totals.document += document;
+    totals.other += used > categorized ? used - categorized : 0n;
+  }
+
+  return {
+    photo: totals.photo.toString(),
+    video: totals.video.toString(),
+    document: totals.document.toString(),
+    other: totals.other.toString(),
+  };
 }
 
 const routingModes = ["most_available", "round_robin", "priority"] as const;
@@ -33,10 +65,25 @@ async function getOrCreateRoutingPolicy(userId: string) {
 export async function getStorageSummaryHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
-  const accounts = await prisma.connectedAccount.findMany({
+
+  let accounts = await prisma.connectedAccount.findMany({
     where: { userId: user.id, status: "connected" },
     include: { storageAccount: true },
   });
+
+  const missingQuota = accounts.filter(
+    (account) => !account.storageAccount?.lastSyncedAt,
+  );
+  for (const account of missingQuota) {
+    await syncGoogleQuota(account.id).catch(() => undefined);
+  }
+  if (missingQuota.length > 0) {
+    accounts = await prisma.connectedAccount.findMany({
+      where: { userId: user.id, status: "connected" },
+      include: { storageAccount: true },
+    });
+  }
+
   const summary = accounts.reduce(
     (acc, account) => {
       const storage = account.storageAccount;
@@ -129,22 +176,33 @@ export async function patchRoutingPolicyHandler(request: Request) {
 export async function getStorageBreakdownHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
-  const rows = await prisma.$queryRaw<BreakdownRow[]>`
-    SELECT
-      CASE
-        WHEN mime_type LIKE 'image/%' THEN 'photo'
-        WHEN mime_type LIKE 'video/%' THEN 'video'
-        ELSE 'document'
-      END AS kind,
-      COALESCE(SUM(size_bytes), 0) AS bytes
-    FROM files
-    WHERE user_id = ${user.id} AND status = 'active'
-    GROUP BY kind
-  `;
-  const breakdown = { photo: "0", video: "0", document: "0" };
-  for (const row of rows) {
-    if (row.kind === "photo" || row.kind === "video" || row.kind === "document")
-      breakdown[row.kind] = bytesToString(row.bytes);
+
+  const accounts = await prisma.connectedAccount.findMany({
+    where: { userId: user.id, status: "connected" },
+    include: { storageAccount: true },
+  });
+
+  const staleQuota = accounts.filter(
+    (account) => !account.storageAccount?.lastSyncedAt,
+  );
+  for (const account of staleQuota) {
+    await syncGoogleQuota(account.id).catch(() => undefined);
   }
-  return json(breakdown);
+
+  const refreshedAccounts =
+    staleQuota.length > 0
+      ? await prisma.connectedAccount.findMany({
+          where: { userId: user.id, status: "connected" },
+          include: { storageAccount: true },
+        })
+      : accounts;
+
+  const staleBreakdown = refreshedAccounts.filter((account) =>
+    isBreakdownStale(account.storageAccount?.breakdownSyncedAt),
+  );
+  for (const account of staleBreakdown) {
+    await syncGoogleDriveBreakdown(account.id).catch(() => undefined);
+  }
+
+  return json(await computeConnectedDriveBreakdown(user.id));
 }

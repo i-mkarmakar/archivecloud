@@ -2,8 +2,10 @@ import "server-only";
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { emailOTP } from "better-auth/plugins";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
+import { sendVerificationOtpEmail } from "@/server/modules/email/send-verification-otp";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -27,8 +29,18 @@ export const auth = betterAuth({
   trustedOrigins: [env.BETTER_AUTH_URL],
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
+    requireEmailVerification: true,
   },
+  plugins: [
+    emailOTP({
+      sendVerificationOnSignUp: true,
+      sendVerificationOTP: async ({ email, otp, type }) => {
+        void sendVerificationOtpEmail({ email, otp, type }).catch((error) => {
+          console.error("Failed to send verification OTP email:", error);
+        });
+      },
+    }),
+  ],
   user: {
     additionalFields: {
       status: {

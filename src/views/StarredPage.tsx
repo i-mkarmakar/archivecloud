@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@heroui/react";
 import { FileText, Star } from "@gravity-ui/icons";
 import { useMemo } from "react";
 import { MetricCard } from "@/components/drive/MetricCard";
@@ -42,7 +41,7 @@ export function StarredPage() {
       {files.length > 0 ? (
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {files.slice(0, 3).map((file) => (
-            <Card key={file.id ?? file.name} className="p-5">
+            <div key={file.id ?? file.name} className="p-1">
               <Star className="h-5 w-5 fill-warning text-muted" />
               <h2 className="mt-4 font-extrabold">{file.name}</h2>
               <p className="mt-1 text-sm text-muted">
@@ -50,7 +49,7 @@ export function StarredPage() {
                   ? `Starred on ${file.starredDate}`
                   : "Starred file"}
               </p>
-            </Card>
+            </div>
           ))}
         </div>
       ) : null}

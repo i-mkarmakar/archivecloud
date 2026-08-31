@@ -1,8 +1,9 @@
 "use client";
 import { Card } from "@heroui/react";
-import { CircleCheck, CircleXmark } from "@gravity-ui/icons";
+import { CircleXmark } from "@gravity-ui/icons";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { GoogleDriveLogo } from "@/components/drive/GoogleDriveLogo";
 
 export function GoogleConnectedPage() {
   const sp = useSearchParams() ?? new URLSearchParams();
@@ -26,7 +27,7 @@ export function GoogleConnectedPage() {
     <main className="flex min-h-screen items-center justify-center bg-background-secondary p-5">
       <Card className="w-full max-w-sm p-6 text-center">
         {ok ? (
-          <CircleCheck className="mx-auto h-10 w-10 text-muted" />
+          <GoogleDriveLogo className="mx-auto h-10 w-10" />
         ) : (
           <CircleXmark className="mx-auto h-10 w-10 text-danger" />
         )}

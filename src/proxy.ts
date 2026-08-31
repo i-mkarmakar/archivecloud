@@ -3,14 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 const publicRoutePrefixes = [
   "/signin",
   "/signup",
+  "/verify-email",
   "/google-auth",
   "/google-connected",
   "/public/files",
   "/api/public",
-  "/api/v1",
   "/api/auth",
   "/files/preview",
   "/health",
+  "/svgl",
   "/connected-accounts/google/callback",
 ];
 

@@ -31,6 +31,8 @@ export type FileItem = {
   updatedAt?: string;
   folderId?: string | null;
   folderName?: string | null;
+  providerFileId?: string | null;
+  thumbnailUrl?: string | null;
 };
 
 export const folders: FolderItem[] = [

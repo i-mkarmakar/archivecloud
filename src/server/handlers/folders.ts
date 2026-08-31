@@ -110,13 +110,26 @@ export async function listFoldersHandler(request: Request) {
     .object({
       parentId: z.string().nullable().optional(),
       all: z.string().optional(),
+      accountId: z.string().optional(),
     })
     .parse(Object.fromEntries(url.searchParams));
   const folders = await prisma.folder.findMany({
     where: {
       userId: user.id,
       deletedAt: null,
-      ...(query.all === "1" ? {} : { parentId: query.parentId ?? null }),
+      ...(query.all === "1"
+        ? {}
+        : query.parentId
+          ? { parentId: query.parentId }
+          : query.accountId
+            ? {
+                parentId: null,
+                OR: [
+                  { connectedAccountId: query.accountId },
+                  { connectedAccountId: null },
+                ],
+              }
+            : { parentId: null }),
     },
     select: {
       id: true,
@@ -128,29 +141,6 @@ export async function listFoldersHandler(request: Request) {
       updatedAt: true,
     },
     orderBy: { updatedAt: "desc" },
-  });
-  await ensureProviderFolderIds(folders, user.id);
-  return json({ folders: folders.map(serializeFolder) });
-}
-
-export async function listRecentFoldersHandler(request: Request) {
-  const user = await requireAuthUser(request);
-  if (user instanceof Response) return user;
-  const url = new URL(request.url);
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? 4), 4);
-  const folders = await prisma.folder.findMany({
-    where: { userId: user.id, deletedAt: null },
-    select: {
-      id: true,
-      name: true,
-      color: true,
-      parentId: true,
-      providerFolderId: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
   });
   await ensureProviderFolderIds(folders, user.id);
   return json({ folders: folders.map(serializeFolder) });

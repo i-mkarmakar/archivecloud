@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, toast } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Archive, ArrowRotateLeft, TrashBin } from "@gravity-ui/icons";
 import { useMemo, useState } from "react";
 import { FileTable } from "@/components/drive/FileTable";
@@ -111,10 +111,10 @@ export function ArchivedPage() {
           </>
         }
       />
-      <Card className="mt-6 border-border bg-surface-secondary p-4 text-sm text-foreground">
+      <p className="mt-6 text-sm text-muted">
         Archived files stay available and do not appear in All Files until
         restored.
-      </Card>
+      </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           label="Archived Files"
@@ -133,27 +133,36 @@ export function ArchivedPage() {
         />
       </div>
       {loading ? (
-        <Card className="mt-6 p-6 text-sm text-muted">Loading files...</Card>
+        <div className="mt-6 flex min-h-[200px] items-center justify-center py-8">
+          <p className="text-center text-sm text-muted">Loading files...</p>
+        </div>
       ) : error ? (
-        <Card className="mt-6 p-6 text-sm text-danger-soft-foreground">
-          {error}
-        </Card>
-      ) : files.length === 0 ? (
-        <Card className="mt-6 p-8 text-center">
-          <p className="font-extrabold">No archived files</p>
-          <p className="mt-1 text-sm text-muted">
-            Archive files from All Files to hide them from your main workspace.
+        <div className="mt-6 flex min-h-[200px] items-center justify-center py-8">
+          <p className="text-center text-sm text-danger-soft-foreground">
+            {error}
           </p>
-        </Card>
+        </div>
+      ) : files.length === 0 ? (
+        <div className="mt-6 flex min-h-[200px] items-center justify-center py-8">
+          <div className="text-center">
+            <p className="font-extrabold">No archived files</p>
+            <p className="mt-1 text-sm text-muted">
+              Archive files from All Files to hide them from your main
+              workspace.
+            </p>
+          </div>
+        </div>
       ) : (
-        <FileTable
-          files={files}
-          mode="archived"
-          selectedFileIds={selectedIds}
-          allSelected={allSelected}
-          onToggleFile={toggleFile}
-          onToggleAll={toggleAll}
-        />
+        <div className="mt-6">
+          <FileTable
+            files={files}
+            mode="archived"
+            selectedFileIds={selectedIds}
+            allSelected={allSelected}
+            onToggleFile={toggleFile}
+            onToggleAll={toggleAll}
+          />
+        </div>
       )}
     </>
   );

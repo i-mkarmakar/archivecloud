@@ -1,27 +1,19 @@
 "use client";
 
-import { Button, Card, Input, toast } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import {
   ArrowRotateRight,
   Bell,
-  ClockArrowRotateLeft,
-  Cloud,
-  CurlyBrackets,
-  Database,
   Globe,
   HardDrive,
   Link,
   TrashBin,
 } from "@gravity-ui/icons";
-import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { GoogleDriveLogo } from "@/components/drive/GoogleDriveLogo";
 import { DummyModal } from "@/components/drive/DummyModal";
 import { PageHeader } from "@/components/drive/PageHeader";
-import { useDeveloperMode } from "@/context/DeveloperModeContext";
-import { apiFetch, formatBytes, formatDate } from "@/lib/api";
-import { authClient } from "@/lib/auth-client";
-import { sessionUserToAuthUser } from "@/lib/auth-user";
-import { getGravatarUrl } from "@/lib/gravatar";
+import { apiFetch, formatBytes } from "@/lib/api";
 
 type ConnectedAccount = {
   id: string;
@@ -37,67 +29,27 @@ type ConnectedAccount = {
   } | null;
 };
 
-type AuditLog = {
-  id: string;
-  action: string;
-  createdAt: string;
-};
-
-function providerLabel(provider: string) {
-  if (provider === "s3") return "S3 Storage";
+function providerLabel(_provider: string) {
   return "Google Drive";
 }
 
 function storageLimitLabel(account: ConnectedAccount) {
-  if (account.provider === "s3" && account.storageAccount?.totalBytes === null)
-    return "Unlimited";
   return formatBytes(account.storageAccount?.totalBytes);
 }
 
 function availableLabel(account: ConnectedAccount) {
-  if (
-    account.provider === "s3" &&
-    account.storageAccount?.availableBytes === null
-  )
-    return "Unlimited";
   return formatBytes(account.storageAccount?.availableBytes);
 }
 
 export function SettingsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session } = authClient.useSession();
-  const user = session?.user ? sessionUserToAuthUser(session.user) : null;
-  const {
-    developerModeEnabled,
-    enableDeveloperMode,
-    loading: developerLoading,
-  } = useDeveloperMode();
-
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [connecting, setConnecting] = useState(false);
-  const [enablingDeveloper, setEnablingDeveloper] = useState(false);
-  const [s3Open, setS3Open] = useState(false);
-  const [connectingS3, setConnectingS3] = useState(false);
-  const [s3Form, setS3Form] = useState({
-    name: "",
-    bucket: "",
-    region: "us-east-1",
-    endpoint: "",
-    accessKeyId: "",
-    secretAccessKey: "",
-    forcePathStyle: false,
-    quotaBytes: "",
-  });
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
   const [disconnectingAccountId, setDisconnectingAccountId] = useState<
     string | null
   >(null);
   const [accountToDisconnect, setAccountToDisconnect] =
     useState<ConnectedAccount | null>(null);
-  const [profileImageUrl, setProfileImageUrl] = useState("");
-  const [avatarError, setAvatarError] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
   const selectedAccount =
@@ -106,12 +58,10 @@ export function SettingsPage() {
     null;
 
   async function load() {
-    const [accountsData, logsData] = await Promise.all([
-      apiFetch<{ accounts: ConnectedAccount[] }>("/connected-accounts"),
-      apiFetch<{ logs: AuditLog[] }>("/audit-logs?limit=8"),
-    ]);
+    const accountsData = await apiFetch<{ accounts: ConnectedAccount[] }>(
+      "/connected-accounts",
+    );
     setAccounts(accountsData.accounts);
-    setRecentLogs(logsData.logs);
   }
 
   useEffect(() => {
@@ -121,19 +71,6 @@ export function SettingsPage() {
       ),
     );
   }, []);
-
-  useEffect(() => {
-    if (searchParams.get("developer") === "required") {
-      toast.info("Enable Developer Console below to access developer tools.");
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    setAvatarError(false);
-    getGravatarUrl(user?.email, 96)
-      .then(setProfileImageUrl)
-      .catch(() => setProfileImageUrl(""));
-  }, [user?.email]);
 
   useEffect(() => {
     if (accounts.length === 0) {
@@ -236,143 +173,25 @@ export function SettingsPage() {
     }
   }
 
-  async function connectS3(event: FormEvent) {
-    event.preventDefault();
-    setConnectingS3(true);
-    try {
-      await apiFetch("/connected-accounts/s3", {
-        method: "POST",
-        body: JSON.stringify({
-          ...s3Form,
-          endpoint: s3Form.endpoint || undefined,
-          quotaBytes: s3Form.quotaBytes || null,
-        }),
-      });
-      setS3Open(false);
-      setS3Form({
-        name: "",
-        bucket: "",
-        region: "us-east-1",
-        endpoint: "",
-        accessKeyId: "",
-        secretAccessKey: "",
-        forcePathStyle: false,
-        quotaBytes: "",
-      });
-      toast.success("S3 storage connected.");
-      await load();
-      window.dispatchEvent(new Event("archivecloud:storage-changed"));
-    } catch (error) {
-      toast.danger(
-        error instanceof Error ? error.message : "Failed to connect S3 storage",
-      );
-    } finally {
-      setConnectingS3(false);
-    }
-  }
-
-  async function handleEnableDeveloper() {
-    setEnablingDeveloper(true);
-    try {
-      await enableDeveloperMode();
-      toast.success("Developer Console enabled.");
-      router.push("/developer");
-    } catch (error) {
-      toast.danger(
-        error instanceof Error
-          ? error.message
-          : "Failed to enable Developer Console",
-      );
-    } finally {
-      setEnablingDeveloper(false);
-    }
-  }
-
   return (
     <>
       <PageHeader
         title="Settings"
-        description="Manage your account and connected storage."
+        description="Manage connected Google Drive accounts and preferences."
         actions={
-          <>
-            <Button variant="outline" size="sm" onPress={() => setS3Open(true)}>
-              <Database className="h-4 w-4" />
-              Connect S3
-            </Button>
-            <Button size="sm" onPress={connectDrive} isDisabled={connecting}>
-              <Link className="h-4 w-4" />
-              {connecting ? "Connecting..." : "Connect Drive"}
-            </Button>
-          </>
+          <Button size="sm" onPress={connectDrive} isDisabled={connecting}>
+            <Link className="h-4 w-4" />
+            {connecting ? "Connecting..." : "Connect Drive"}
+          </Button>
         }
       />
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_280px]">
         <div className="grid gap-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-3.5">
-              {!profileImageUrl || avatarError ? (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-lg font-bold text-accent-foreground shadow-sm border border-border sm:h-14 sm:w-14">
-                  {(user?.name ?? user?.email ?? "U")
-                    .trim()
-                    .charAt(0)
-                    .toUpperCase()}
-                </div>
-              ) : (
-                <img
-                  src={profileImageUrl}
-                  alt="User avatar"
-                  className="h-12 w-12 rounded-xl object-cover sm:h-14 sm:w-14"
-                  onError={() => setAvatarError(true)}
-                />
-              )}
-              <div className="flex-1">
-                <h2 className="text-lg font-bold">{user?.name ?? "User"}</h2>
-                <p className="text-xs text-muted mt-0.5">
-                  {user?.email ?? "-"}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <CurlyBrackets className="h-5 w-5 text-foreground" />
-                  <h2 className="text-[16px] font-bold">Developer Console</h2>
-                </div>
-                <p className="mt-1 text-[13px] text-muted">
-                  API keys, provider setup, audit logs, and instance operations.
-                </p>
-              </div>
-              {developerModeEnabled ? (
-                <Button
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onPress={() => router.push("/developer")}
-                >
-                  Open Console
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onPress={handleEnableDeveloper}
-                  isDisabled={developerLoading || enablingDeveloper}
-                >
-                  {enablingDeveloper
-                    ? "Enabling..."
-                    : "Enable Developer Console"}
-                </Button>
-              )}
-            </div>
-          </Card>
-
-          <Card className="overflow-hidden p-3.5">
+          <section className="overflow-hidden">
             <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <Cloud className="h-5 w-5 text-foreground" />
+                  <GoogleDriveLogo className="h-5 w-5" />
                   <h2 className="text-[16px] font-bold">Google Drive</h2>
                 </div>
                 <p className="mt-1 text-[13px] text-muted">
@@ -389,41 +208,19 @@ export function SettingsPage() {
                 {connecting ? "Opening..." : "Connect Drive"}
               </Button>
             </div>
-          </Card>
+          </section>
 
-          <Card className="overflow-hidden p-3.5">
-            <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <Database className="h-5 w-5 text-foreground" />
-                  <h2 className="text-[16px] font-bold">S3 Compatible</h2>
-                </div>
-                <p className="mt-1 text-[13px] text-muted">
-                  Connect AWS S3, Cloudflare R2, MinIO, or other S3-compatible
-                  storage.
-                </p>
-              </div>
-              <Button
-                className="w-full sm:w-32"
-                size="sm"
-                variant="outline"
-                onPress={() => setS3Open(true)}
-              >
-                <Database className="h-4 w-4" />
-                Connect S3
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="p-4">
+          <section>
             <h2 className="text-[16px] font-bold">
               Connected Storage Accounts
             </h2>
             <div className="mt-3.5 grid gap-3">
               {accounts.length === 0 ? (
-                <p className="text-xs text-muted">
-                  No connected storage account yet.
-                </p>
+                <div className="flex min-h-[120px] items-center justify-center py-6">
+                  <p className="text-center text-sm text-muted">
+                    No connected storage account yet.
+                  </p>
+                </div>
               ) : (
                 <>
                   <label className="grid gap-1.5 text-xs font-semibold text-muted">
@@ -445,7 +242,7 @@ export function SettingsPage() {
                     </select>
                   </label>
                   {selectedAccount ? (
-                    <div className="rounded-xl bg-background-secondary p-3 border border-separator">
+                    <div className="rounded-xl p-3">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                           <p className="break-all font-semibold text-sm">
@@ -516,166 +313,33 @@ export function SettingsPage() {
                 </>
               )}
             </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <ClockArrowRotateLeft className="h-5 w-5 text-foreground" />
-                <h2 className="text-[16px] font-bold">Recent Activity</h2>
-              </div>
-              {developerModeEnabled ? (
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-foreground hover:underline"
-                  onClick={() => router.push("/developer/activity")}
-                >
-                  View full log
-                </button>
-              ) : null}
-            </div>
-            <div className="mt-3 grid gap-2">
-              {recentLogs.length === 0 ? (
-                <p className="text-xs text-muted">No recent activity yet.</p>
-              ) : (
-                recentLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between rounded-xl bg-background-secondary px-3 py-2 text-xs"
-                  >
-                    <span className="font-semibold">
-                      {log.action.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-muted">
-                      {formatDate(log.createdAt)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
+          </section>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 lg:gap-3">
-          <Card className="p-4">
+          <section>
             <HardDrive className="h-5 w-5 text-foreground" />
             <h2 className="mt-2 text-[14px] font-bold">Storage</h2>
             <p className="mt-1 text-[12px] text-muted">
               Connected accounts: {accounts.length}
             </p>
-          </Card>
-          <Card className="p-4">
+          </section>
+          <section>
             <Bell className="h-5 w-5 text-foreground" />
             <h2 className="mt-2 text-[14px] font-bold">Notifications</h2>
             <p className="mt-1 text-[12px] text-muted">
               Email and app alerts are active.
             </p>
-          </Card>
-          <Card className="p-4">
+          </section>
+          <section>
             <Globe className="h-5 w-5 text-foreground" />
             <h2 className="mt-2 text-[14px] font-bold">Region</h2>
             <p className="mt-1 text-[12px] text-muted">
-              Workspace region: local gateway.
+              Local gateway deployment.
             </p>
-          </Card>
+          </section>
         </div>
       </div>
-
-      <DummyModal
-        open={s3Open}
-        title="Connect S3 Storage"
-        description="Use any S3-compatible provider with custom endpoint support."
-        onClose={() => setS3Open(false)}
-      >
-        <form className="grid gap-4" onSubmit={connectS3}>
-          <Input
-            fullWidth
-            placeholder="Display name"
-            value={s3Form.name}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, name: event.target.value })
-            }
-            required
-          />
-          <Input
-            fullWidth
-            placeholder="Bucket"
-            value={s3Form.bucket}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, bucket: event.target.value })
-            }
-            required
-          />
-          <Input
-            fullWidth
-            placeholder="Region"
-            value={s3Form.region}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, region: event.target.value })
-            }
-            required
-          />
-          <Input
-            fullWidth
-            placeholder="Endpoint URL (optional)"
-            value={s3Form.endpoint}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, endpoint: event.target.value })
-            }
-          />
-          <Input
-            fullWidth
-            placeholder="Access key ID"
-            value={s3Form.accessKeyId}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, accessKeyId: event.target.value })
-            }
-            required
-          />
-          <Input
-            fullWidth
-            placeholder="Secret access key"
-            type="password"
-            value={s3Form.secretAccessKey}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, secretAccessKey: event.target.value })
-            }
-            required
-          />
-          <Input
-            fullWidth
-            placeholder="Quota bytes (optional)"
-            inputMode="numeric"
-            value={s3Form.quotaBytes}
-            onChange={(event) =>
-              setS3Form({ ...s3Form, quotaBytes: event.target.value })
-            }
-          />
-          <label className="flex items-center gap-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={s3Form.forcePathStyle}
-              onChange={(event) =>
-                setS3Form({ ...s3Form, forcePathStyle: event.target.checked })
-              }
-            />
-            Force path style
-          </label>
-          <div className="grid gap-3 sm:flex sm:justify-end">
-            <Button
-              variant="outline"
-              type="button"
-              onPress={() => setS3Open(false)}
-              isDisabled={connectingS3}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" isDisabled={connectingS3}>
-              {connectingS3 ? "Connecting..." : "Connect S3"}
-            </Button>
-          </div>
-        </form>
-      </DummyModal>
 
       <DummyModal
         open={Boolean(accountToDisconnect)}

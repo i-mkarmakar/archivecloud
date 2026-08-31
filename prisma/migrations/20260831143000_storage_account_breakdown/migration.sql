@@ -1,0 +1,5 @@
+ALTER TABLE "storage_accounts"
+ADD COLUMN "photo_bytes" BIGINT NOT NULL DEFAULT 0,
+ADD COLUMN "video_bytes" BIGINT NOT NULL DEFAULT 0,
+ADD COLUMN "document_bytes" BIGINT NOT NULL DEFAULT 0,
+ADD COLUMN "breakdown_synced_at" TIMESTAMP(3);

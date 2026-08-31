@@ -12,7 +12,7 @@ Single full-stack Next.js app at the repo root:
 - `src/views/**`: page view components (not `src/pages/` — avoids Next.js conflict).
 - `src/server/handlers/**`: API handler logic (auth, files, uploads, etc.).
 - `src/server/http/**`: shared Route Handler utilities (auth, responses, API key).
-- `src/server/modules/**`: provider services (Google, S3), streaming helpers, config, scripts.
+- `src/server/modules/**`: provider services (Google), streaming helpers, config, scripts.
 - `src/components/**`, `src/layouts/**`, `src/lib/**`, `src/context/**`: UI and client utilities.
 - `prisma/`: PostgreSQL 18+ schema and migrations.
 - `public/`: static assets.
@@ -90,6 +90,7 @@ Root `.env`:
 - `TOKEN_ENCRYPTION_KEY`
 - `MAX_UPLOAD_BYTES`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (Drive connect + seed script)
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (password reset OTP emails via Resend, e.g. `ArchiveCloud <onboarding@resend.dev>`)
 
 API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) with Better Auth session cookies; no separate `NEXT_PUBLIC_API_URL` is required.
 
@@ -141,12 +142,9 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 
 General:
 - `GET /health`
-- Authenticated routes require a valid Better Auth session (cookie) unless listed as public. API keys use `Authorization: Bearer <apiKey>` on `/api/v1/*`.
+- Authenticated routes require a valid Better Auth session (cookie) unless listed as public.
 
 Auth is handled by Better Auth (custom sign-in/sign-up UI). Users are stored in the local `users` table with Better Auth `auth_sessions` / `auth_accounts` tables.
-- `POST /provider-configs/google`
-- `GET /provider-configs`
-- `DELETE /provider-configs/:id`
 
 Google connected accounts:
 - `GET /connected-accounts/google/connect-url`
@@ -206,12 +204,9 @@ Uploads:
 - Content type: `multipart/form-data`.
 - Frontend sends metadata first as `filesMeta`: JSON array of `{ fieldName, fileName, mimeType, sizeBytes, folderId? }`.
 - File fields then match `filesMeta[*].fieldName`, e.g. `file-0`, `file-1`.
-- Backend selects a connected storage account with enough available quota and streams each file to Google Drive or S3.
+- Backend selects a connected Google Drive account with enough available quota and streams each file to Google Drive.
 - Google Drive uploads are placed under the root Drive folder named `archivecloud`; virtual folders remain app/database-only.
 - `POST /files/sync-google` treats Google Drive folder `archivecloud` as source of truth for physical files.
-
-External API:
-- `POST /api/v1/uploads` (API key auth, scope `files:upload`)
 
 ## Verification
 

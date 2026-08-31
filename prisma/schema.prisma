@@ -24,7 +24,6 @@ model User {
   providerConfigs        ProviderConfig[]
   oauthStates            OauthState[]
   connectedAccounts      ConnectedAccount[]
-  s3StorageConfigs       S3StorageConfig[]
   files                  File[]
   fileShares             FileShare[]
   filePreviewTokens      FilePreviewToken[]
@@ -144,36 +143,11 @@ model ConnectedAccount {
   files                 File[]
   folders               Folder[]
   uploadSessions        UploadSession[]
-  s3StorageConfig       S3StorageConfig?
 
   @@unique([userId, provider, providerAccountId])
   @@index([userId])
   @@index([userId, status, createdAt])
   @@map("connected_accounts")
-}
-
-model S3StorageConfig {
-  id                       String           @id @default(uuid()) @db.Char(36)
-  userId                   String           @map("user_id") @db.Char(36)
-  connectedAccountId       String           @unique @map("connected_account_id") @db.Char(36)
-  name                     String           @db.VarChar(191)
-  bucket                   String           @db.VarChar(191)
-  region                   String           @db.VarChar(191)
-  endpoint                 String?          @db.Text
-  accessKeyIdEncrypted     String           @map("access_key_id_encrypted") @db.Text
-  secretAccessKeyEncrypted String           @map("secret_access_key_encrypted") @db.Text
-  forcePathStyle           Boolean          @default(false) @map("force_path_style")
-  prefix                   String           @default("archivecloud") @db.VarChar(191)
-  quotaBytes               BigInt?          @map("quota_bytes")
-  status                   String           @default("active") @db.VarChar(32)
-  createdAt                DateTime         @default(now()) @map("created_at")
-  updatedAt                DateTime         @updatedAt @map("updated_at")
-  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  connectedAccount         ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([userId, status])
-  @@map("s3_storage_configs")
 }
 
 model StorageAccount {
@@ -183,6 +157,10 @@ model StorageAccount {
   usedBytes          BigInt           @default(0) @map("used_bytes")
   availableBytes     BigInt?          @map("available_bytes")
   trashBytes         BigInt?          @map("trash_bytes")
+  photoBytes         BigInt           @default(0) @map("photo_bytes")
+  videoBytes         BigInt           @default(0) @map("video_bytes")
+  documentBytes      BigInt           @default(0) @map("document_bytes")
+  breakdownSyncedAt  DateTime?        @map("breakdown_synced_at")
   lastSyncedAt       DateTime?        @map("last_synced_at")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")

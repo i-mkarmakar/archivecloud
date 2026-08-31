@@ -5,10 +5,15 @@ import type {
 } from "@/generated/prisma/client";
 import { env } from "../../config/env";
 import { prisma } from "../../config/prisma";
+import {
+  classifyFileKind,
+  classifyFileName,
+} from "../files/classify-file-kind";
 import { decryptText, encryptText } from "../../utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
 const appFolderName = "archivecloud";
+const breakdownStaleMs = 60 * 60 * 1000;
 
 export const googleDriveOAuthScopes = [
   "https://www.googleapis.com/auth/drive",
@@ -111,6 +116,15 @@ export async function getAuthedGoogleClient(account: ConnectedAccount) {
   return client;
 }
 
+function driveFileSizeBytes(file: {
+  size?: string | null;
+  quotaBytesUsed?: string | null;
+}) {
+  const quotaBytes = file.quotaBytesUsed ? BigInt(file.quotaBytesUsed) : 0n;
+  const contentBytes = file.size ? BigInt(file.size) : 0n;
+  return quotaBytes > contentBytes ? quotaBytes : contentBytes;
+}
+
 export async function syncGoogleQuota(accountId: string) {
   const account = await prisma.connectedAccount.findUniqueOrThrow({
     where: { id: accountId },
@@ -121,7 +135,7 @@ export async function syncGoogleQuota(accountId: string) {
   const quota = about.data.storageQuota;
   const total = quota?.limit ? BigInt(quota.limit) : null;
   const used = quota?.usage ? BigInt(quota.usage) : 0n;
-  return prisma.storageAccount.upsert({
+  const storageAccount = await prisma.storageAccount.upsert({
     where: { connectedAccountId: accountId },
     create: {
       connectedAccountId: accountId,
@@ -141,6 +155,88 @@ export async function syncGoogleQuota(accountId: string) {
         ? BigInt(quota.usageInDriveTrash)
         : null,
       lastSyncedAt: new Date(),
+    },
+  });
+
+  const breakdownIsStale =
+    !storageAccount.breakdownSyncedAt ||
+    Date.now() - storageAccount.breakdownSyncedAt.getTime() > breakdownStaleMs;
+  if (breakdownIsStale) {
+    await syncGoogleDriveBreakdown(accountId).catch(() => undefined);
+  }
+
+  return storageAccount;
+}
+
+export async function syncGoogleDriveBreakdown(accountId: string) {
+  const account = await prisma.connectedAccount.findUniqueOrThrow({
+    where: { id: accountId },
+  });
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+
+  let photoBytes = 0n;
+  let videoBytes = 0n;
+  let documentBytes = 0n;
+
+  try {
+    const driveV2 = google.drive({ version: "v2", auth });
+    const aboutV2 = await driveV2.about.get({
+      fields: "quotaBytesByService",
+    });
+    for (const service of aboutV2.data.quotaBytesByService ?? []) {
+      if (service.serviceName === "PHOTOS" && service.bytesUsed) {
+        photoBytes += BigInt(service.bytesUsed);
+      }
+    }
+  } catch {
+    // Google Photos quota is optional; continue with Drive scan.
+  }
+
+  let pageToken: string | undefined;
+  const fileQuery = `trashed = false and mimeType != '${googleDriveFolderMimeType}'`;
+
+  do {
+    const response = await drive.files.list({
+      q: fileQuery,
+      spaces: "drive",
+      fields: "nextPageToken,files(name,mimeType,size,quotaBytesUsed)",
+      pageSize: 1000,
+      pageToken,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+    });
+
+    for (const file of response.data.files ?? []) {
+      const bytes = driveFileSizeBytes(file);
+      if (bytes <= 0n) continue;
+      const kind = file.mimeType
+        ? classifyFileKind(file.mimeType)
+        : file.name
+          ? classifyFileName(file.name)
+          : "document";
+      if (kind === "photo") photoBytes += bytes;
+      else if (kind === "video") videoBytes += bytes;
+      else documentBytes += bytes;
+    }
+
+    pageToken = response.data.nextPageToken ?? undefined;
+  } while (pageToken);
+
+  return prisma.storageAccount.upsert({
+    where: { connectedAccountId: accountId },
+    create: {
+      connectedAccountId: accountId,
+      photoBytes,
+      videoBytes,
+      documentBytes,
+      breakdownSyncedAt: new Date(),
+    },
+    update: {
+      photoBytes,
+      videoBytes,
+      documentBytes,
+      breakdownSyncedAt: new Date(),
     },
   });
 }
@@ -174,6 +270,180 @@ export async function ensureGoogleAppFolder(account: ConnectedAccount) {
 
   if (!folderId) throw new Error("Failed to create Google Drive app folder.");
   return folderId;
+}
+
+export type DriveBrowseFolder = {
+  id: string;
+  name: string;
+  modifiedTime: string;
+};
+
+export type DriveBrowseFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: string;
+  modifiedTime: string;
+  dbFileId?: string | null;
+  hasThumbnail?: boolean;
+};
+
+export type DriveBrowseResult = {
+  folders: DriveBrowseFolder[];
+  files: DriveBrowseFile[];
+  breadcrumbs: Array<{ id: string; name: string }>;
+};
+
+async function buildGoogleDriveBreadcrumbs(
+  drive: ReturnType<typeof google.drive>,
+  folderId: string,
+) {
+  const breadcrumbs: Array<{ id: string; name: string }> = [
+    { id: "root", name: "My Drive" },
+  ];
+  if (folderId === "root") return breadcrumbs;
+
+  const chain: Array<{ id: string; name: string }> = [];
+  let currentId: string | undefined = folderId;
+  const visited = new Set<string>();
+
+  while (currentId && currentId !== "root" && !visited.has(currentId)) {
+    visited.add(currentId);
+    const response = await drive.files.get({
+      fileId: currentId,
+      fields: "id,name,parents",
+      supportsAllDrives: true,
+    });
+    const fileData: {
+      id?: string | null;
+      name?: string | null;
+      parents?: string[] | null;
+    } = response.data;
+    if (!fileData.id || !fileData.name) break;
+    chain.unshift({ id: fileData.id, name: fileData.name });
+    const parent: string | undefined = fileData.parents?.[0];
+    if (!parent || parent === "root") break;
+    currentId = parent;
+  }
+
+  return [...breadcrumbs, ...chain];
+}
+
+export async function browseGoogleDriveFolder(
+  accountId: string,
+  userId: string,
+  parentId: string,
+  searchQuery?: string,
+): Promise<DriveBrowseResult> {
+  const account = await prisma.connectedAccount.findFirstOrThrow({
+    where: {
+      id: accountId,
+      userId,
+      provider: "google_drive",
+      status: "connected",
+    },
+  });
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+  const googleParentId = parentId === "root" ? "root" : parentId;
+
+  const queryParts = [
+    `'${googleParentId}' in parents`,
+    "trashed = false",
+    `mimeType != '${googleDriveFolderMimeType}'`,
+  ];
+  if (searchQuery?.trim()) {
+    queryParts.push(
+      `name contains '${escapeDriveQueryValue(searchQuery.trim())}'`,
+    );
+  }
+  const folderQueryParts = [
+    `'${googleParentId}' in parents`,
+    "trashed = false",
+  ];
+  if (searchQuery?.trim()) {
+    folderQueryParts.push(
+      `name contains '${escapeDriveQueryValue(searchQuery.trim())}'`,
+    );
+  }
+
+  const folders: DriveBrowseFolder[] = [];
+  const files: DriveBrowseFile[] = [];
+  const providerFileIds: string[] = [];
+
+  async function listWithQuery(q: string, collectFolders: boolean) {
+    let pageToken: string | undefined;
+    do {
+      const response = await drive.files.list({
+        q,
+        spaces: "drive",
+        fields:
+          "nextPageToken,files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,thumbnailLink,hasThumbnail)",
+        pageSize: 1000,
+        pageToken,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
+        orderBy: "folder,name",
+      });
+
+      for (const file of response.data.files ?? []) {
+        if (!file.id || !file.name) continue;
+        if (file.mimeType === googleDriveFolderMimeType) {
+          if (collectFolders) {
+            folders.push({
+              id: file.id,
+              name: file.name,
+              modifiedTime: file.modifiedTime ?? new Date().toISOString(),
+            });
+          }
+          continue;
+        }
+        if (!collectFolders) continue;
+        providerFileIds.push(file.id);
+        files.push({
+          id: file.id,
+          name: file.name,
+          mimeType: file.mimeType ?? "application/octet-stream",
+          sizeBytes: driveFileSizeBytes(file).toString(),
+          modifiedTime: file.modifiedTime ?? new Date().toISOString(),
+          hasThumbnail: Boolean(file.hasThumbnail || file.thumbnailLink),
+        });
+      }
+
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
+  }
+
+  await listWithQuery(
+    `${folderQueryParts.join(" and ")} and mimeType = '${googleDriveFolderMimeType}'`,
+    true,
+  );
+  await listWithQuery(queryParts.join(" and "), true);
+
+  if (providerFileIds.length > 0) {
+    const tracked = await prisma.file.findMany({
+      where: {
+        userId,
+        connectedAccountId: accountId,
+        providerFileId: { in: providerFileIds },
+        status: "active",
+        deletedAt: null,
+      },
+      select: { id: true, providerFileId: true },
+    });
+    const dbByProviderId = new Map(
+      tracked.map((file) => [file.providerFileId, file.id]),
+    );
+    for (const file of files) {
+      file.dbFileId = dbByProviderId.get(file.id) ?? null;
+    }
+  }
+
+  folders.sort((a, b) => a.name.localeCompare(b.name));
+  files.sort((a, b) => a.name.localeCompare(b.name));
+
+  const breadcrumbs = await buildGoogleDriveBreadcrumbs(drive, googleParentId);
+  return { folders, files, breadcrumbs };
 }
 
 export type GoogleAppFolderSyncResult = {
@@ -228,7 +498,8 @@ export async function syncGoogleAppFolderFiles(
     const response = await drive.files.list({
       q,
       spaces: "drive",
-      fields: "nextPageToken,files(id,name,mimeType,size,parents)",
+      fields:
+        "nextPageToken,files(id,name,mimeType,size,quotaBytesUsed,parents)",
       pageSize: 1000,
       pageToken,
     });
@@ -239,7 +510,7 @@ export async function syncGoogleAppFolderFiles(
         id: file.id,
         name: file.name,
         mimeType: file.mimeType,
-        sizeBytes: BigInt(file.size ?? 0),
+        sizeBytes: driveFileSizeBytes(file),
         parentId,
       });
     }

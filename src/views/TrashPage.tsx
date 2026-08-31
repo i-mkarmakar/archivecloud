@@ -1,4 +1,4 @@
-import { Button, Card, toast } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { FileText, ArrowRotateLeft, TrashBin } from "@gravity-ui/icons";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/drive/PageHeader";
@@ -142,14 +142,15 @@ export function TrashPage() {
         }
       />
 
-      <Card className="mt-8 overflow-hidden">
+      <section className="mt-8">
         {files.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center">
-            <TrashBin className="h-12 w-12 text-muted mb-3" />
-            <p className="text-base font-bold">Trash is empty</p>
-            <p className="text-sm text-muted mt-1">
-              Deleted files will appear here.
-            </p>
+          <div className="flex min-h-[200px] items-center justify-center py-8">
+            <div className="text-center">
+              <p className="font-extrabold">Trash is empty</p>
+              <p className="mt-1 text-sm text-muted">
+                Deleted files will appear here.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -238,7 +239,7 @@ export function TrashPage() {
             </table>
           </div>
         )}
-      </Card>
+      </section>
     </>
   );
 }
