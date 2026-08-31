@@ -4,8 +4,9 @@ import { toast } from "@heroui/react";
 import { Eye, EyeSlash } from "@gravity-ui/icons";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { GoogleLogo } from "@/components/auth/GoogleLogo";
+import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -36,6 +37,7 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const isSignIn = mode === "signin";
   const callbackUrl = searchParams.get("callbackUrl");
@@ -43,6 +45,14 @@ export function LoginForm({
     callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
       ? callbackUrl
       : "/all-files";
+
+  useEffect(() => {
+    if (!isSignIn) return;
+    if (searchParams.get("verified") !== "1") return;
+    const verifiedEmail = searchParams.get("email")?.trim();
+    if (verifiedEmail) setEmail(verifiedEmail);
+    toast.success("Email verified. Sign in to continue.");
+  }, [isSignIn, searchParams]);
 
   async function continueWithGoogle() {
     setGoogleLoading(true);
@@ -63,6 +73,13 @@ export function LoginForm({
       });
       setLoading(false);
       if (error) {
+        if (error.code === "EMAIL_NOT_VERIFIED") {
+          toast.danger("Verify your email before signing in.");
+          router.push(
+            `/verify-email?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(redirectPath)}`,
+          );
+          return;
+        }
         toast.danger(error.message ?? "Sign-in failed");
         return;
       }
@@ -73,20 +90,30 @@ export function LoginForm({
       return;
     }
 
+    const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(redirectPath)}`;
     const { error } = await authClient.signUp.email({
       email,
       password,
       name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-      callbackURL: redirectPath,
+      callbackURL: verifyUrl,
     });
     setLoading(false);
     if (error) {
       toast.danger(error.message ?? "Sign-up failed");
       return;
     }
-    toast.success("Account created. You can sign in now.");
-    router.push(redirectPath);
-    router.refresh();
+    toast.success("Check your email for a 6-digit verification code.");
+    router.push(verifyUrl);
+  }
+
+  if (isSignIn && showForgotPassword) {
+    return (
+      <ForgotPasswordForm
+        className={className}
+        initialEmail={email}
+        onBack={() => setShowForgotPassword(false)}
+      />
+    );
   }
 
   return (
@@ -141,9 +168,7 @@ export function LoginForm({
         </Field>
 
         <Field>
-          <div className="flex items-center">
-            <FieldLabel htmlFor="password">Password</FieldLabel>
-          </div>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
           <div className="relative">
             <Input
               id="password"
@@ -167,57 +192,70 @@ export function LoginForm({
               )}
             </button>
           </div>
+          {isSignIn ? (
+            <div className="mt-1 flex justify-end">
+              <button
+                type="button"
+                className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Forgot password?
+              </button>
+            </div>
+          ) : null}
         </Field>
 
-        <Field>
-          <Button
-            type="submit"
-            disabled={loading || googleLoading}
-            size="lg"
-            className="w-full"
-          >
-            {loading
-              ? isSignIn
-                ? "Signing in..."
-                : "Signing up..."
-              : isSignIn
-                ? "Login"
-                : "Sign up"}
-          </Button>
-        </Field>
+        <div className="flex flex-col gap-6">
+          <Field>
+            <Button
+              type="submit"
+              disabled={loading || googleLoading}
+              size="lg"
+              className="w-full"
+            >
+              {loading
+                ? isSignIn
+                  ? "Signing in..."
+                  : "Signing up..."
+                : isSignIn
+                  ? "Login"
+                  : "Sign up"}
+            </Button>
+          </Field>
 
-        <FieldSeparator>Or continue with</FieldSeparator>
+          <FieldSeparator className="my-0">Or continue with</FieldSeparator>
 
-        <Field>
-          <Button
-            variant="outline"
-            type="button"
-            disabled={loading || googleLoading}
-            size="lg"
-            className="w-full"
-            onClick={continueWithGoogle}
-          >
-            <GoogleLogo />
-            {googleLoading ? "Redirecting..." : "Continue with Google"}
-          </Button>
-          <FieldDescription className="text-center">
-            {isSignIn ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <Link href="/signup" className="underline underline-offset-4">
-                  Sign up
-                </Link>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <Link href="/signin" className="underline underline-offset-4">
-                  Sign in
-                </Link>
-              </>
-            )}
-          </FieldDescription>
-        </Field>
+          <Field className="gap-3">
+            <Button
+              variant="outline"
+              type="button"
+              disabled={loading || googleLoading}
+              size="lg"
+              className="w-full"
+              onClick={continueWithGoogle}
+            >
+              <GoogleLogo />
+              {googleLoading ? "Redirecting..." : "Continue with Google"}
+            </Button>
+            <FieldDescription className="mt-1 text-center">
+              {isSignIn ? (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <Link href="/signup" className="underline underline-offset-4">
+                    Sign up
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <Link href="/signin" className="underline underline-offset-4">
+                    Sign in
+                  </Link>
+                </>
+              )}
+            </FieldDescription>
+          </Field>
+        </div>
       </FieldGroup>
     </form>
   );
