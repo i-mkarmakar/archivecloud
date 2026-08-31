@@ -15,7 +15,7 @@ export function FileTable({
   onToggleAll,
 }: {
   files: FileItem[];
-  mode?: "default" | "shared" | "recent" | "starred" | "archived";
+  mode?: "default" | "shared" | "starred" | "archived";
   selectedFileIds?: Set<string>;
   allSelected?: boolean;
   onFileContextMenu?: (event: MouseEvent<HTMLElement>, file: FileItem) => void;
@@ -44,11 +44,9 @@ export function FileTable({
           const meta =
             mode === "archived"
               ? file.location
-              : mode === "recent"
-                ? file.openedDate
-                : mode === "starred"
-                  ? file.starredDate
-                  : file.date;
+              : mode === "starred"
+                ? file.starredDate
+                : file.date;
           return (
             // biome-ignore lint/a11y/useKeyWithClickEvents: file row supports click-to-select alongside drag
             <article
@@ -144,9 +142,6 @@ export function FileTable({
               {mode === "shared" ? (
                 <th className="py-2.5 font-extrabold">Owner</th>
               ) : null}
-              {mode === "recent" ? (
-                <th className="py-2.5 font-extrabold">Last Opened</th>
-              ) : null}
               {mode === "starred" ? (
                 <th className="py-2.5 font-extrabold">Starred On</th>
               ) : null}
@@ -221,9 +216,6 @@ export function FileTable({
                 ) : null}
                 {mode === "shared" ? (
                   <td className="py-2.5 text-muted">{file.owner}</td>
-                ) : null}
-                {mode === "recent" ? (
-                  <td className="py-2.5 text-muted">{file.openedDate}</td>
                 ) : null}
                 {mode === "starred" ? (
                   <td className="py-2.5 text-muted">{file.starredDate}</td>

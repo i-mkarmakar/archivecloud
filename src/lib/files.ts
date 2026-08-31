@@ -18,15 +18,26 @@ export type ApiFile = {
   folder?: { id: string; name: string } | null;
 };
 
-function providerLabel(provider: string | undefined) {
-  if (provider === "s3") return "S3 Storage";
+function providerLabel(_provider: string | undefined) {
   return "Google Drive";
 }
 
-export function mimeToKind(mimeType: string): FileItem["kind"] {
+export function mimeToKind(
+  mimeType: string,
+  fileName?: string,
+): FileItem["kind"] {
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.includes("pdf")) return "pdf";
+  if (fileName) {
+    if (/\.(heic|heif|jpe?g|png|gif|webp|bmp|svg|tiff?)$/i.test(fileName)) {
+      return "image";
+    }
+    if (/\.(mp4|mov|avi|mkv|webm|m4v|3gp)$/i.test(fileName)) {
+      return "video";
+    }
+    if (/\.pdf$/i.test(fileName)) return "pdf";
+  }
   return "doc";
 }
 
@@ -64,13 +75,12 @@ export function mapApiFileToItem(file: ApiFile): FileItem {
   };
 }
 
-export type FileListView = "default" | "starred" | "archived" | "recent";
+export type FileListView = "default" | "starred" | "archived";
 
 export function buildFilesQuery(view: FileListView, limit?: number) {
   const params = new URLSearchParams();
   if (view === "starred") params.set("view", "starred");
   if (view === "archived") params.set("view", "archived");
-  if (view === "recent") params.set("view", "recent");
   if (limit) params.set("limit", String(limit));
   const qs = params.toString();
   return qs ? `/files?${qs}` : "/files";

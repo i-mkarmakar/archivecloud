@@ -1,5 +1,5 @@
 "use client";
-import { Button, Card, Input, toast } from "@heroui/react";
+import { Button, Input, toast } from "@heroui/react";
 import {
   Archive,
   ArrowDownToLine,
@@ -379,7 +379,7 @@ export function AllFilesPage() {
           parentId: activeFolderId ?? null,
         }),
       });
-      setFolderName("");
+      setFolderName("New Folder");
       setFolderColor(defaultFolderColor);
       setFolderOpen(false);
       await loadFolders();
@@ -389,6 +389,12 @@ export function AllFilesPage() {
         error instanceof Error ? error.message : "Failed to create folder",
       );
     }
+  }
+
+  function openNewFolderModal() {
+    setFolderName("New Folder");
+    setFolderColor(defaultFolderColor);
+    setFolderOpen(true);
   }
 
   async function uploadFile(event: FormEvent) {
@@ -922,11 +928,7 @@ export function AllFilesPage() {
                 <ArrowUpFromLine className="h-3.5 w-3.5" />
                 Upload
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setFolderOpen(true)}
-              >
+              <Button size="sm" variant="outline" onClick={openNewFolderModal}>
                 <FolderPlus className="h-3.5 w-3.5" />
                 New Folder
               </Button>
@@ -959,9 +961,11 @@ export function AllFilesPage() {
               onDropItem={handleDropItem}
             />
           ) : (
-            <p className="mt-4 rounded-xl border border-border bg-surface-secondary p-5 text-sm text-muted">
-              No folders yet. Click New Folder to organize uploads.
-            </p>
+            <div className="flex min-h-[240px] items-center justify-center py-8">
+              <p className="text-center text-sm text-muted">
+                No folders yet. Click New Folder to organize uploads.
+              </p>
+            </div>
           ))}
         {!activeFolder && moreFolders.length > 0 ? (
           <>
@@ -1071,17 +1075,17 @@ export function AllFilesPage() {
           </p>
         ) : null}
         {files.length === 0 ? (
-          <Card className="mt-3 p-5">
-            <p className="text-sm text-muted">
+          <div className="mt-3 flex min-h-[200px] items-center justify-center py-8">
+            <p className="text-center text-sm text-muted">
               {searchQuery
                 ? `No files found for "${searchQuery}".`
                 : activeFolder
                   ? "No files in this folder yet."
                   : "No uploaded files yet. Connect Google Drive in Settings, then upload a file."}
             </p>
-          </Card>
+          </div>
         ) : (
-          <Card className="mt-3 p-4 sm:p-5">
+          <div className="mt-3">
             {fileViewMode === "grid" ? (
               <FileGrid
                 files={files}
@@ -1100,7 +1104,7 @@ export function AllFilesPage() {
                 onFileContextMenu={openContext}
               />
             )}
-          </Card>
+          </div>
         )}
       </div>
       <EmptyAreaContextMenu
@@ -1114,7 +1118,7 @@ export function AllFilesPage() {
           setEmptyContextMenu({ x: 0, y: 0, open: false });
         }}
         onCreateFolder={() => {
-          setFolderOpen(true);
+          openNewFolderModal();
           setEmptyContextMenu({ x: 0, y: 0, open: false });
         }}
         onPasteFolder={() => {
@@ -1341,7 +1345,7 @@ export function AllFilesPage() {
               fullWidth
               value={folderName}
               onChange={(event) => setFolderName(event.target.value)}
-              placeholder="Project Assets"
+              placeholder="New Folder"
               required
             />
           </div>

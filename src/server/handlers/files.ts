@@ -1,5 +1,4 @@
 import { PassThrough, Readable } from "node:stream";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { ZipArchive } from "archiver";
 import { google } from "googleapis";
 import { z } from "zod";
@@ -18,12 +17,6 @@ import {
   syncGoogleAppFolderFiles,
   syncGoogleQuota,
 } from "@/server/modules/google/google.service";
-import {
-  createS3Client,
-  deleteS3Object,
-  getS3ConfigForAccount,
-  syncS3Quota,
-} from "@/server/modules/s3/s3.service";
 import { createAuditLog } from "@/server/utils/audit";
 import { hashToken, randomToken } from "@/server/utils/crypto";
 import { serializeFile, touchFileAccess } from "@/server/lib/file-serialize";
@@ -96,7 +89,7 @@ export async function listFilesHandler(request: Request) {
       maxSize: z.coerce.number().optional(),
       startDate: z.string().datetime().optional(),
       endDate: z.string().datetime().optional(),
-      view: z.enum(["starred", "archived", "recent"]).optional(),
+      view: z.enum(["starred", "archived"]).optional(),
       limit: z.coerce.number().int().min(1).max(100).optional(),
     })
     .parse(Object.fromEntries(url.searchParams));
@@ -134,8 +127,6 @@ export async function listFilesHandler(request: Request) {
     where.isStarred = true;
   } else if (query.view === "archived") {
     where.isArchived = true;
-  } else if (query.view === "recent") {
-    where.isArchived = false;
   } else if (!query.folderId) {
     where.isArchived = false;
   }
@@ -145,12 +136,7 @@ export async function listFilesHandler(request: Request) {
       ? [{ starredAt: "desc" as const }, { updatedAt: "desc" as const }]
       : query.view === "archived"
         ? [{ archivedAt: "desc" as const }, { updatedAt: "desc" as const }]
-        : query.view === "recent"
-          ? [
-              { lastAccessedAt: "desc" as const },
-              { updatedAt: "desc" as const },
-            ]
-          : [{ createdAt: "desc" as const }];
+        : [{ createdAt: "desc" as const }];
 
   const files = await prisma.file.findMany({
     where,
@@ -311,13 +297,9 @@ export async function batchPermanentDeleteFilesHandler(request: Request) {
 
   for (const file of files) {
     try {
-      if (file.provider === "s3") {
-        await deleteS3Object(file);
-      } else {
-        const auth = await getAuthedGoogleClient(file.connectedAccount);
-        const drive = google.drive({ version: "v3", auth });
-        await drive.files.delete({ fileId: file.providerFileId });
-      }
+      const auth = await getAuthedGoogleClient(file.connectedAccount);
+      const drive = google.drive({ version: "v3", auth });
+      await drive.files.delete({ fileId: file.providerFileId });
       deletedIds.push(file.id);
       syncedAccountIds.add(file.connectedAccountId);
       await createAuditLog(user.id, "PERMANENT_DELETE_FILE", "file", file.id, {
@@ -338,14 +320,7 @@ export async function batchPermanentDeleteFilesHandler(request: Request) {
   }
 
   for (const accountId of syncedAccountIds) {
-    const account = files.find(
-      (file) => file.connectedAccountId === accountId,
-    )?.connectedAccount;
-    if (account?.provider === "s3") {
-      await syncS3Quota(accountId).catch(() => undefined);
-    } else {
-      await syncGoogleQuota(accountId).catch(() => undefined);
-    }
+    await syncGoogleQuota(accountId).catch(() => undefined);
   }
 
   if (deletedIds.length === 0 && failed.length > 0) {
@@ -460,18 +435,15 @@ export async function updateFileHandler(
     where: { id: fileId, userId: user.id },
     include: { connectedAccount: true },
   });
-  const drive =
-    file.provider === "s3"
-      ? null
-      : google.drive({
-          version: "v3",
-          auth: await getAuthedGoogleClient(file.connectedAccount),
-        });
+  const drive = google.drive({
+    version: "v3",
+    auth: await getAuthedGoogleClient(file.connectedAccount),
+  });
   if (body.folderId)
     await prisma.folder.findFirstOrThrow({
       where: { id: body.folderId, userId: user.id, deletedAt: null },
     });
-  if (body.name && drive)
+  if (body.name)
     await drive.files.update({
       fileId: file.providerFileId,
       requestBody: { name: body.name },
@@ -646,7 +618,6 @@ export async function getViewUrlHandler(
     where: { id: fileId, userId: user.id },
     include: { connectedAccount: true },
   });
-  if (file.provider === "s3") return json({ url: null });
   const auth = await getAuthedGoogleClient(file.connectedAccount);
   const drive = google.drive({ version: "v3", auth });
   try {
@@ -733,34 +704,21 @@ export async function batchDownloadHandler(request: Request) {
   void (async () => {
     for (const file of files) {
       try {
-        let stream: Readable;
         let fileName = file.name;
-        if (file.provider === "s3") {
-          const config = await getS3ConfigForAccount(file.connectedAccountId);
-          const client = createS3Client(config);
-          const response = await client.send(
-            new GetObjectCommand({
-              Bucket: config.bucket,
-              Key: file.providerFileId,
-            }),
-          );
-          stream = response.Body as Readable;
-        } else {
-          const auth = await getAuthedGoogleClient(file.connectedAccount);
-          const headers = normalizeHeaders(await auth.getRequestHeaders());
-          const exportTarget = googleDownloadExportMimeTypes[file.mimeType];
-          if (exportTarget) {
-            fileName = withExtension(file.name, exportTarget.extension);
-          }
-          const url = exportTarget
-            ? `https://www.googleapis.com/drive/v3/files/${file.providerFileId}/export?mimeType=${encodeURIComponent(exportTarget.mimeType)}`
-            : `https://www.googleapis.com/drive/v3/files/${file.providerFileId}?alt=media`;
-          const response = await fetch(url, { headers });
-          if (!response.ok || !response.body) continue;
-          stream = Readable.fromWeb(
-            response.body as Parameters<typeof Readable.fromWeb>[0],
-          );
+        const auth = await getAuthedGoogleClient(file.connectedAccount);
+        const headers = normalizeHeaders(await auth.getRequestHeaders());
+        const exportTarget = googleDownloadExportMimeTypes[file.mimeType];
+        if (exportTarget) {
+          fileName = withExtension(file.name, exportTarget.extension);
         }
+        const url = exportTarget
+          ? `https://www.googleapis.com/drive/v3/files/${file.providerFileId}/export?mimeType=${encodeURIComponent(exportTarget.mimeType)}`
+          : `https://www.googleapis.com/drive/v3/files/${file.providerFileId}?alt=media`;
+        const response = await fetch(url, { headers });
+        if (!response.ok || !response.body) continue;
+        const stream = Readable.fromWeb(
+          response.body as Parameters<typeof Readable.fromWeb>[0],
+        );
         archive.append(stream, { name: fileName });
       } catch (err) {
         console.error(`Failed to add file ${file.name} to zip:`, err);

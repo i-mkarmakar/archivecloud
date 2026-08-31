@@ -17,17 +17,26 @@ const googleDocumentMimeTypes = new Set([
 
 export function getPreviewKind(
   mimeType: string | undefined,
+  fileName?: string,
 ): PreviewKind | null {
-  if (!mimeType) return null;
+  if (!mimeType && !fileName) return null;
+  const mime = mimeType ?? "";
   if (
-    mimeType.startsWith("image/") ||
-    mimeType === "application/vnd.google-apps.drawing"
+    mime.startsWith("image/") ||
+    mime === "application/vnd.google-apps.drawing" ||
+    (fileName &&
+      /\.(heic|heif|jpe?g|png|gif|webp|bmp|svg|tiff?)$/i.test(fileName))
   )
     return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType === "application/pdf" || googleDocumentMimeTypes.has(mimeType))
+  if (
+    mime.startsWith("video/") ||
+    (fileName && /\.(mp4|mov|avi|mkv|webm|m4v|3gp)$/i.test(fileName))
+  )
+    return "video";
+  if (mime === "application/pdf" || googleDocumentMimeTypes.has(mime))
     return "document";
-  if (officeMimeTypes.has(mimeType)) return "office";
+  if (officeMimeTypes.has(mime)) return "office";
+  if (fileName && /\.pdf$/i.test(fileName)) return "document";
   return null;
 }
 

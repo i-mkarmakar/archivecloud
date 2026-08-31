@@ -1,14 +1,7 @@
-import { Button, Card, toast } from "@heroui/react";
-import {
-  ArrowRotateRight,
-  CircleCheck,
-  Cloud,
-  Database,
-  Link,
-  Sliders,
-  Speedometer,
-} from "@gravity-ui/icons";
+import { Button, Card, Switch, toast } from "@heroui/react";
+import { ArrowRotateRight, Link, Speedometer } from "@gravity-ui/icons";
 import { useEffect, useState } from "react";
+import { GoogleDriveLogo } from "@/components/drive/GoogleDriveLogo";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { apiFetch, formatBytes } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -38,28 +31,15 @@ type RoutingPolicy = {
   roundRobinCursor: number;
 };
 
-function providerLabel(provider: string) {
-  if (provider === "s3") return "S3 Storage";
-  return "Google Drive";
-}
-
-function ProviderIcon({ provider }: { provider: string }) {
-  const Icon = provider === "s3" ? Database : Cloud;
-  return <Icon className="h-6 w-6" />;
+function ProviderIcon({ className }: { className?: string }) {
+  return <GoogleDriveLogo className={className ?? "h-6 w-6"} />;
 }
 
 function storageLimitLabel(account: ConnectedAccount) {
-  if (account.provider === "s3" && account.storageAccount?.totalBytes === null)
-    return "Unlimited";
   return formatBytes(account.storageAccount?.totalBytes);
 }
 
 function availableLabel(account: ConnectedAccount) {
-  if (
-    account.provider === "s3" &&
-    account.storageAccount?.availableBytes === null
-  )
-    return "Unlimited";
   return formatBytes(account.storageAccount?.availableBytes);
 }
 
@@ -233,16 +213,24 @@ export function QuotaTrackerPage() {
     <>
       <PageHeader
         title="Quota Tracker"
-        description="Track and manage connected provider storage limits."
+        description="Track and manage connected Google Drive storage limits."
         actions={
           <>
-            <Button
-              variant="outline"
-              onClick={() => setAutoRefresh(!autoRefresh)}
+            <Switch
+              isSelected={autoRefresh}
+              onChange={setAutoRefresh}
+              size="md"
+              aria-label="Auto-refresh"
             >
-              <CircleCheck className="h-4 w-4" />
-              Auto-refresh {autoRefresh ? "On" : "Off"}
-            </Button>
+              <Switch.Content className="flex-row items-center gap-2">
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+                <span className="whitespace-nowrap text-sm font-semibold">
+                  Auto-refresh {autoRefresh ? "On" : "Off"}
+                </span>
+              </Switch.Content>
+            </Switch>
             <Button variant="outline" onClick={refresh} isDisabled={refreshing}>
               <ArrowRotateRight
                 className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
@@ -283,10 +271,6 @@ export function QuotaTrackerPage() {
       </div>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        <Button variant="outline">
-          <Sliders className="h-4 w-4" />
-          All Providers
-        </Button>
         <Button variant="outline">All Accounts</Button>
         <Button variant="secondary">
           <Speedometer className="h-4 w-4" />
@@ -294,7 +278,7 @@ export function QuotaTrackerPage() {
         </Button>
       </div>
 
-      <Card className="mt-6 p-5">
+      <section className="mt-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-lg font-extrabold">Upload Routing</h2>
@@ -330,18 +314,18 @@ export function QuotaTrackerPage() {
           {orderedAccounts().map((account, index) => (
             <div
               key={account.id}
-              className="flex flex-col gap-3 rounded-xl bg-background-secondary p-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-foreground">
-                  <ProviderIcon provider={account.provider} />
+                  <ProviderIcon />
                 </div>
                 <div>
                   <p className="font-semibold">
                     {account.displayName || account.email}
                   </p>
                   <p className="text-sm text-muted">
-                    {providerLabel(account.provider)} ·{" "}
+                    Google Drive ·{" "}
                     {formatBytes(account.storageAccount?.usedBytes)} used ·{" "}
                     {availableLabel(account)} free
                   </p>
@@ -373,37 +357,35 @@ export function QuotaTrackerPage() {
             </p>
           ) : null}
         </div>
-      </Card>
+      </section>
 
       <div className="mt-6 grid gap-5 md:grid-cols-2">
         {accounts.length === 0 ? (
-          <Card className="col-span-full p-8 text-center">
-            <Cloud className="mx-auto h-10 w-10 text-foreground" />
-            <h2 className="mt-4 text-xl font-extrabold">No connected drives</h2>
-            <p className="mt-2 text-sm text-muted">
-              Connect Google Drive or S3-compatible storage to start tracking
-              quota.
-            </p>
-            <Button className="mt-5" onClick={connectDrive}>
-              <Link className="h-4 w-4" />
-              Connect Drive
-            </Button>
-          </Card>
+          <div className="col-span-full flex min-h-[200px] items-center justify-center py-8">
+            <div className="text-center">
+              <h2 className="text-xl font-extrabold">No connected drives</h2>
+              <p className="mt-2 text-sm text-muted">
+                Connect Google Drive to start tracking quota.
+              </p>
+              <Button className="mt-5" onClick={connectDrive}>
+                <Link className="h-4 w-4" />
+                Connect Drive
+              </Button>
+            </div>
+          </div>
         ) : (
           accounts.map((account) => {
             const percent = pct(account);
             const color = statusColor(percent);
             return (
-              <Card key={account.id} className="overflow-hidden p-5">
+              <section key={account.id} className="overflow-hidden p-1">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                      <ProviderIcon provider={account.provider} />
+                      <ProviderIcon />
                     </div>
                     <div>
-                      <h2 className="font-extrabold">
-                        {providerLabel(account.provider)}
-                      </h2>
+                      <h2 className="font-extrabold">Google Drive</h2>
                       <p className="text-sm text-muted">{account.email}</p>
                     </div>
                   </div>
@@ -452,7 +434,7 @@ export function QuotaTrackerPage() {
                     <span>Available {availableLabel(account)}</span>
                   </div>
                 </div>
-              </Card>
+              </section>
             );
           })
         )}

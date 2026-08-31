@@ -86,12 +86,14 @@ export function FileGrid({
   sizeScale = "sm",
   onFileContextMenu,
   onToggleFile,
+  onFileOpen,
 }: {
   files: FileItem[];
   selectedFileIds?: Set<string>;
   sizeScale?: FileSizeScale;
   onFileContextMenu?: (event: MouseEvent<HTMLElement>, file: FileItem) => void;
   onToggleFile?: (file: FileItem) => void;
+  onFileOpen?: (file: FileItem) => void;
 }) {
   const cfg = scaleConfig[sizeScale];
   return (
@@ -107,6 +109,7 @@ export function FileGrid({
               event.dataTransfer.effectAllowed = "move";
             }}
             onClick={() => onToggleFile?.(file)}
+            onDoubleClick={() => onFileOpen?.(file)}
             onContextMenu={(event) => onFileContextMenu?.(event, file)}
             className={cn(
               selected
@@ -142,11 +145,20 @@ export function FileGrid({
             <div className="flex justify-center mt-2">
               <div
                 className={cn(
-                  "flex items-center justify-center rounded-2xl bg-surface-secondary text-foreground",
+                  "relative flex items-center justify-center overflow-hidden rounded-2xl bg-surface-secondary text-foreground",
                   cfg.iconShell,
                 )}
               >
-                <FileIcon kind={file.kind} className={cfg.icon} />
+                {file.thumbnailUrl ? (
+                  <img
+                    src={file.thumbnailUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <FileIcon kind={file.kind} className={cfg.icon} />
+                )}
               </div>
             </div>
 

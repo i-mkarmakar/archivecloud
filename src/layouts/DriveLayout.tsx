@@ -11,24 +11,24 @@ import {
 } from "react";
 import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { isDeveloperPath, type AppMode } from "@/components/dashboard/config";
+import { dashboardContentClassName } from "@/components/dashboard/config";
 import { UploadProgressPanel } from "@/components/dashboard/UploadProgressPanel";
-import { useDeveloperMode } from "@/context/DeveloperModeContext";
 import { useUpload } from "@/context/UploadContext";
 import { apiFetch } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { type AuthUser, sessionUserToAuthUser } from "@/lib/auth-user";
 
 type StorageSummary = {
-  totalBytes: string;
+  totalBytes: string | null;
   usedBytes: string;
-  availableBytes: string;
+  availableBytes: string | null;
 };
 
 type StorageBreakdown = {
   photo: string;
   video: string;
   document: string;
+  other: string;
 };
 
 type ConnectedAccount = {
@@ -61,46 +61,24 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     onOpenChange: setSidebarOpen,
   });
   const [searchValue, setSearchValue] = useState(sp.get("q") ?? "");
-  const { data: session, isPending: userLoaded } = authClient.useSession();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const user: AuthUser | null = session?.user
     ? sessionUserToAuthUser(session.user)
     : null;
-  const [storage, setStorage] = useState<StorageSummary | null>(null);
+  const [storage, setStorage] = useState<StorageSummary>({
+    totalBytes: "0",
+    usedBytes: "0",
+    availableBytes: "0",
+  });
   const [breakdown, setBreakdown] = useState<StorageBreakdown>({
     photo: "0",
     video: "0",
     document: "0",
+    other: "0",
   });
   const [headerActions, setHeaderActions] = useState<ReactNode>(null);
   const { uploadProgress, setUploadProgress, retryFailedUpload } = useUpload();
   const [uploadProgressCollapsed, setUploadProgressCollapsed] = useState(false);
-
-  const { developerModeEnabled, loading: developerLoading } =
-    useDeveloperMode();
-  const mode: AppMode = isDeveloperPath(safePathname)
-    ? "developer"
-    : "workspace";
-
-  function switchMode(nextMode: "workspace" | "developer") {
-    if (nextMode === "developer") {
-      if (developerLoading) return;
-      if (!developerModeEnabled) {
-        router.push("/settings?developer=required");
-        return;
-      }
-      router.push("/developer");
-      return;
-    }
-    router.push("/all-files");
-  }
-
-  useEffect(() => {
-    if (developerLoading) return;
-    if (safePathname.startsWith("/settings")) return;
-    if (!developerModeEnabled && isDeveloperPath(safePathname)) {
-      router.replace("/settings?developer=required");
-    }
-  }, [developerModeEnabled, developerLoading, router, safePathname]);
 
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [filterKind, setFilterKind] = useState(sp.get("kind") ?? "");
@@ -225,7 +203,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (!userLoaded) return;
+    if (sessionPending || !session?.user) return;
     loadSidebarStats().catch(() => undefined);
     loadConnectedAccounts().catch(() => undefined);
     window.addEventListener("archivecloud:storage-changed", loadSidebarStats);
@@ -234,7 +212,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
         "archivecloud:storage-changed",
         loadSidebarStats,
       );
-  }, [userLoaded]);
+  }, [sessionPending, session?.user]);
 
   const sidebarProps = {
     safePathname,
@@ -242,8 +220,6 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     storage,
     breakdown,
     onLogout: logout,
-    mode,
-    onSwitchMode: switchMode,
   };
 
   return (
@@ -294,9 +270,11 @@ export function DriveLayout({ children }: { children: ReactNode }) {
         />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <DriveLayoutContext.Provider value={{ setHeaderActions }}>
-            {children}
-          </DriveLayoutContext.Provider>
+          <div className={dashboardContentClassName}>
+            <DriveLayoutContext.Provider value={{ setHeaderActions }}>
+              {children}
+            </DriveLayoutContext.Provider>
+          </div>
         </main>
       </div>
 

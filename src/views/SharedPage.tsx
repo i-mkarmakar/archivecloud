@@ -1,4 +1,4 @@
-import { Button, Card, toast } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import {
   Archive,
   Clock,
@@ -101,18 +101,20 @@ export function SharedPage() {
         />
       </div>
 
-      <Card className="mt-8 p-5">
+      <section className="mt-8">
         <h2 className="font-extrabold">Shared With You</h2>
         <div className="mt-4 grid gap-3">
           {receivedInvites.length === 0 ? (
-            <p className="rounded-xl bg-background-secondary p-4 text-sm text-muted">
-              No files or folders have been shared with you yet.
-            </p>
+            <div className="flex min-h-[200px] items-center justify-center py-8">
+              <p className="text-center text-sm text-muted">
+                No files or folders have been shared with you yet.
+              </p>
+            </div>
           ) : (
             receivedInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="flex flex-col gap-3 rounded-xl bg-background-secondary p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <ResourceIcon type={invite.targetType} />
@@ -142,21 +144,23 @@ export function SharedPage() {
             ))
           )}
         </div>
-      </Card>
+      </section>
 
-      <Card className="mt-6 p-5">
+      <section className="mt-6">
         <h2 className="font-extrabold">Resources You Shared</h2>
         <div className="mt-4 grid gap-3">
           {sentInvites.length === 0 ? (
-            <p className="rounded-xl bg-background-secondary p-4 text-sm text-muted">
-              No files or folders shared yet. Use Invite Members from the top
-              bar.
-            </p>
+            <div className="flex min-h-[200px] items-center justify-center py-8">
+              <p className="text-center text-sm text-muted">
+                No files or folders shared yet. Use Invite Members from the top
+                bar.
+              </p>
+            </div>
           ) : (
             sentInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="flex flex-col gap-3 rounded-xl bg-background-secondary p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <ResourceIcon type={invite.targetType} />
@@ -199,7 +203,7 @@ export function SharedPage() {
             ))
           )}
         </div>
-      </Card>
+      </section>
     </>
   );
 }

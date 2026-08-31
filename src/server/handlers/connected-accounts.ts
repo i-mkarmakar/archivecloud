@@ -8,27 +8,19 @@ import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
 import {
   createOAuthClient,
+  browseGoogleDriveFolder,
   ensureGlobalGoogleProviderConfig,
+  getAuthedGoogleClient,
   syncGoogleQuota,
 } from "@/server/modules/google/google.service";
-import { syncS3Quota, testS3Connection } from "@/server/modules/s3/s3.service";
+import {
+  isBrowserInlineImageMimeType,
+  isHeicLike,
+  streamGoogleDriveThumbnailResponse,
+  streamGoogleProviderFileResponse,
+} from "@/server/modules/files/stream-google-file";
 import { encryptText, hashToken, randomToken } from "@/server/utils/crypto";
-
-const s3ConnectSchema = z.object({
-  name: z.string().trim().min(1).max(191),
-  bucket: z.string().trim().min(1).max(191),
-  region: z.string().trim().min(1).max(191),
-  endpoint: z.string().url().optional().or(z.literal("")),
-  accessKeyId: z.string().min(1),
-  secretAccessKey: z.string().min(1),
-  forcePathStyle: z.boolean().optional(),
-  quotaBytes: z.string().regex(/^\d+$/).optional().nullable(),
-});
-
-async function syncQuotaForAccount(account: { id: string; provider: string }) {
-  if (account.provider === "s3") return syncS3Quota(account.id);
-  return syncGoogleQuota(account.id);
-}
+import { serializeStorageAccount } from "@/server/lib/storage-serialize";
 
 export async function createGoogleConnectUrl(
   userId: string,
@@ -61,7 +53,7 @@ export async function createGoogleConnectUrl(
     if (!config) {
       return errorJson(
         "GOOGLE_NOT_CONFIGURED",
-        "Google Drive is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env, or set up OAuth in Developer Console.",
+        "Google Drive is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env, then run pnpm seed:google-config.",
         503,
       );
     }
@@ -99,7 +91,7 @@ export async function listConnectedAccountsHandler(request: Request) {
     (account) => !account.storageAccount?.lastSyncedAt,
   );
   for (const account of missingQuota)
-    await syncQuotaForAccount(account).catch(() => undefined);
+    await syncGoogleQuota(account.id).catch(() => undefined);
 
   const syncedAccounts =
     missingQuota.length > 0
@@ -120,119 +112,11 @@ export async function listConnectedAccountsHandler(request: Request) {
       }) => ({
         ...account,
         storageAccount: storageAccount
-          ? {
-              ...storageAccount,
-              totalBytes: storageAccount.totalBytes?.toString() ?? null,
-              usedBytes: storageAccount.usedBytes.toString(),
-              availableBytes: storageAccount.availableBytes?.toString() ?? null,
-              trashBytes: storageAccount.trashBytes?.toString() ?? null,
-            }
+          ? serializeStorageAccount(storageAccount)
           : null,
       }),
     ),
   });
-}
-
-export async function connectS3Handler(request: Request) {
-  const user = await requireAuthUser(request);
-  if (user instanceof Response) return user;
-  const body = s3ConnectSchema.parse(await request.json());
-  const providerConfig = await ensureGlobalGoogleProviderConfig();
-  const providerConfigId = providerConfig?.id ?? null;
-  const providerAccountId = `${body.bucket}:${body.endpoint || body.region}`;
-  const existingAccount = await prisma.connectedAccount.findUnique({
-    where: {
-      userId_provider_providerAccountId: {
-        userId: user.id,
-        provider: "s3",
-        providerAccountId,
-      },
-    },
-  });
-  const account = existingAccount
-    ? await prisma.connectedAccount.update({
-        where: { id: existingAccount.id },
-        data: {
-          providerConfigId,
-          email: `${body.bucket} (S3)`,
-          displayName: body.name,
-          accessTokenEncrypted: encryptText("s3"),
-          refreshTokenEncrypted: encryptText(randomToken()),
-          tokenExpiresAt: new Date(
-            Date.now() + 100 * 365 * 24 * 60 * 60 * 1000,
-          ),
-          scopes: [],
-          status: "connected",
-        },
-      })
-    : await prisma.connectedAccount.create({
-        data: {
-          userId: user.id,
-          providerConfigId,
-          provider: "s3",
-          providerAccountId,
-          email: `${body.bucket} (S3)`,
-          displayName: body.name,
-          accessTokenEncrypted: encryptText("s3"),
-          refreshTokenEncrypted: encryptText(randomToken()),
-          tokenExpiresAt: new Date(
-            Date.now() + 100 * 365 * 24 * 60 * 60 * 1000,
-          ),
-          scopes: [],
-          status: "connected",
-        },
-      });
-  const config = await prisma.s3StorageConfig.upsert({
-    where: { connectedAccountId: account.id },
-    create: {
-      userId: user.id,
-      connectedAccountId: account.id,
-      name: body.name,
-      bucket: body.bucket,
-      region: body.region,
-      endpoint: body.endpoint || null,
-      accessKeyIdEncrypted: encryptText(body.accessKeyId),
-      secretAccessKeyEncrypted: encryptText(body.secretAccessKey),
-      forcePathStyle: body.forcePathStyle ?? Boolean(body.endpoint),
-      quotaBytes: body.quotaBytes ? BigInt(body.quotaBytes) : null,
-    },
-    update: {
-      name: body.name,
-      bucket: body.bucket,
-      region: body.region,
-      endpoint: body.endpoint || null,
-      accessKeyIdEncrypted: encryptText(body.accessKeyId),
-      secretAccessKeyEncrypted: encryptText(body.secretAccessKey),
-      forcePathStyle: body.forcePathStyle ?? Boolean(body.endpoint),
-      quotaBytes: body.quotaBytes ? BigInt(body.quotaBytes) : null,
-      status: "active",
-    },
-  });
-  try {
-    await testS3Connection(config);
-    const quota = await syncS3Quota(account.id);
-    return json(
-      {
-        account: {
-          ...account,
-          storageAccount: {
-            ...quota,
-            totalBytes: quota.totalBytes?.toString() ?? null,
-            usedBytes: quota.usedBytes.toString(),
-            availableBytes: quota.availableBytes?.toString() ?? null,
-            trashBytes: quota.trashBytes?.toString() ?? null,
-          },
-        },
-      },
-      201,
-    );
-  } catch (error) {
-    if (!existingAccount)
-      await prisma.connectedAccount
-        .delete({ where: { id: account.id } })
-        .catch(() => undefined);
-    throw error;
-  }
 }
 
 export async function googleConnectUrlHandler(request: Request) {
@@ -376,15 +260,9 @@ export async function syncQuotaHandler(
   const account = await prisma.connectedAccount.findFirstOrThrow({
     where: { id: accountId, userId: user.id },
   });
-  const quota = await syncQuotaForAccount(account);
+  const quota = await syncGoogleQuota(account.id);
   return json({
-    quota: {
-      ...quota,
-      totalBytes: quota.totalBytes?.toString() ?? null,
-      usedBytes: quota.usedBytes.toString(),
-      availableBytes: quota.availableBytes?.toString() ?? null,
-      trashBytes: quota.trashBytes?.toString() ?? null,
-    },
+    quota: serializeStorageAccount(quota),
   });
 }
 
@@ -402,4 +280,142 @@ export async function disconnectAccountHandler(
     data: { status: "disconnected" },
   });
   return json({ status: "ok" });
+}
+
+export async function browseConnectedAccountHandler(
+  request: Request,
+  _user?: AuthUser,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const accountId = params?.id;
+  if (!accountId) {
+    return errorJson("VALIDATION_ERROR", "Account id required.", 400);
+  }
+
+  const url = new URL(request.url);
+  const query = z
+    .object({
+      parentId: z.string().optional(),
+      q: z.string().trim().max(255).optional(),
+    })
+    .parse(Object.fromEntries(url.searchParams));
+
+  const account = await prisma.connectedAccount.findFirst({
+    where: { id: accountId, userId: user.id, status: "connected" },
+  });
+  if (!account) {
+    return errorJson("ACCOUNT_NOT_FOUND", "Connected account not found.", 404);
+  }
+
+  const parentId = query.parentId?.trim() || "root";
+
+  if (account.provider !== "google_drive") {
+    return errorJson(
+      "UNSUPPORTED_PROVIDER",
+      "Browsing is not supported for this provider.",
+      400,
+    );
+  }
+
+  const result = await browseGoogleDriveFolder(
+    accountId,
+    user.id,
+    parentId,
+    query.q,
+  );
+  return json(result);
+}
+
+async function getOwnedConnectedAccount(accountId: string, userId: string) {
+  const account = await prisma.connectedAccount.findFirst({
+    where: { id: accountId, userId, status: "connected" },
+  });
+  if (!account) {
+    return errorJson("ACCOUNT_NOT_FOUND", "Connected account not found.", 404);
+  }
+  return account;
+}
+
+export async function previewConnectedAccountFileHandler(
+  request: Request,
+  _user?: AuthUser,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const accountId = params?.id;
+  const providerFileId = params?.fileId;
+  if (!accountId || !providerFileId) {
+    return errorJson("VALIDATION_ERROR", "Account and file id required.", 400);
+  }
+
+  const account = await getOwnedConnectedAccount(accountId, user.id);
+  if (account instanceof Response) return account;
+
+  if (account.provider === "google_drive") {
+    const auth = await getAuthedGoogleClient(account);
+    const drive = google.drive({ version: "v3", auth });
+    const metadata = await drive.files.get({
+      fileId: providerFileId,
+      fields: "id,name,mimeType",
+      supportsAllDrives: true,
+    });
+    if (!metadata.data.id || !metadata.data.name) {
+      return errorJson("FILE_NOT_FOUND", "File not found on this drive.", 404);
+    }
+
+    const mimeType = metadata.data.mimeType ?? "application/octet-stream";
+    const name = metadata.data.name;
+    const range = request.headers.get("range") ?? undefined;
+
+    if (
+      isHeicLike(mimeType, name) ||
+      (mimeType.startsWith("image/") &&
+        !isBrowserInlineImageMimeType(mimeType, name))
+    ) {
+      return streamGoogleDriveThumbnailResponse(account, providerFileId);
+    }
+
+    return streamGoogleProviderFileResponse(
+      account,
+      { providerFileId, mimeType, name },
+      range,
+      { disposition: "inline" },
+    );
+  }
+
+  return errorJson(
+    "UNSUPPORTED_PROVIDER",
+    "Preview is not supported for this provider.",
+    400,
+  );
+}
+
+export async function thumbnailConnectedAccountFileHandler(
+  request: Request,
+  _user?: AuthUser,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const accountId = params?.id;
+  const providerFileId = params?.fileId;
+  if (!accountId || !providerFileId) {
+    return errorJson("VALIDATION_ERROR", "Account and file id required.", 400);
+  }
+
+  const account = await getOwnedConnectedAccount(accountId, user.id);
+  if (account instanceof Response) return account;
+
+  if (account.provider === "google_drive") {
+    return streamGoogleDriveThumbnailResponse(account, providerFileId);
+  }
+
+  return errorJson(
+    "UNSUPPORTED_PROVIDER",
+    "Thumbnails are not supported for this provider.",
+    400,
+  );
 }
