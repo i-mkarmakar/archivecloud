@@ -55,6 +55,55 @@ function statusColor(percent: number) {
   return "bg-success-soft text-success-soft-foreground";
 }
 
+type StatBadgeVariant = "success" | "warning" | "danger" | "neutral";
+
+function statBadgeVariant(percent: number): StatBadgeVariant {
+  if (percent >= 80) return "danger";
+  if (percent >= 50) return "warning";
+  return "success";
+}
+
+function StatBadge({
+  value,
+  trend,
+  variant = "neutral",
+}: {
+  value: string;
+  trend?: "up" | "down";
+  variant?: StatBadgeVariant;
+}) {
+  const variantClass = {
+    success: "bg-success-soft text-success-soft-foreground",
+    warning: "bg-warning-soft text-warning-soft-foreground",
+    danger: "bg-danger-soft text-danger-soft-foreground",
+    neutral: "bg-surface-secondary text-muted",
+  }[variant];
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold",
+        variantClass,
+      )}
+    >
+      {trend === "up" ? "↑" : trend === "down" ? "↓" : null}
+      {value}
+    </span>
+  );
+}
+
+function usagePercent(summary: StorageSummary | null) {
+  const total = Number(summary?.totalBytes ?? 0);
+  const used = Number(summary?.usedBytes ?? 0);
+  return total > 0 ? Math.round((used / total) * 100) : 0;
+}
+
+function availablePercent(summary: StorageSummary | null) {
+  const total = Number(summary?.totalBytes ?? 0);
+  const available = Number(summary?.availableBytes ?? 0);
+  return total > 0 ? Math.round((available / total) * 100) : 0;
+}
+
 export function QuotaTrackerPage() {
   const [summary, setSummary] = useState<StorageSummary | null>(null);
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
@@ -209,6 +258,12 @@ export function QuotaTrackerPage() {
     );
   }
 
+  const usedPct = usagePercent(summary);
+  const availPct = availablePercent(summary);
+  const connectedCount = accounts.filter(
+    (account) => account.status === "connected",
+  ).length;
+
   return (
     <>
       <PageHeader
@@ -248,25 +303,57 @@ export function QuotaTrackerPage() {
       <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card className="p-5">
           <p className="text-sm text-muted">Total Storage</p>
-          <p className="mt-2 text-2xl font-extrabold">
-            {formatBytes(summary?.totalBytes)}
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-2xl font-extrabold">
+              {formatBytes(summary?.totalBytes)}
+            </p>
+            {accounts.length > 0 ? (
+              <StatBadge
+                value={`${accounts.length} drive${accounts.length === 1 ? "" : "s"}`}
+                variant="neutral"
+              />
+            ) : null}
+          </div>
         </Card>
         <Card className="p-5">
           <p className="text-sm text-muted">Used Storage</p>
-          <p className="mt-2 text-2xl font-extrabold">
-            {formatBytes(summary?.usedBytes)}
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-2xl font-extrabold">
+              {formatBytes(summary?.usedBytes)}
+            </p>
+            {summary ? (
+              <StatBadge
+                value={`${usedPct}%`}
+                trend="up"
+                variant={statBadgeVariant(usedPct)}
+              />
+            ) : null}
+          </div>
         </Card>
         <Card className="p-5">
           <p className="text-sm text-muted">Available</p>
-          <p className="mt-2 text-2xl font-extrabold">
-            {formatBytes(summary?.availableBytes)}
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-2xl font-extrabold">
+              {formatBytes(summary?.availableBytes)}
+            </p>
+            {summary ? (
+              <StatBadge value={`${availPct}%`} trend="up" variant="success" />
+            ) : null}
+          </div>
         </Card>
         <Card className="p-5">
           <p className="text-sm text-muted">Accounts</p>
-          <p className="mt-2 text-2xl font-extrabold">{accounts.length}</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-2xl font-extrabold">{accounts.length}</p>
+            {accounts.length > 0 ? (
+              <StatBadge
+                value={`${connectedCount} connected`}
+                variant={
+                  connectedCount === accounts.length ? "success" : "warning"
+                }
+              />
+            ) : null}
+          </div>
         </Card>
       </div>
 
