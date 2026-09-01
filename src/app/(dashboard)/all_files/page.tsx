@@ -13,5 +13,5 @@ export default function AllFilesUnderscoreRedirect({
     }
   }
   const qs = params.toString();
-  redirect(qs ? `/all-files?${qs}` : "/all-files");
+  redirect(qs ? `/home?${qs}` : "/home");
 }

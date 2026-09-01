@@ -51,7 +51,7 @@ export function ArchivedPage() {
     try {
       await updateFilesMetadata(fileIds, { isArchived: false });
       setSelectedIds(new Set());
-      toast.success(`Restored ${fileIds.length} file(s) to All Files.`);
+      toast.success(`Restored ${fileIds.length} file(s) to Home.`);
       await reload();
       window.dispatchEvent(new Event("archivecloud:storage-changed"));
     } catch (err) {
@@ -112,8 +112,7 @@ export function ArchivedPage() {
         }
       />
       <p className="mt-6 text-sm text-muted">
-        Archived files stay available and do not appear in All Files until
-        restored.
+        Archived files stay available and do not appear in Home until restored.
       </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
@@ -147,8 +146,7 @@ export function ArchivedPage() {
           <div className="text-center">
             <p className="font-extrabold">No archived files</p>
             <p className="mt-1 text-sm text-muted">
-              Archive files from All Files to hide them from your main
-              workspace.
+              Archive files from Home to hide them from your main workspace.
             </p>
           </div>
         </div>

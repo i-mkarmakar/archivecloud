@@ -44,7 +44,7 @@ export function LoginForm({
   const redirectPath =
     callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
       ? callbackUrl
-      : "/all-files";
+      : "/home";
 
   useEffect(() => {
     if (!isSignIn) return;

@@ -1,6 +1,7 @@
 import {
   Archive,
   Gear,
+  House,
   Link,
   Speedometer,
   Star,
@@ -19,7 +20,7 @@ export type DashboardNavItem = {
 export const dashboardContentClassName = "mx-auto w-full max-w-6xl";
 
 export const dashboardNavItems: DashboardNavItem[] = [
-  { label: "Files", icon: Archive, href: "/all-files" },
+  { label: "Home", icon: House, href: "/home" },
   { label: "Shared", icon: Link, href: "/shared" },
   { label: "Starred", icon: Star, href: "/starred" },
   { label: "Archived", icon: Archive, href: "/archived" },

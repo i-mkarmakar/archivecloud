@@ -33,7 +33,7 @@ export function StarredPage() {
           icon={FileText}
         />
         <MetricCard
-          label="All Files"
+          label="Home"
           value={String(files.filter((file) => !file.folderId).length)}
           icon={Star}
         />
@@ -59,7 +59,7 @@ export function StarredPage() {
         error={error}
         mode="starred"
         emptyTitle="No starred files"
-        emptyDescription="Star files from All Files to pin them here."
+        emptyDescription="Star files from Home to pin them here."
       />
     </>
   );

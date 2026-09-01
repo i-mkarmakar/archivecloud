@@ -161,7 +161,7 @@ export function FileContextMenu({
                 )}
                 {!file.folderName && (
                   <span className="rounded-md bg-surface-secondary px-1.5 py-0.5 text-[10px] font-semibold text-muted dark:bg-accent dark:text-muted">
-                    / All Files
+                    / Home
                   </span>
                 )}
               </div>

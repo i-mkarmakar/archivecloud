@@ -1,16 +1,17 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import { AllFilesPage } from "@/views/AllFilesPage";
-
-export default function Page() {
-  return (
-    <Suspense
-      fallback={
-        <main className="p-8 text-sm text-muted">Loading files...</main>
-      }
-    >
-      <AllFilesPage />
-    </Suspense>
-  );
+export default function AllFilesRedirect({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (typeof value === "string") params.set(key, value);
+    else if (Array.isArray(value)) {
+      for (const entry of value) params.append(key, entry);
+    }
+  }
+  const qs = params.toString();
+  redirect(qs ? `/home?${qs}` : "/home");
 }
