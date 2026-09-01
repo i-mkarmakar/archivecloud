@@ -68,7 +68,7 @@ export const files: FileItem[] = [
     shared: 1,
     openedDate: "Today, 09:42 AM",
     starredDate: "Apr 30, 2026",
-    location: "All Files",
+    location: "Home",
   },
   {
     name: "Travel Landing Page",

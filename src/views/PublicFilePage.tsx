@@ -11,6 +11,7 @@ import {
 } from "@gravity-ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { API_URL, apiFetch, formatBytes, formatDate } from "@/lib/api";
+import { setDocumentTitle } from "@/lib/document-title";
 import { createPlyr, ensurePlyr } from "@/lib/plyr";
 import {
   getPreviewKind,
@@ -91,13 +92,8 @@ export function PublicFilePage({
   }, [token]);
 
   useEffect(() => {
-    document.title = file
-      ? `${file.name} | ArchiveCloud`
-      : "Shared file | ArchiveCloud";
-    return () => {
-      document.title = "ArchiveCloud";
-    };
-  }, [file]);
+    setDocumentTitle(embed ? "Embed" : file ? file.name : "Shared file");
+  }, [embed, file]);
 
   useEffect(() => {
     if (kind !== "video" || !videoRef.current) return undefined;

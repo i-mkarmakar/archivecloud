@@ -1,8 +1,9 @@
 "use client";
 
-import { buttonVariants, Popover, Separator, Surface } from "@heroui/react";
-import { Bell, CircleInfo, HardDrive, ShieldCheck } from "@gravity-ui/icons";
+import { Popover, Separator, Surface } from "@heroui/react";
+import { CircleInfo, HardDrive, ShieldCheck } from "@gravity-ui/icons";
 import { GoogleDriveLogo } from "@/components/drive/GoogleDriveLogo";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 export function SystemInfoPopover({
   accounts,
@@ -20,16 +21,12 @@ export function SystemInfoPopover({
 
   return (
     <Popover>
-      <Popover.Trigger
-        className={buttonVariants({
-          variant: "outline",
-          size: "sm",
-          isIconOnly: true,
-        })}
+      <NotificationBell
+        count={activeGoogle.length}
+        size={36}
+        color="red"
         aria-label="App status"
-      >
-        <Bell className="h-5 w-5" />
-      </Popover.Trigger>
+      />
       <Popover.Content
         placement="bottom end"
         className="w-[min(calc(100vw-2rem),22rem)] p-0"

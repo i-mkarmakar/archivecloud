@@ -154,7 +154,7 @@ export function SearchFiltersPopover({
         })}
         aria-label="Search filters"
       >
-        <Sliders className="h-5 w-5" />
+        <Sliders className="h-4 w-4" />
       </Popover.Trigger>
       <Popover.Content
         placement="bottom start"

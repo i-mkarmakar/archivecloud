@@ -2,13 +2,7 @@
 
 import { Drawer, useOverlayState } from "@heroui/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { dashboardContentClassName } from "@/components/dashboard/config";
@@ -38,19 +32,6 @@ type ConnectedAccount = {
   status: string;
 };
 
-export type DriveLayoutContext = {
-  setHeaderActions: (actions: ReactNode) => void;
-};
-
-const DriveLayoutContext = createContext<DriveLayoutContext | null>(null);
-
-export function useDriveLayoutActions() {
-  const context = useContext(DriveLayoutContext);
-  if (!context)
-    throw new Error("useDriveLayoutActions must be used within DriveLayout");
-  return context;
-}
-
 export function DriveLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const safePathname = usePathname() ?? "";
@@ -76,7 +57,6 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     document: "0",
     other: "0",
   });
-  const [headerActions, setHeaderActions] = useState<ReactNode>(null);
   const { uploadProgress, setUploadProgress, retryFailedUpload } = useUpload();
   const [uploadProgressCollapsed, setUploadProgressCollapsed] = useState(false);
 
@@ -156,7 +136,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   function applyFilters() {
     const nextParams = new URLSearchParams();
     const activeFolderId = sp.get("folderId");
-    if (activeFolderId && safePathname === "/all-files") {
+    if (activeFolderId && safePathname === "/home") {
       nextParams.set("folderId", activeFolderId);
     }
 
@@ -179,7 +159,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
       nextParams.set("endDate", new Date(filterEndDate).toISOString());
 
     const qs = nextParams.toString();
-    router.push(qs ? `/all-files?${qs}` : "/all-files");
+    router.push(qs ? `/home?${qs}` : "/home");
   }
 
   function clearFilters() {
@@ -192,14 +172,14 @@ export function DriveLayout({ children }: { children: ReactNode }) {
 
     const nextParams = new URLSearchParams();
     const activeFolderId = sp.get("folderId");
-    if (activeFolderId && safePathname === "/all-files") {
+    if (activeFolderId && safePathname === "/home") {
       nextParams.set("folderId", activeFolderId);
     }
     const q = searchValue.trim();
     if (q) nextParams.set("q", q);
 
     const qs = nextParams.toString();
-    router.push(qs ? `/all-files?${qs}` : "/all-files");
+    router.push(qs ? `/home?${qs}` : "/home");
   }
 
   useEffect(() => {
@@ -265,16 +245,11 @@ export function DriveLayout({ children }: { children: ReactNode }) {
           onFilterEndDateChange={setFilterEndDate}
           onApplyFilters={applyFilters}
           onClearFilters={clearFilters}
-          headerActions={headerActions}
           onOpenSidebar={() => setSidebarOpen(true)}
         />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className={dashboardContentClassName}>
-            <DriveLayoutContext.Provider value={{ setHeaderActions }}>
-              {children}
-            </DriveLayoutContext.Provider>
-          </div>
+          <div className={dashboardContentClassName}>{children}</div>
         </main>
       </div>
 

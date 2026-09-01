@@ -25,6 +25,10 @@ import {
   useState,
 } from "react";
 import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  SIDEBAR_CREATE_EVENT,
+  type SidebarCreateAction,
+} from "@/components/dashboard/SidebarNewButton";
 import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
 import { FileContextMenu } from "@/components/drive/FileContextMenu";
 import { FileDetailsDrawer } from "@/components/drive/FileDetailsDrawer";
@@ -42,8 +46,9 @@ import { useUpload } from "@/context/UploadContext";
 import { updateFilesMetadata } from "@/hooks/useWorkspaceFiles";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { mapApiFileToItem, type ApiFile } from "@/lib/files";
-import { useDriveLayoutActions } from "@/layouts/DriveLayout";
 import { API_URL, apiFetch, formatBytes, formatDate } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
+import { formatPersonalGreeting } from "@/lib/greeting";
 import { createPlyr, ensurePlyr } from "@/lib/plyr";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
 
@@ -130,6 +135,7 @@ function FolderColorFields({
 export function AllFilesPage() {
   const sp = useSearchParams() ?? new URLSearchParams();
   const router = useRouter();
+  const { data: session } = authClient.useSession();
   const activeFolderId = sp.get("folderId");
   const searchQuery = sp.get("q")?.trim() ?? "";
 
@@ -139,7 +145,7 @@ export function AllFilesPage() {
       if (value) next.set(key, value);
     }
     const qs = next.toString();
-    router.push(qs ? `/all-files?${qs}` : "/all-files");
+    router.push(qs ? `/home?${qs}` : "/home");
   }
   const [uploadOpen, setUploadOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
@@ -208,7 +214,6 @@ export function AllFilesPage() {
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviting, setInviting] = useState(false);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
-  const { setHeaderActions } = useDriveLayoutActions();
   const [connectedAccounts, setConnectedAccounts] = useState<
     ConnectedAccount[]
   >([]);
@@ -396,6 +401,42 @@ export function AllFilesPage() {
     setFolderColor(defaultFolderColor);
     setFolderOpen(true);
   }
+
+  function runSidebarCreateAction(action: SidebarCreateAction) {
+    if (action === "upload") {
+      setUploadOpen(true);
+      return;
+    }
+    openNewFolderModal();
+  }
+
+  useEffect(() => {
+    const action = sp.get("action");
+    if (action === "upload" || action === "new-folder") {
+      const params = new URLSearchParams(sp.toString());
+      params.delete("action");
+      const qs = params.toString();
+      router.replace(qs ? `/home?${qs}` : "/home");
+      runSidebarCreateAction(action);
+    }
+  }, [sp, router]);
+
+  useEffect(() => {
+    function onSidebarCreate(event: Event) {
+      const action = (event as CustomEvent<{ action: SidebarCreateAction }>)
+        .detail?.action;
+      if (action === "upload") {
+        setUploadOpen(true);
+      } else if (action === "new-folder") {
+        setFolderName("New Folder");
+        setFolderColor(defaultFolderColor);
+        setFolderOpen(true);
+      }
+    }
+    window.addEventListener(SIDEBAR_CREATE_EVENT, onSidebarCreate);
+    return () =>
+      window.removeEventListener(SIDEBAR_CREATE_EVENT, onSidebarCreate);
+  }, []);
 
   async function uploadFile(event: FormEvent) {
     event.preventDefault();
@@ -734,7 +775,7 @@ export function AllFilesPage() {
 
   async function copyFolderLink() {
     if (!activeFolderForMenu?.id) return;
-    let url = `${window.location.origin}/all-files?folderId=${activeFolderForMenu.id}`;
+    let url = `${window.location.origin}/home?folderId=${activeFolderForMenu.id}`;
     if (activeFolderForMenu.providerFolderId) {
       url = `https://drive.google.com/open?id=${activeFolderForMenu.providerFolderId}`;
     }
@@ -840,22 +881,6 @@ export function AllFilesPage() {
       );
   }, [activeFolderId]);
 
-  useEffect(() => {
-    setHeaderActions(
-      <Button
-        size="sm"
-        variant="outline"
-        isDisabled={syncingDrive}
-        onClick={syncGoogleDrive}
-      >
-        <ArrowRotateRight
-          className={syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
-        />
-        {syncingDrive ? "Syncing..." : "Sync"}
-      </Button>,
-    );
-  }, [syncingDrive]);
-
   const recentFolders = folders.slice(0, 4);
   const moreFolders = folders.slice(4);
   const activeFolder = allFolders.find(
@@ -882,6 +907,7 @@ export function AllFilesPage() {
     files.length > 0 &&
     files.every((file) => file.id && selectedFileIds.has(file.id));
   const activePreviewKind = getPreviewKind(activeFile?.mimeType);
+  const homeGreeting = formatPersonalGreeting(session?.user?.name);
 
   return (
     <>
@@ -899,7 +925,7 @@ export function AllFilesPage() {
                   className="text-foreground hover:underline"
                   onClick={closeFolder}
                 >
-                  All Files
+                  Home
                 </button>
                 {folderBreadcrumbs.map((folder, index) => (
                   <span key={folder.id}>
@@ -919,7 +945,7 @@ export function AllFilesPage() {
                 ))}
               </span>
             ) : (
-              "All Files"
+              homeGreeting
             )
           }
           actions={
@@ -932,24 +958,22 @@ export function AllFilesPage() {
                 <FolderPlus className="h-3.5 w-3.5" />
                 New Folder
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                isDisabled={syncingDrive}
+                onClick={syncGoogleDrive}
+              >
+                <ArrowRotateRight
+                  className={
+                    syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
+                  }
+                />
+                {syncingDrive ? "Syncing..." : "Sync"}
+              </Button>
             </>
           }
         />
-        <div className="mt-4 flex flex-wrap items-center gap-2 lg:hidden">
-          <Button
-            size="sm"
-            variant="outline"
-            isDisabled={syncingDrive}
-            onClick={syncGoogleDrive}
-          >
-            <ArrowRotateRight
-              className={
-                syncingDrive ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-              }
-            />
-            {syncingDrive ? "Syncing..." : "Sync"}
-          </Button>
-        </div>
         {!activeFolder &&
           (recentFolders.length > 0 ? (
             <FolderGrid

@@ -30,7 +30,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
   const redirectPath =
     callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
       ? callbackUrl
-      : "/all-files";
+      : "/home";
 
   useEffect(() => {
     const emailParam = searchParams.get("email")?.trim();

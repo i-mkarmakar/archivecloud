@@ -37,7 +37,7 @@ export default async function proxy(request: NextRequest) {
   if (isPublicRoute(pathname)) {
     const isAuthPage = pathname === "/signin" || pathname === "/signup";
     if (isAuthPage && hasAuthSession(request)) {
-      return NextResponse.redirect(new URL("/all-files", request.url));
+      return NextResponse.redirect(new URL("/home", request.url));
     }
     return NextResponse.next();
   }

@@ -23,6 +23,7 @@ import type { AuthUser } from "@/lib/auth-user";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { cn } from "@/lib/utils";
 import { dashboardNavItems } from "./config";
+import { SidebarNewButton } from "./SidebarNewButton";
 
 type StorageSummary = {
   totalBytes: string | null;
@@ -138,8 +139,15 @@ export function DashboardSidebar({
           </span>
         </div>
 
-        <ScrollShadow className="flex-1 px-3 py-3" hideScrollBar>
-          <nav className="grid gap-1">
+        <div className="mt-6 px-4 pb-2">
+          <SidebarNewButton
+            safePathname={safePathname}
+            onNavigate={onNavigate}
+          />
+        </div>
+
+        <ScrollShadow className="flex-1 px-3 py-1" hideScrollBar>
+          <nav className="grid gap-2">
             {dashboardNavItems.map((item) => {
               const isActive =
                 safePathname === item.href ||

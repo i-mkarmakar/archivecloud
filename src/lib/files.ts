@@ -42,7 +42,7 @@ export function mimeToKind(
 }
 
 export function mapApiFileToItem(file: ApiFile): FileItem {
-  const folderLabel = file.folder?.name ?? "All Files";
+  const folderLabel = file.folder?.name ?? "Home";
   return {
     id: file.id,
     name: file.name,
