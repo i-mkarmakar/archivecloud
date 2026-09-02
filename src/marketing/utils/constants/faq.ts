@@ -1,50 +1,50 @@
 export const FAQ = [
   {
     id: "item-1",
-    question: "Is it accessible?",
+    question: "Is ArchiveCloud free?",
     answer:
-      "Yes. It adheres to the WAI-ARIA design pattern, ensuring accessibility for all users.",
+      "Yes. ArchiveCloud is completely free. Connect your Google Drive accounts and use every feature with no paid plans.",
   },
   {
     id: "item-2",
-    question: "What features does the software offer?",
+    question: "What features does ArchiveCloud offer?",
     answer:
-      "Our link management software offers features like link shortening, click tracking, customizable branded links, and AI-powered suggestions.",
+      "Connect multiple Google Drive accounts, upload through a secure gateway, organize files in virtual folders, track combined quota, preview and share files, invite others, and sync from Drive.",
   },
   {
     id: "item-3",
-    question: "How does the pricing work?",
+    question: "Do I need a credit card?",
     answer:
-      "We offer three plans: Free, Pro ($9/month), and Business ($49/month). Yearly subscriptions come with a discount.",
+      "No. Sign up and start using ArchiveCloud without entering payment details.",
   },
   {
     id: "item-4",
-    question: "Can I upgrade or downgrade my plan?",
+    question: "How does storage work?",
     answer:
-      "Yes! You can easily upgrade or downgrade your plan at any time through your account settings.",
+      "Files are stored in your connected Google Drive accounts under an archivecloud folder. ArchiveCloud routes uploads to an account with enough free space.",
   },
   {
     id: "item-5",
-    question: "Is there customer support available?",
+    question: "Can I connect multiple Google Drive accounts?",
     answer:
-      "Absolutely! We provide community support for all users and priority support for Pro and Business plan subscribers.",
+      "Yes. Connect as many Google Drive accounts as you need and manage them from one place with combined quota tracking.",
   },
   {
     id: "item-6",
-    question: "Can I track my link clicks?",
+    question: "How do sharing and invites work?",
     answer:
-      "Yes, our software allows you to track clicks on your links, providing insights into user engagement and demographics.",
+      "You can create public share links for files and invite other users to files or folders with the permissions you choose.",
   },
   {
     id: "item-7",
-    question: "Is there a mobile app available?",
+    question: "Is there a mobile app?",
     answer:
-      "Currently, we do not have a dedicated mobile app, but our web application is fully responsive and works well on mobile devices.",
+      "There is no dedicated mobile app yet, but the web app is fully responsive and works well on phones and tablets.",
   },
   {
     id: "item-8",
-    question: "What payment methods do you accept?",
+    question: "Is customer support available?",
     answer:
-      "We accept various payment methods including credit cards, PayPal, and other secure payment options.",
+      "Yes. You can get help through community support while using ArchiveCloud for free.",
   },
 ];

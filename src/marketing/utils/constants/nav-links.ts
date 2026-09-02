@@ -58,8 +58,4 @@ export const NAV_LINKS: NavLink[] = [
     title: "How it works",
     href: "/#how-it-works",
   },
-  {
-    title: "Sign in",
-    href: "/signin",
-  },
 ];

@@ -10,10 +10,11 @@ import {
   CARDS,
 } from "@/marketing/components/ui/bento-grid";
 import { Button } from "@/marketing/components/ui/button";
+import { InteractiveHoverButton } from "@/marketing/components/ui/interactive-hover-button";
 import { LampContainer } from "@/marketing/components/ui/lamp";
 import MagicBadge from "@/marketing/components/ui/magic-badge";
 import MagicCard from "@/marketing/components/ui/magic-card";
-import { COMPANIES, PROCESS } from "@/marketing/utils";
+import { PROCESS } from "@/marketing/utils";
 import { ArrowRightIcon, CreditCardIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -56,12 +57,9 @@ export default function HomePage() {
               </span>
             </p>
             <div className="z-50 flex items-center justify-center gap-4 whitespace-nowrap">
-              <Button asChild>
-                <Link href="/signup" className="flex items-center">
-                  Start for free
-                  <ArrowRightIcon className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+              <InteractiveHoverButton href="/signup">
+                Start for free
+              </InteractiveHoverButton>
             </div>
           </AnimationContainer>
 
@@ -84,34 +82,6 @@ export default function HomePage() {
             </div>
           </AnimationContainer>
         </div>
-      </MaxWidthWrapper>
-
-      <MaxWidthWrapper>
-        <AnimationContainer delay={0.4}>
-          <div className="py-14">
-            <div className="mx-auto px-4 md:px-8">
-              <h2 className="text-center font-heading text-sm font-medium text-muted-foreground uppercase">
-                Trusted by teams managing cloud storage
-              </h2>
-              <div className="mt-8">
-                <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-6 md:gap-x-16">
-                  {COMPANIES.map((company) => (
-                    <li key={company.name}>
-                      <Image
-                        src={company.logo}
-                        alt={company.name}
-                        width={80}
-                        height={80}
-                        quality={100}
-                        className="h-auto w-28"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </AnimationContainer>
       </MaxWidthWrapper>
 
       <MaxWidthWrapper className="pt-10" id="features">
@@ -180,13 +150,13 @@ export default function HomePage() {
       <MaxWidthWrapper className="py-10" id="pricing">
         <AnimationContainer delay={0.1}>
           <div className="mx-auto flex w-full max-w-xl flex-col items-center justify-center py-8 lg:items-center">
-            <MagicBadge title="Simple Pricing" />
+            <MagicBadge title="Free Forever" />
             <h2 className="mt-6 text-center font-heading text-3xl font-medium !leading-[1.1] text-foreground md:text-5xl lg:text-center">
-              Choose a plan that works for you
+              One plan. Everything included.
             </h2>
             <p className="mt-4 max-w-lg text-center text-lg text-muted-foreground lg:text-center">
-              Start free with your own Google Drive. Upgrade when you need more
-              accounts and team features.
+              ArchiveCloud is free to use with your own Google Drive — no paid
+              tiers, no upgrade pressure.
             </p>
           </div>
         </AnimationContainer>

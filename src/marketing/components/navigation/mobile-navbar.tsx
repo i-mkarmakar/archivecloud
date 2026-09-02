@@ -19,7 +19,7 @@ import { type LucideIcon, Menu, X } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 
-const MobileNavbar = () => {
+const MobileNavbar = ({ scrolled = false }: { scrolled?: boolean }) => {
   const { data: session } = authClient.useSession();
   const isSignedIn = Boolean(session?.user);
 
@@ -30,11 +30,19 @@ const MobileNavbar = () => {
   };
 
   return (
-    <div className="flex lg:hidden items-center justify-end">
+    <div className="flex items-center justify-end lg:hidden">
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button size="icon" variant="ghost">
-            <Menu className="w-5 h-5" />
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              "transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              scrolled &&
+                "text-foreground hover:bg-black/5 hover:text-foreground",
+            )}
+          >
+            <Menu className="h-5 w-5" />
           </Button>
         </SheetTrigger>
         <SheetContent className="w-screen">
