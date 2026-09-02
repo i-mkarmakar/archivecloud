@@ -3,7 +3,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -21,16 +21,69 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* tweakcn Twitter theme — https://tweakcn.com/r/themes/twitter.json */
 :root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.1884 0.0128 248.5103);
+  --card: oklch(0.9784 0.0011 197.1387);
+  --card-foreground: oklch(0.1884 0.0128 248.5103);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1884 0.0128 248.5103);
+  --primary: oklch(0.6723 0.1606 244.9955);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.1884 0.0128 248.5103);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.9222 0.0013 286.3737);
+  --muted-foreground: oklch(0.52 0.015 248.5103);
+  --accent: oklch(0.9392 0.0166 250.8453);
+  --accent-foreground: oklch(0.6723 0.1606 244.9955);
+  --destructive: oklch(0.6188 0.2376 25.7658);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9317 0.0118 231.6594);
+  --input: oklch(0.9809 0.0025 228.7836);
+  --ring: oklch(0.6818 0.1584 243.354);
+  --chart-1: oklch(0.6723 0.1606 244.9955);
+  --chart-2: oklch(0.6907 0.1554 160.3454);
+  --chart-3: oklch(0.8214 0.16 82.5337);
+  --chart-4: oklch(0.7064 0.1822 151.7125);
+  --chart-5: oklch(0.5919 0.2186 10.5826);
+  --radius: 1.3rem;
+  --sidebar: oklch(0.9784 0.0011 197.1387);
+  --sidebar-foreground: oklch(0.1884 0.0128 248.5103);
+  --sidebar-primary: oklch(0.6723 0.1606 244.9955);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9392 0.0166 250.8453);
+  --sidebar-accent-foreground: oklch(0.6723 0.1606 244.9955);
+  --sidebar-border: oklch(0.9271 0.0101 238.5177);
+  --sidebar-ring: oklch(0.6818 0.1584 243.354);
+  --tracking-normal: 0em;
+
+  /* HeroUI form fields use --muted for placeholders */
+  --field-placeholder: var(--muted-foreground);
+
   font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -38,13 +91,78 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.dark {
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.9328 0.0025 228.7857);
+  --card: oklch(0.2097 0.008 274.5332);
+  --card-foreground: oklch(0.8853 0 0);
+  --popover: oklch(0 0 0);
+  --popover-foreground: oklch(0.9328 0.0025 228.7857);
+  --primary: oklch(0.6692 0.1607 245.011);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9622 0.0035 219.5331);
+  --secondary-foreground: oklch(0.1884 0.0128 248.5103);
+  --muted: oklch(0.209 0 0);
+  --muted-foreground: oklch(0.5637 0.0078 247.9662);
+  --accent: oklch(0.1928 0.0331 242.5459);
+  --accent-foreground: oklch(0.6692 0.1607 245.011);
+  --destructive: oklch(0.6188 0.2376 25.7658);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.2674 0.0047 248.0045);
+  --input: oklch(0.302 0.0288 244.8244);
+  --ring: oklch(0.6818 0.1584 243.354);
+  --chart-1: oklch(0.6723 0.1606 244.9955);
+  --chart-2: oklch(0.6907 0.1554 160.3454);
+  --chart-3: oklch(0.8214 0.16 82.5337);
+  --chart-4: oklch(0.7064 0.1822 151.7125);
+  --chart-5: oklch(0.5919 0.2186 10.5826);
+  --sidebar: oklch(0.2097 0.008 274.5332);
+  --sidebar-foreground: oklch(0.8853 0 0);
+  --sidebar-primary: oklch(0.6818 0.1584 243.354);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.1928 0.0331 242.5459);
+  --sidebar-accent-foreground: oklch(0.6692 0.1607 245.011);
+  --sidebar-border: oklch(0.3795 0.022 240.5943);
+  --sidebar-ring: oklch(0.6818 0.1584 243.354);
+}
+
+/*
+ * Dashboard (HeroUI) expects --accent as brand color and text-muted as secondary text.
+ * Shadcn uses --muted for backgrounds and --accent as a soft highlight — remap inside the app shell.
+ */
+.drive-app {
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --accent-hover: color-mix(
+    in oklab,
+    var(--primary) 90%,
+    var(--primary-foreground) 10%
+  );
+  --accent-soft: color-mix(in oklab, var(--primary) 15%, transparent);
+  --accent-soft-foreground: color-mix(
+    in oklab,
+    var(--primary) 70%,
+    var(--foreground) 30%
+  );
+  --accent-soft-hover: color-mix(in oklab, var(--primary) 20%, transparent);
+  --focus: var(--primary);
+}
+
 * {
   box-sizing: border-box;
+}
+
+@layer utilities {
+  /* HeroUI dashboard uses text-muted; shadcn uses bg-muted + text-muted-foreground */
+  .text-muted {
+    color: var(--muted-foreground);
+  }
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  letter-spacing: var(--tracking-normal);
   background-color: var(--background);
   color: var(--foreground);
 }
@@ -55,74 +173,88 @@ input {
 }
 
 .file-selected {
-  background: var(--accent-soft);
+  background: var(--accent);
   border-color: color-mix(in oklab, var(--accent) 25%, transparent);
 }
 
-/* Shadcn sign-in/sign-up — scoped so HeroUI dashboard tokens are not overridden */
-.shadcn-auth {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #5b6cf0;
-  --primary-foreground: #ffffff;
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: #5b6cf0;
-  --radius: 0.625rem;
-
-  background-color: var(--background);
-  color: var(--foreground);
+/* Marketing landing page utilities */
+.marketing-site .font-heading {
+  font-family:
+    var(--font-aeonik), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-.shadcn-auth [data-slot="button"].bg-primary {
-  background-color: var(--primary);
-  color: var(--primary-foreground);
+.marketing-site .font-default {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-.shadcn-auth [data-slot="button"].bg-primary:hover:not(:disabled) {
-  background-color: color-mix(in oklab, var(--primary) 80%, transparent);
+.marketing-site .gradient {
+  background: conic-gradient(
+    from 230.29deg at 51.63% 52.16%,
+    var(--primary) 0deg,
+    color-mix(in oklch, var(--primary) 70%, white) 67.5deg,
+    color-mix(in oklch, var(--primary) 45%, white) 198.75deg,
+    var(--primary) 251.25deg,
+    color-mix(in oklch, var(--primary) 80%, white) 301.88deg,
+    var(--primary) 360deg
+  );
+  opacity: 0.35;
 }
 
-.shadcn-auth [data-slot="button"].border-border {
-  border-color: var(--border);
-  background-color: var(--background);
-  color: var(--foreground);
+.marketing-site .scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-.shadcn-auth [data-slot="button"].border-border:hover:not(:disabled) {
-  background-color: var(--muted);
+.marketing-site .scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
-html.dark .shadcn-auth {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #7b8af5;
-  --primary-foreground: #ffffff;
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #7b8af5;
+@keyframes marketing-border-beam {
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+@keyframes marketing-image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+  10% {
+    opacity: 0.35;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes marketing-flip {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes marketing-rotate {
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+.marketing-site .animate-border-beam {
+  animation: marketing-border-beam calc(var(--duration) * 1s) infinite linear;
+}
+
+.marketing-site .animate-image-glow {
+  animation: marketing-image-glow 4s ease-out 0.6s forwards;
+}
+
+.marketing-site .animate-flip {
+  animation: marketing-flip 6s infinite steps(2, end);
+}
+
+.marketing-site .animate-rotate {
+  animation: marketing-rotate 3s linear infinite both;
 }
 
 .shared-video-shell {

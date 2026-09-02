@@ -16,6 +16,10 @@ const publicRoutePrefixes = [
 ];
 
 function isPublicRoute(pathname: string) {
+  if (pathname === "/") {
+    return true;
+  }
+
   return publicRoutePrefixes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
@@ -33,6 +37,10 @@ function hasAuthSession(request: NextRequest) {
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname === "/" && hasAuthSession(request)) {
+    return NextResponse.redirect(new URL("/home", request.url));
+  }
 
   if (isPublicRoute(pathname)) {
     const isAuthPage = pathname === "/signin" || pathname === "/signup";

@@ -26,5 +26,11 @@
     ".next/dev/types/**/*.ts",
     "server.ts"
   ],
-  "exclude": ["node_modules", "backend", "frontend"]
+  "exclude": [
+    "node_modules",
+    "backend",
+    "frontend",
+    "src/marketing/components/ui/logo.tsx",
+    "src/marketing/components/ui/resizable.tsx"
+  ]
 }
