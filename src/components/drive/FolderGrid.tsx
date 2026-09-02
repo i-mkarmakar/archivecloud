@@ -14,7 +14,12 @@ function folderColorToTheme(color?: string | null): "black" | "white" | "blue" {
   if (hex === "#ffffff" || hex === "#f5f5f5" || hex === "#cbd5e1") {
     return "white";
   }
-  if (hex === "#50b1fd" || hex === "#6366f1" || hex === "#22c55e") {
+  if (
+    hex === "#1e9df1" ||
+    hex === "#50b1fd" ||
+    hex === "#6366f1" ||
+    hex === "#22c55e"
+  ) {
     return "blue";
   }
   return "black";

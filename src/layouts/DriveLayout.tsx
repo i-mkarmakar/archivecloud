@@ -203,7 +203,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-svh w-full bg-background text-foreground">
+    <div className="drive-app flex min-h-svh w-full bg-background text-foreground">
       <div className="hidden lg:flex lg:h-svh lg:shrink-0">
         <DashboardSidebar {...sidebarProps} />
       </div>

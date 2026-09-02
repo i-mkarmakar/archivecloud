@@ -10,7 +10,7 @@ import {
 } from "@/server/modules/google/google.service";
 import { createAuditLog } from "@/server/utils/audit";
 
-const defaultFolderColor = "#50B1FD";
+const defaultFolderColor = "#1e9df1";
 const colorSchema = z
   .string()
   .regex(/^(#[0-9a-fA-F]{6}|text-[a-z]+-[0-9]+)$/)

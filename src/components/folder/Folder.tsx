@@ -33,7 +33,7 @@ const themes = {
     cardInsetColor: "0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.15 0",
   },
   blue: {
-    backFill: "#50B1FD",
+    backFill: "#1e9df1",
     backInsetColor: "0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.35 0",
     backInsetShadow: "inset 0 0 6px 2px rgba(255,255,255,0.35)",
     flapFill: "#3a9ae8",

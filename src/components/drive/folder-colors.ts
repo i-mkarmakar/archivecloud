@@ -6,9 +6,9 @@ const legacyColorMap: Record<string, string> = {
   "text-orange-500": "#475569",
 };
 
-export const defaultFolderColor = "#50B1FD";
+export const defaultFolderColor = "#1e9df1";
 
-export const folderColorOptions = ["#000000", "#ffffff", "#50B1FD"];
+export const folderColorOptions = ["#000000", "#ffffff", "#1e9df1"];
 
 export function normalizeFolderColor(color?: string | null) {
   if (color?.startsWith("#")) return color;
