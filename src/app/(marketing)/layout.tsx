@@ -19,7 +19,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         aria-hidden
       />
       <Navbar />
-      <main className="relative z-0 mx-auto mt-20 w-full">{children}</main>
+      <main className="relative z-0 mx-auto mt-32 w-full">{children}</main>
       <Footer />
     </div>
   );
