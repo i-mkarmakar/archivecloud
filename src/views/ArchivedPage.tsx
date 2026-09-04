@@ -17,7 +17,10 @@ import type { FileItem } from "@/data/drive-data";
 export function ArchivedPage() {
   const { files, loading, error, reload } = useWorkspaceFiles("archived");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    "restore" | "delete" | null
+  >(null);
+  const busy = pendingAction !== null;
 
   const totalBytes = useMemo(
     () => files.reduce((sum, file) => sum + Number(file.sizeBytes ?? 0), 0),
@@ -46,8 +49,8 @@ export function ArchivedPage() {
 
   async function restoreSelected() {
     const fileIds = [...selectedIds];
-    if (fileIds.length === 0) return;
-    setBusy(true);
+    if (fileIds.length === 0 || busy) return;
+    setPendingAction("restore");
     try {
       await updateFilesMetadata(fileIds, { isArchived: false });
       setSelectedIds(new Set());
@@ -57,13 +60,13 @@ export function ArchivedPage() {
     } catch (err) {
       toast.danger(err instanceof Error ? err.message : "Restore failed.");
     } finally {
-      setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function deleteSelected() {
     const fileIds = [...selectedIds];
-    if (fileIds.length === 0) return;
+    if (fileIds.length === 0 || busy) return;
     if (
       !confirm(
         `Move ${fileIds.length} archived file(s) to trash? They can be restored from Recycle Bin.`,
@@ -71,7 +74,7 @@ export function ArchivedPage() {
     ) {
       return;
     }
-    setBusy(true);
+    setPendingAction("delete");
     try {
       await trashFiles(fileIds);
       setSelectedIds(new Set());
@@ -81,7 +84,7 @@ export function ArchivedPage() {
     } catch (err) {
       toast.danger(err instanceof Error ? err.message : "Delete failed.");
     } finally {
-      setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -96,17 +99,19 @@ export function ArchivedPage() {
               variant="outline"
               onPress={restoreSelected}
               isDisabled={busy || selectedIds.size === 0}
+              className={pendingAction === "delete" ? "opacity-50" : undefined}
             >
               <ArrowRotateLeft className="h-4 w-4" />
-              Restore
+              {pendingAction === "restore" ? "Restoring..." : "Restore"}
             </Button>
             <Button
               variant="danger"
               onPress={deleteSelected}
               isDisabled={busy || selectedIds.size === 0}
+              className={pendingAction === "restore" ? "opacity-50" : undefined}
             >
               <TrashBin className="h-4 w-4" />
-              Move to Trash
+              {pendingAction === "delete" ? "Moving..." : "Move to Trash"}
             </Button>
           </>
         }

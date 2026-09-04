@@ -130,7 +130,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
 
   async function logout() {
     await authClient.signOut();
-    router.replace("/signin");
+    router.replace("/auth/sign-in");
   }
 
   function applyFilters() {

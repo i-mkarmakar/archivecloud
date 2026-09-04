@@ -54,6 +54,7 @@ export function ForgotPasswordForm({
 
   async function sendResetCode(event?: FormEvent) {
     event?.preventDefault();
+    if (sendingCode || resetting) return;
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       toast.danger("Enter your email address.");
@@ -81,6 +82,7 @@ export function ForgotPasswordForm({
 
   async function resetPassword(event: FormEvent) {
     event.preventDefault();
+    if (sendingCode || resetting) return;
     const trimmedEmail = email.trim();
 
     if (otp.trim().length < 6) {
@@ -110,7 +112,7 @@ export function ForgotPasswordForm({
     }
 
     toast.success("Password updated. You can sign in now.");
-    router.push("/signin");
+    router.push("/auth/sign-in");
     router.refresh();
   }
 
@@ -142,7 +144,7 @@ export function ForgotPasswordForm({
             <Field>
               <Button
                 type="submit"
-                disabled={sendingCode}
+                isPending={sendingCode}
                 size="lg"
                 className="w-full"
               >
@@ -174,12 +176,15 @@ export function ForgotPasswordForm({
                 <button
                   type="button"
                   className="shrink-0 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={sendingCode || resendSeconds > 0}
+                  disabled={sendingCode || resetting || resendSeconds > 0}
+                  aria-busy={sendingCode}
                   onClick={() => sendResetCode()}
                 >
-                  {resendSeconds > 0
-                    ? `Resend in ${resendSeconds}s`
-                    : "Resend code"}
+                  {sendingCode
+                    ? "Sending..."
+                    : resendSeconds > 0
+                      ? `Resend in ${resendSeconds}s`
+                      : "Resend code"}
                 </button>
               </FieldDescription>
             </Field>
@@ -245,7 +250,8 @@ export function ForgotPasswordForm({
             <Field>
               <Button
                 type="submit"
-                disabled={resetting}
+                disabled={sendingCode}
+                isPending={resetting}
                 size="lg"
                 className="w-full"
               >
@@ -264,7 +270,7 @@ export function ForgotPasswordForm({
             Back to sign in
           </button>
           {" · "}
-          <Link href="/signup" className="underline underline-offset-4">
+          <Link href="/auth/sign-up" className="underline underline-offset-4">
             Create account
           </Link>
         </FieldDescription>

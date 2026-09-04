@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const publicRoutePrefixes = [
+  "/auth",
   "/signin",
   "/signup",
   "/verify-email",
@@ -13,6 +14,8 @@ const publicRoutePrefixes = [
   "/health",
   "/svgl",
   "/connected-accounts/google/callback",
+  "/terms",
+  "/privacy",
 ];
 
 function isPublicRoute(pathname: string) {
@@ -22,6 +25,15 @@ function isPublicRoute(pathname: string) {
 
   return publicRoutePrefixes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
+
+function isAuthPage(pathname: string) {
+  return (
+    pathname === "/auth/sign-in" ||
+    pathname === "/auth/sign-up" ||
+    pathname === "/signin" ||
+    pathname === "/signup"
   );
 }
 
@@ -43,15 +55,14 @@ export default async function proxy(request: NextRequest) {
   }
 
   if (isPublicRoute(pathname)) {
-    const isAuthPage = pathname === "/signin" || pathname === "/signup";
-    if (isAuthPage && hasAuthSession(request)) {
+    if (isAuthPage(pathname) && hasAuthSession(request)) {
       return NextResponse.redirect(new URL("/home", request.url));
     }
     return NextResponse.next();
   }
 
   if (!hasAuthSession(request)) {
-    const signInUrl = new URL("/signin", request.url);
+    const signInUrl = new URL("/auth/sign-in", request.url);
     if (pathname !== "/") {
       signInUrl.searchParams.set("callbackUrl", pathname);
     }

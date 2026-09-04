@@ -27,7 +27,7 @@ export const PLANS: Plan[] = [
     ],
     btn: {
       text: "Start for free",
-      href: "/signup",
+      href: "/auth/sign-up",
       variant: "default",
     },
   },

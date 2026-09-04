@@ -20,10 +20,15 @@ type TrashFile = {
 export function TrashPage() {
   const [files, setFiles] = useState<TrashFile[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    "restore" | "delete" | null
+  >(null);
+  const [pendingFileId, setPendingFileId] = useState<string | null>(null);
+  const busy = pendingAction !== null;
 
   async function loadTrash() {
-    setLoading(true);
+    setListLoading(true);
     try {
       const data = await apiFetch<{ files: TrashFile[] }>("/files/trash");
       setFiles(data.files);
@@ -32,7 +37,7 @@ export function TrashPage() {
         error instanceof Error ? error.message : "Failed to load trash",
       );
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
   }
 
@@ -56,8 +61,9 @@ export function TrashPage() {
   }
 
   async function handleRestore(ids: string[]) {
-    if (ids.length === 0) return;
-    setLoading(true);
+    if (ids.length === 0 || busy) return;
+    setPendingAction("restore");
+    setPendingFileId(ids.length === 1 ? ids[0]! : null);
     try {
       await apiFetch("/files/batch/restore", {
         method: "POST",
@@ -76,19 +82,21 @@ export function TrashPage() {
         error instanceof Error ? error.message : "Failed to restore files",
       );
     } finally {
-      setLoading(false);
+      setPendingAction(null);
+      setPendingFileId(null);
     }
   }
 
   async function handlePermanentDelete(ids: string[]) {
-    if (ids.length === 0) return;
+    if (ids.length === 0 || busy) return;
     if (
       !confirm(
         `Are you sure you want to permanently delete ${ids.length} file(s)? This action cannot be undone.`,
       )
     )
       return;
-    setLoading(true);
+    setPendingAction("delete");
+    setPendingFileId(ids.length === 1 ? ids[0]! : null);
     try {
       await apiFetch("/files/batch/permanent", {
         method: "DELETE",
@@ -109,7 +117,8 @@ export function TrashPage() {
           : "Failed to permanently delete files",
       );
     } finally {
-      setLoading(false);
+      setPendingAction(null);
+      setPendingFileId(null);
     }
   }
 
@@ -124,18 +133,28 @@ export function TrashPage() {
               <Button
                 variant="outline"
                 onClick={() => handleRestore(Array.from(selectedIds))}
-                isDisabled={loading}
+                isDisabled={busy}
+                className={
+                  pendingAction === "delete" ? "opacity-50" : undefined
+                }
               >
-                <ArrowRotateLeft className="h-4 w-4" /> Restore Selected (
-                {selectedIds.size})
+                <ArrowRotateLeft className="h-4 w-4" />{" "}
+                {pendingAction === "restore" && !pendingFileId
+                  ? "Restoring..."
+                  : `Restore Selected (${selectedIds.size})`}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => handlePermanentDelete(Array.from(selectedIds))}
-                isDisabled={loading}
+                isDisabled={busy}
+                className={
+                  pendingAction === "restore" ? "opacity-50" : undefined
+                }
               >
-                <TrashBin className="h-4 w-4" /> Delete Selected (
-                {selectedIds.size})
+                <TrashBin className="h-4 w-4" />{" "}
+                {pendingAction === "delete" && !pendingFileId
+                  ? "Deleting..."
+                  : `Delete Selected (${selectedIds.size})`}
               </Button>
             </>
           ) : null
@@ -143,7 +162,11 @@ export function TrashPage() {
       />
 
       <section className="mt-8">
-        {files.length === 0 ? (
+        {listLoading ? (
+          <div className="flex min-h-[200px] items-center justify-center py-8">
+            <p className="text-sm text-muted">Loading trash...</p>
+          </div>
+        ) : files.length === 0 ? (
           <div className="flex min-h-[200px] items-center justify-center py-8">
             <div className="text-center">
               <p className="font-extrabold">Trash is empty</p>
@@ -217,7 +240,13 @@ export function TrashPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRestore([file.id])}
-                          isDisabled={loading}
+                          isDisabled={busy}
+                          className={
+                            pendingFileId === file.id &&
+                            pendingAction === "delete"
+                              ? "opacity-50"
+                              : undefined
+                          }
                           aria-label="Restore"
                         >
                           <ArrowRotateLeft className="h-4 w-4" />
@@ -226,7 +255,13 @@ export function TrashPage() {
                           variant="danger"
                           size="sm"
                           onClick={() => handlePermanentDelete([file.id])}
-                          isDisabled={loading}
+                          isDisabled={busy}
+                          className={
+                            pendingFileId === file.id &&
+                            pendingAction === "restore"
+                              ? "opacity-50"
+                              : undefined
+                          }
                           aria-label="Delete Permanently"
                         >
                           <TrashBin className="h-4 w-4 text-danger" />

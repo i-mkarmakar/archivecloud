@@ -371,12 +371,15 @@ export function ProfilePasswordSection({
                   type="button"
                   size="sm"
                   variant="outline"
-                  isDisabled={sendingCode || resendSeconds > 0}
+                  isDisabled={saving || sendingCode || resendSeconds > 0}
+                  className={saving ? "opacity-50" : undefined}
                   onPress={sendResetCode}
                 >
-                  {resendSeconds > 0
-                    ? `Resend in ${resendSeconds}s`
-                    : "Resend code"}
+                  {sendingCode
+                    ? "Sending..."
+                    : resendSeconds > 0
+                      ? `Resend in ${resendSeconds}s`
+                      : "Resend code"}
                 </Button>
               ) : null}
               <Button
@@ -384,6 +387,8 @@ export function ProfilePasswordSection({
                 size="sm"
                 variant="outline"
                 onPress={clearPasswordFields}
+                isDisabled={saving || sendingCode}
+                className={saving || sendingCode ? "opacity-50" : undefined}
               >
                 Reset
               </Button>
@@ -391,13 +396,14 @@ export function ProfilePasswordSection({
                 type="submit"
                 size="sm"
                 isDisabled={saving || sendingCode}
+                className={sendingCode && otpSent ? "opacity-50" : undefined}
               >
                 {saving
                   ? "Updating..."
-                  : otpSent
-                    ? "Reset password"
-                    : sendingCode
-                      ? "Sending..."
+                  : sendingCode && !otpSent
+                    ? "Sending..."
+                    : otpSent
+                      ? "Reset password"
                       : "Send reset code"}
               </Button>
             </div>

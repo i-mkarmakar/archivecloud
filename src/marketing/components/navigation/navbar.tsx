@@ -64,8 +64,8 @@ const Navbar = () => {
           className={cn(
             "pointer-events-auto mx-auto flex h-14 w-full items-center border backdrop-blur-xl transition-[max-width,border-radius,background-color,border-color,box-shadow,padding,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
             scroll
-              ? "max-w-4xl translate-y-0 scale-100 rounded-full border-white/50 bg-white/55 px-3 shadow-[0_8px_32px_rgba(15,23,42,0.08)] supports-[backdrop-filter]:bg-white/40 sm:px-5"
-              : "max-w-full scale-100 rounded-none border-transparent bg-transparent shadow-none md:max-w-screen-xl md:px-12 lg:px-20",
+              ? "max-w-4xl translate-y-0 scale-100 rounded-full border-white/50 bg-white/55 px-4 shadow-[0_8px_32px_rgba(15,23,42,0.08)] supports-[backdrop-filter]:bg-white/40 sm:px-5"
+              : "max-w-full scale-100 rounded-none border-transparent bg-transparent px-4 shadow-none md:max-w-screen-xl md:px-12 lg:px-20",
           )}
         >
           <MaxWidthWrapper
@@ -180,7 +180,7 @@ const Navbar = () => {
               ) : (
                 <div className="flex items-center gap-x-2">
                   <Link
-                    href="/signin"
+                    href="/auth/sign-in"
                     className={cn(
                       buttonVariants({ size: "sm", variant: "ghost" }),
                       "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
@@ -190,7 +190,7 @@ const Navbar = () => {
                     Sign In
                   </Link>
                   <Link
-                    href="/signup"
+                    href="/auth/sign-up"
                     className={cn(
                       buttonVariants({ size: "sm" }),
                       "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",

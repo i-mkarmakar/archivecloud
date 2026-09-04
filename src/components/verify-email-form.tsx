@@ -22,7 +22,8 @@ export function VerifyEmailForm({ className }: { className?: string }) {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [error, setError] = useState("");
 
@@ -31,6 +32,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
     callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
       ? callbackUrl
       : "/home";
+  const busy = verifying || resending;
 
   useEffect(() => {
     const emailParam = searchParams.get("email")?.trim();
@@ -46,17 +48,20 @@ export function VerifyEmailForm({ className }: { className?: string }) {
   }, [resendSeconds]);
 
   async function resendCode() {
+    if (busy) return;
     if (!email.trim()) {
       toast.danger("Enter your email address.");
       return;
     }
 
     setError("");
+    setResending(true);
     const { error: resendError } =
       await authClient.emailOtp.sendVerificationOtp({
         email: email.trim(),
         type: "email-verification",
       });
+    setResending(false);
 
     if (resendError) {
       setError(resendError.message ?? "Failed to resend verification code.");
@@ -72,12 +77,13 @@ export function VerifyEmailForm({ className }: { className?: string }) {
 
   async function verifyEmail(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (otp.length !== 6) {
       setError("Enter the 6-digit code from your email.");
       return;
     }
 
-    setLoading(true);
+    setVerifying(true);
     setError("");
 
     const { error: verifyError } = await authClient.emailOtp.verifyEmail({
@@ -85,7 +91,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
       otp,
     });
 
-    setLoading(false);
+    setVerifying(false);
 
     if (verifyError) {
       setError(verifyError.message ?? "Verification failed.");
@@ -95,7 +101,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
 
     toast.success("Email verified. Sign in to continue.");
     router.push(
-      `/signin?verified=1&email=${encodeURIComponent(email.trim())}&callbackUrl=${encodeURIComponent(redirectPath)}`,
+      `/auth/sign-in?verified=1&email=${encodeURIComponent(email.trim())}&callbackUrl=${encodeURIComponent(redirectPath)}`,
     );
   }
 
@@ -140,7 +146,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
               setError("");
             }}
             isInvalid={Boolean(error)}
-            isDisabled={loading}
+            isDisabled={busy}
             autoFocus
           />
           {error ? (
@@ -153,11 +159,12 @@ export function VerifyEmailForm({ className }: { className?: string }) {
         <Field>
           <Button
             type="submit"
-            disabled={loading || otp.length !== 6}
+            disabled={resending || otp.length !== 6}
+            isPending={verifying}
             size="lg"
             className="w-full"
           >
-            {loading ? "Verifying..." : "Verify email"}
+            {verifying ? "Verifying..." : "Verify email"}
           </Button>
         </Field>
 
@@ -166,15 +173,20 @@ export function VerifyEmailForm({ className }: { className?: string }) {
           <button
             type="button"
             className="font-medium text-foreground underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={loading || resendSeconds > 0 || !email.trim()}
+            disabled={busy || resendSeconds > 0 || !email.trim()}
+            aria-busy={resending}
             onClick={resendCode}
           >
-            {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend"}
+            {resending
+              ? "Sending..."
+              : resendSeconds > 0
+                ? `Resend in ${resendSeconds}s`
+                : "Resend"}
           </button>
         </FieldDescription>
 
         <FieldDescription className="text-center">
-          <Link href="/signin" className="underline underline-offset-4">
+          <Link href="/auth/sign-in" className="underline underline-offset-4">
             Back to sign in
           </Link>
         </FieldDescription>

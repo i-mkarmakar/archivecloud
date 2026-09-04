@@ -69,7 +69,7 @@ const MobileNavbar = ({ scrolled = false }: { scrolled?: boolean }) => {
               ) : (
                 <>
                   <Link
-                    href="/signin"
+                    href="/auth/sign-in"
                     className={buttonVariants({
                       variant: "outline",
                       className: "w-full",
@@ -78,7 +78,7 @@ const MobileNavbar = ({ scrolled = false }: { scrolled?: boolean }) => {
                     Sign In
                   </Link>
                   <Link
-                    href="/signup"
+                    href="/auth/sign-up"
                     className={buttonVariants({ className: "w-full" })}
                   >
                     Sign Up

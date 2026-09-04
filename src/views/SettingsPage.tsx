@@ -362,6 +362,7 @@ export function SettingsPage() {
               variant="outline"
               onPress={() => setAccountToDisconnect(null)}
               isDisabled={Boolean(disconnectingAccountId)}
+              className={disconnectingAccountId ? "opacity-50" : undefined}
             >
               Cancel
             </Button>

@@ -57,7 +57,7 @@ export default function HomePage() {
               </span>
             </p>
             <div className="z-50 flex items-center justify-center gap-4 whitespace-nowrap">
-              <InteractiveHoverButton href="/signup">
+              <InteractiveHoverButton href="/auth/sign-up">
                 Start for free
               </InteractiveHoverButton>
             </div>
@@ -188,7 +188,7 @@ export default function HomePage() {
               </p>
               <div className="mt-6">
                 <Button asChild>
-                  <Link href="/signup">
+                  <Link href="/auth/sign-up">
                     Get started for free
                     <ArrowRightIcon className="ml-2 h-4 w-4" />
                   </Link>

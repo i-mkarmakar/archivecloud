@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { SignInPage } from "@/views/SignInPage";
-
-export default function Page() {
-  return <SignInPage />;
+export default function SignInRedirectPage() {
+  redirect("/auth/sign-in");
 }
