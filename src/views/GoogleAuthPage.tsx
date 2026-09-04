@@ -7,7 +7,7 @@ export function GoogleAuthPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/signin");
+    router.replace("/auth/sign-in");
   }, [router]);
 
   return (

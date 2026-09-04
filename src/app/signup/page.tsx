@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { SignUpPage } from "@/views/SignUpPage";
-
-export default function Page() {
-  return <SignUpPage />;
+export default function SignUpRedirectPage() {
+  redirect("/auth/sign-up");
 }

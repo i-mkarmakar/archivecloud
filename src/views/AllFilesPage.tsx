@@ -1345,6 +1345,8 @@ export function AllFilesPage() {
               type="button"
               variant="outline"
               onClick={() => setUploadOpen(false)}
+              isDisabled={loading}
+              className={loading ? "opacity-50" : undefined}
             >
               Cancel
             </Button>
@@ -1630,6 +1632,8 @@ export function AllFilesPage() {
               type="button"
               variant="outline"
               onClick={() => setInviteOpen(false)}
+              isDisabled={inviting}
+              className={inviting ? "opacity-50" : undefined}
             >
               Cancel
             </Button>

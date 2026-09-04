@@ -9,7 +9,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = authClient.useSession();
 
   useEffect(() => {
-    if (!isPending && !session) router.replace("/signin");
+    if (!isPending && !session) router.replace("/auth/sign-in");
   }, [isPending, session, router]);
 
   if (isPending || !session) return null;

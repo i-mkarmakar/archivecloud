@@ -60,7 +60,7 @@ const Footer = () => {
                   </li>
                   <li className="mt-2">
                     <Link
-                      href="/signup"
+                      href="/auth/sign-up"
                       className="hover:text-foreground transition-all duration-300"
                     >
                       Get started
@@ -77,7 +77,7 @@ const Footer = () => {
                 <ul className="mt-4 text-sm text-muted-foreground">
                   <li className="">
                     <Link
-                      href="/signin"
+                      href="/auth/sign-in"
                       className="hover:text-foreground transition-all duration-300"
                     >
                       Sign in
@@ -85,7 +85,7 @@ const Footer = () => {
                   </li>
                   <li className="mt-2">
                     <Link
-                      href="/signup"
+                      href="/auth/sign-up"
                       className="hover:text-foreground transition-all duration-300"
                     >
                       Sign up
@@ -128,7 +128,7 @@ const Footer = () => {
                   </li>
                   <li className="mt-2">
                     <Link
-                      href="/signup"
+                      href="/auth/sign-up"
                       className="hover:text-foreground transition-all duration-300"
                     >
                       Create account
@@ -153,7 +153,7 @@ const Footer = () => {
                   </li>
                   <li className="mt-2">
                     <Link
-                      href="/signin"
+                      href="/auth/sign-in"
                       className="hover:text-foreground transition-all duration-300"
                     >
                       Sign in
@@ -161,7 +161,7 @@ const Footer = () => {
                   </li>
                   <li className="mt-2">
                     <Link
-                      href="/signup"
+                      href="/auth/sign-up"
                       className="hover:text-foreground transition-all duration-300"
                     >
                       Sign up

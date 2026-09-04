@@ -10,7 +10,6 @@ import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -55,15 +54,22 @@ export function LoginForm({
   }, [isSignIn, searchParams]);
 
   async function continueWithGoogle() {
+    if (loading || googleLoading) return;
     setGoogleLoading(true);
-    await authClient.signIn.social({
-      provider: "google",
-      callbackURL: redirectPath,
-    });
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: redirectPath,
+      });
+    } catch {
+      setGoogleLoading(false);
+      toast.danger("Google sign-in failed. Please try again.");
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading || googleLoading) return;
     setLoading(true);
 
     if (isSignIn) {
@@ -117,22 +123,40 @@ export function LoginForm({
   }
 
   return (
-    <form className={cn("flex flex-col gap-6", className)} onSubmit={submit}>
-      <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
+    <form className={cn("flex flex-col gap-4", className)} onSubmit={submit}>
+      <FieldGroup className="gap-3">
+        <div className="mb-3 flex flex-col items-center gap-0.5 text-center">
           <h1 className="text-2xl font-bold">
-            {isSignIn ? "Login to your account" : "Create your account"}
+            {isSignIn ? "Sign In" : "Create an Account"}
           </h1>
-          <p className="text-sm text-balance text-muted-foreground">
-            {isSignIn
-              ? "Enter your email below to login to your account"
-              : "Enter your details below to create your ArchiveCloud account"}
+          <p className="text-sm font-semibold text-muted-foreground">
+            {isSignIn ? (
+              <>
+                Don&apos;t have an account?{" "}
+                <Link
+                  href="/auth/sign-up"
+                  className="font-semibold text-foreground underline underline-offset-4"
+                >
+                  Register
+                </Link>
+              </>
+            ) : (
+              <>
+                Already a part?{" "}
+                <Link
+                  href="/auth/sign-in"
+                  className="font-semibold text-foreground underline underline-offset-4"
+                >
+                  Sign In
+                </Link>
+              </>
+            )}
           </p>
         </div>
 
         {!isSignIn ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field className="gap-1.5">
               <FieldLabel htmlFor="firstName">First Name</FieldLabel>
               <Input
                 id="firstName"
@@ -142,7 +166,7 @@ export function LoginForm({
                 required
               />
             </Field>
-            <Field>
+            <Field className="gap-1.5">
               <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
               <Input
                 id="lastName"
@@ -155,7 +179,7 @@ export function LoginForm({
           </div>
         ) : null}
 
-        <Field>
+        <Field className="gap-1.5">
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
             id="email"
@@ -167,7 +191,7 @@ export function LoginForm({
           />
         </Field>
 
-        <Field>
+        <Field className="gap-1.5">
           <FieldLabel htmlFor="password">Password</FieldLabel>
           <div className="relative">
             <Input
@@ -193,7 +217,7 @@ export function LoginForm({
             </button>
           </div>
           {isSignIn ? (
-            <div className="mt-1 flex justify-end">
+            <div className="mt-0.5 flex justify-end">
               <button
                 type="button"
                 className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
@@ -205,11 +229,12 @@ export function LoginForm({
           ) : null}
         </Field>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
           <Field>
             <Button
               type="submit"
-              disabled={loading || googleLoading}
+              disabled={googleLoading}
+              isPending={loading}
               size="lg"
               className="w-full"
             >
@@ -218,18 +243,19 @@ export function LoginForm({
                   ? "Signing in..."
                   : "Signing up..."
                 : isSignIn
-                  ? "Login"
-                  : "Sign up"}
+                  ? "Sign In"
+                  : "Get Started"}
             </Button>
           </Field>
 
-          <FieldSeparator className="my-0">Or continue with</FieldSeparator>
+          <FieldSeparator className="my-0">or</FieldSeparator>
 
-          <Field className="gap-3">
+          <Field>
             <Button
               variant="outline"
               type="button"
-              disabled={loading || googleLoading}
+              disabled={loading}
+              isPending={googleLoading}
               size="lg"
               className="w-full"
               onClick={continueWithGoogle}
@@ -237,24 +263,26 @@ export function LoginForm({
               <GoogleLogo />
               {googleLoading ? "Redirecting..." : "Continue with Google"}
             </Button>
-            <FieldDescription className="mt-1 text-center">
-              {isSignIn ? (
-                <>
-                  Don&apos;t have an account?{" "}
-                  <Link href="/signup" className="underline underline-offset-4">
-                    Sign up
-                  </Link>
-                </>
-              ) : (
-                <>
-                  Already have an account?{" "}
-                  <Link href="/signin" className="underline underline-offset-4">
-                    Sign in
-                  </Link>
-                </>
-              )}
-            </FieldDescription>
           </Field>
+
+          <p className="text-center text-sm text-muted-foreground">
+            By continuing, you agree to our
+            <br />
+            <Link
+              href="/terms"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Terms of Service
+            </Link>{" "}
+            &{" "}
+            <Link
+              href="/privacy"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </FieldGroup>
     </form>
