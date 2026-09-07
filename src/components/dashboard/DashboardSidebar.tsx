@@ -1,6 +1,12 @@
 "use client";
 
 import {
+  ArrowRightFromSquare,
+  EllipsisVertical,
+  Gear,
+  Persons,
+} from "@gravity-ui/icons";
+import {
   AlertDialog,
   Avatar,
   Button,
@@ -9,18 +15,13 @@ import {
   ScrollShadow,
   Surface,
 } from "@heroui/react";
-import {
-  ArrowRightFromSquare,
-  EllipsisVertical,
-  Gear,
-  Persons,
-} from "@gravity-ui/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/drive/BrandLogo";
 import { formatBytes } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth-user";
-import { getGravatarUrl } from "@/lib/gravatar";
+import { getProfileImageUrl } from "@/lib/gravatar";
+import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { cn } from "@/lib/utils";
 import { dashboardNavItems } from "./config";
 import { SidebarNewButton } from "./SidebarNewButton";
@@ -118,10 +119,21 @@ export function DashboardSidebar({
 
   useEffect(() => {
     setAvatarError(false);
-    getGravatarUrl(user?.email, 64)
-      .then(setProfileImageUrl)
-      .catch(() => setProfileImageUrl(""));
-  }, [user?.email]);
+    setProfileImageUrl(
+      getProfileImageUrl({
+        image: user?.image,
+        email: user?.email,
+        size: 128,
+      }),
+    );
+
+    void syncGoogleProfileImageIfNeeded(user?.image).then((image) => {
+      if (image) {
+        setProfileImageUrl(getProfileImageUrl({ image, size: 128 }));
+        setAvatarError(false);
+      }
+    });
+  }, [user?.image, user?.email]);
 
   return (
     <>
@@ -251,6 +263,7 @@ export function DashboardSidebar({
                   <Avatar.Image
                     src={profileImageUrl}
                     alt=""
+                    referrerPolicy="no-referrer"
                     onError={() => setAvatarError(true)}
                   />
                 ) : null}

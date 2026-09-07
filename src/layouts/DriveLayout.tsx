@@ -3,14 +3,15 @@
 import { Drawer, useOverlayState } from "@heroui/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
+import { dashboardContentClassName } from "@/components/dashboard/config";
 import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { dashboardContentClassName } from "@/components/dashboard/config";
 import { UploadProgressPanel } from "@/components/dashboard/UploadProgressPanel";
 import { useUpload } from "@/context/UploadContext";
 import { apiFetch } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { type AuthUser, sessionUserToAuthUser } from "@/lib/auth-user";
+import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 
 type StorageSummary = {
   totalBytes: string | null;
@@ -89,6 +90,11 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     root.setAttribute("data-theme", "light");
     localStorage.removeItem("archivecloud:theme");
   }, []);
+
+  useEffect(() => {
+    if (sessionPending || !user) return;
+    void syncGoogleProfileImageIfNeeded(user.image);
+  }, [sessionPending, user?.id, user?.image]);
 
   async function loadSidebarStats() {
     const [summary, breakdownData] = await Promise.all([

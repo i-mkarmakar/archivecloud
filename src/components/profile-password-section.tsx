@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Input, toast } from "@heroui/react";
-import { Eye, EyeSlash, Key } from "@gravity-ui/icons";
+import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { type FormEvent, useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/otp-input";
 import { authClient } from "@/lib/auth-client";
@@ -203,13 +203,10 @@ export function ProfilePasswordSection({
   }
 
   return (
-    <section>
-      <div className="flex items-center gap-2.5">
-        <Key className="h-5 w-5 text-foreground" />
-        <h2 className="text-[16px] font-bold">
-          {isSettingPassword ? "Set password" : "Password"}
-        </h2>
-      </div>
+    <div>
+      <h3 className="text-base font-bold text-foreground">
+        {isSettingPassword ? "Set password" : "Password"}
+      </h3>
 
       {isSettingPassword && isGoogleUser ? (
         <p className="mt-1 text-[13px] text-muted">
@@ -410,7 +407,7 @@ export function ProfilePasswordSection({
           </div>
         </form>
       )}
-    </section>
+    </div>
   );
 }
 

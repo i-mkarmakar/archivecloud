@@ -75,16 +75,14 @@ const Navbar = () => {
             )}
           >
             <div className="flex items-center space-x-8 lg:space-x-10">
-              <Link href="/#home" className="flex items-center gap-2">
+              <Link href="/#home" className="flex items-center">
                 <BrandLogo
                   className={cn(
-                    "h-9 w-9 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
-                    scroll && "h-8 w-8",
+                    "h-12 w-12 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    scroll && "h-10 w-10",
                   )}
                 />
-                <span className="hidden text-sm font-semibold tracking-tight text-foreground transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:inline">
-                  ArchiveCloud
-                </span>
+                <span className="sr-only">ArchiveCloud</span>
               </Link>
 
               <NavigationMenu className="hidden lg:flex">
@@ -194,7 +192,7 @@ const Navbar = () => {
                     className={cn(
                       buttonVariants({ size: "sm" }),
                       "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
-                      scroll && "rounded-full shadow-sm",
+                      scroll && "rounded-full",
                     )}
                   >
                     Get Started

@@ -16,7 +16,6 @@ import MagicBadge from "@/marketing/components/ui/magic-badge";
 import MagicCard from "@/marketing/components/ui/magic-card";
 import { PROCESS } from "@/marketing/utils";
 import { ArrowRightIcon, CreditCardIcon } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -68,17 +67,18 @@ export default function HomePage() {
             className="relative w-full bg-transparent px-2 pt-20 pb-20 md:py-32"
           >
             <div className="gradient animate-image-glow absolute inset-0 left-1/2 h-1/4 w-3/4 -translate-x-1/2 blur-[5rem] md:top-[10%] md:h-1/3" />
-            <div className="-m-2 rounded-xl border border-border bg-white/70 p-2 shadow-lg shadow-primary/5 backdrop-blur-sm lg:-m-4 lg:rounded-2xl">
-              <Image
-                src="/assets/dashboard.svg"
+            <div className="-m-2 overflow-hidden rounded-xl border border-border bg-white/70 p-2 shadow-lg shadow-primary/5 backdrop-blur-sm lg:-m-4 lg:rounded-2xl">
+              <img
+                src="/assets/archivecloud-dashboard.png"
                 alt="ArchiveCloud dashboard"
-                width={1200}
-                height={1200}
-                quality={100}
-                className="rounded-md bg-muted/30 ring-1 ring-border lg:rounded-xl"
+                width={2048}
+                height={1032}
+                decoding="async"
+                fetchPriority="high"
+                className="h-auto w-full rounded-md bg-background object-cover object-top ring-1 ring-border lg:rounded-xl"
               />
-              <div className="absolute inset-x-0 bottom-0 z-40 h-1/2 w-full bg-gradient-to-t from-background" />
-              <div className="absolute inset-x-0 bottom-0 z-50 h-1/4 w-full bg-gradient-to-t from-background md:-bottom-8" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 h-1/2 w-full bg-gradient-to-t from-background" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 h-1/4 w-full bg-gradient-to-t from-background md:-bottom-8" />
             </div>
           </AnimationContainer>
         </div>

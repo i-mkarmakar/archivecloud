@@ -1,50 +1,62 @@
-// Generates a fun, unique avatar URL for a user based on their email.
-// Uses DiceBear "bottts" style (cute robots) as the default when no Gravatar is set.
-// Falls back to a random avatar when no email is provided.
-export async function getGravatarUrl(email: string | undefined, size: number) {
-  const normalized = email?.trim().toLowerCase();
-
-  // Hash the email for Gravatar lookup + as DiceBear seed
-  const seed = normalized ?? "default-user";
-  let hash = "";
-
-  if (typeof crypto !== "undefined" && crypto.subtle) {
-    try {
-      const digest = await crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(seed),
-      );
-      hash = Array.from(new Uint8Array(digest), (byte) =>
-        byte.toString(16).padStart(2, "0"),
-      ).join("");
-    } catch {
-      hash = simpleHash(seed);
-    }
-  } else {
-    hash = simpleHash(seed);
-  }
-
-  // Try Gravatar first; fallback to DiceBear bottts (cute robots)
-  // d=404 means Gravatar returns 404 if no image → we catch and fall through to DiceBear
-  if (normalized && hash.length === 64) {
-    const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?s=${size}&d=404`;
-    try {
-      const res = await fetch(gravatarUrl, { method: "HEAD" });
-      if (res.ok) return gravatarUrl;
-    } catch {
-      // Network error → fall through
-    }
-  }
-
-  // DiceBear bottts — cute, colorful robot avatars
-  return `https://api.dicebear.com/8.x/bottts/svg?seed=${encodeURIComponent(hash)}&size=${size}&backgroundColor=b6e3f4,c0aede,d1f4cc,ffdfbf,ffd5dc`;
+/**
+ * Profile image resolution:
+ * 1. Custom upload or Google OAuth / synced picture (`user.image`)
+ * 2. Empty string → UI shows initials until Google sync fills `user.image`
+ *
+ * Google photo URLs often ship as tiny thumbs (`=s96-c`). Upgrade size for crisp display.
+ */
+export function getProfileImageUrl({
+  image,
+  size = 512,
+}: {
+  image?: string | null;
+  email?: string | null;
+  size?: number;
+}): string {
+  const custom = image?.trim();
+  if (!custom) return "";
+  return upgradeProfileImageUrl(custom, size);
 }
 
-function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
+/** Request a sharper Google (and similar CDN) avatar URL. */
+export function upgradeProfileImageUrl(url: string, size = 512): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+
+  try {
+    if (
+      trimmed.includes("googleusercontent.com") ||
+      trimmed.includes("ggpht.com")
+    ) {
+      let next = trimmed.replace(/=s\d+(-[a-z]+)?/gi, `=s${size}$1`);
+      next = next.replace(/\/s\d+(-[a-z]+)?\//gi, `/s${size}$1/`);
+      if (next === trimmed && !/=s\d+/i.test(trimmed)) {
+        next = `${trimmed}${trimmed.includes("?") ? "&" : "="}s${size}-c`;
+      }
+      return next;
+    }
+
+    const parsed = new URL(trimmed);
+    if (parsed.searchParams.has("sz")) {
+      parsed.searchParams.set("sz", String(size));
+      return parsed.toString();
+    }
+    if (parsed.searchParams.has("s")) {
+      parsed.searchParams.set("s", String(size));
+      return parsed.toString();
+    }
+    if (parsed.searchParams.has("size")) {
+      parsed.searchParams.set("size", String(size));
+      return parsed.toString();
+    }
+  } catch {
+    // data URLs / invalid URLs — return as-is
   }
-  return Math.abs(hash).toString(36);
+
+  return trimmed;
+}
+
+/** @deprecated Prefer getProfileImageUrl */
+export async function getGravatarUrl(email: string | undefined, size: number) {
+  return getProfileImageUrl({ email, size });
 }

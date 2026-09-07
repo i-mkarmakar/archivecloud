@@ -188,26 +188,13 @@ export function SettingsPage() {
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_280px]">
         <div className="grid gap-4">
           <section className="overflow-hidden">
-            <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <GoogleDriveLogo className="h-5 w-5" />
-                  <h2 className="text-[16px] font-bold">Google Drive</h2>
-                </div>
-                <p className="mt-1 text-[13px] text-muted">
-                  Connect Google Drive accounts to store and sync your files.
-                </p>
-              </div>
-              <Button
-                className="w-full sm:w-32"
-                size="sm"
-                onPress={connectDrive}
-                isDisabled={connecting}
-              >
-                <Link className="h-4 w-4" />
-                {connecting ? "Opening..." : "Connect Drive"}
-              </Button>
+            <div className="flex items-center gap-2.5">
+              <GoogleDriveLogo className="h-5 w-5" />
+              <h2 className="text-[16px] font-bold">Google Drive</h2>
             </div>
+            <p className="mt-1 text-[13px] text-muted">
+              Connect Google Drive accounts to store and sync your files.
+            </p>
           </section>
 
           <section>

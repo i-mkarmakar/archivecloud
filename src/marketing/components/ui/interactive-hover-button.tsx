@@ -15,7 +15,7 @@ export function InteractiveHoverButton({
   ...props
 }: InteractiveHoverButtonProps) {
   const classes = cn(
-    "group relative inline-flex w-auto cursor-pointer overflow-hidden rounded-full border border-primary bg-primary p-2 px-6 text-center font-semibold text-primary-foreground",
+    "group relative inline-flex w-auto cursor-pointer overflow-hidden rounded-full border border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] p-2 px-6 text-center font-semibold text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] transition-opacity hover:opacity-95 active:opacity-90",
     className,
   );
 

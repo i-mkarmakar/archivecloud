@@ -47,14 +47,17 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             zoom={0.9}
           />
         </div>
-        <div className="absolute inset-0 flex items-center justify-center p-12">
-          <div className="max-w-md space-y-3 text-center">
-            <p className="text-2xl font-semibold tracking-tight text-white drop-shadow-sm">
-              Your Google Drive gateway
+        <div className="absolute inset-x-0 bottom-0 z-10 flex justify-center px-8 pb-16 md:px-12 md:pb-20 lg:justify-end lg:pb-24 lg:pr-16">
+          <div className="flex max-w-md flex-col gap-3 text-center lg:text-right">
+            <p className="text-2xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-3xl">
+              Your storage
+              <br />
+              never runs out.
             </p>
-            <p className="text-sm text-white/80">
-              Upload, organize, and share files across connected Drive accounts
-              with unified quota tracking.
+            <p className="text-sm leading-relaxed text-white/80 sm:text-base lg:text-right">
+              Add a free Google Drive, get more
+              <br />
+              space. Add another, get unlimited.
             </p>
           </div>
         </div>
