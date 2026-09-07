@@ -1,4 +1,4 @@
-function getTimeGreeting(date = new Date()) {
+export function getTimeGreeting(date = new Date()) {
   const hour = date.getHours();
 
   if (hour >= 5 && hour < 12) return "Good Morning";
@@ -7,7 +7,7 @@ function getTimeGreeting(date = new Date()) {
   return "Good Night";
 }
 
-function getFirstName(name?: string | null) {
+export function getFirstName(name?: string | null) {
   const trimmed = name?.trim();
   if (!trimmed) return "there";
   return trimmed.split(/\s+/)[0] || "there";

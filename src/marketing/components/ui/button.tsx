@@ -9,7 +9,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+        primary:
+          "border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-white shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] hover:opacity-95 hover:text-white active:opacity-90 active:text-white",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         subtle: "bg-muted text-muted-foreground hover:bg-muted/80",
         outline:

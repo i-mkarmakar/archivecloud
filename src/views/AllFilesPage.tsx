@@ -48,7 +48,7 @@ import type { FileItem, FolderItem } from "@/data/drive-data";
 import { mapApiFileToItem, type ApiFile } from "@/lib/files";
 import { API_URL, apiFetch, formatBytes, formatDate } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
-import { formatPersonalGreeting } from "@/lib/greeting";
+import { getFirstName, getTimeGreeting } from "@/lib/greeting";
 import { createPlyr, ensurePlyr } from "@/lib/plyr";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
 
@@ -907,7 +907,12 @@ export function AllFilesPage() {
     files.length > 0 &&
     files.every((file) => file.id && selectedFileIds.has(file.id));
   const activePreviewKind = getPreviewKind(activeFile?.mimeType);
-  const homeGreeting = formatPersonalGreeting(session?.user?.name);
+  const homeGreeting = (
+    <>
+      {getTimeGreeting()},{" "}
+      <span className="text-primary">{getFirstName(session?.user?.name)}</span>
+    </>
+  );
 
   return (
     <>

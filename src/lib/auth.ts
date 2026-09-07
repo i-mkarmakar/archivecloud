@@ -3,6 +3,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
+import { upgradeProfileImageUrl } from "@/lib/gravatar";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { sendVerificationOtpEmail } from "@/server/modules/email/send-verification-otp";
@@ -34,6 +35,9 @@ export const auth = betterAuth({
   plugins: [
     emailOTP({
       sendVerificationOnSignUp: true,
+      changeEmail: {
+        enabled: true,
+      },
       sendVerificationOTP: async ({ email, otp, type }) => {
         void sendVerificationOtpEmail({ email, otp, type }).catch((error) => {
           console.error("Failed to send verification OTP email:", error);
@@ -65,12 +69,26 @@ export const auth = betterAuth({
       },
     },
   },
+  account: {
+    accountLinking: {
+      enabled: true,
+      updateUserInfoOnLink: true,
+    },
+  },
   socialProviders:
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? {
           google: {
             clientId: env.GOOGLE_CLIENT_ID,
             clientSecret: env.GOOGLE_CLIENT_SECRET,
+            mapProfileToUser: (profile) => ({
+              name: profile.name,
+              email: profile.email,
+              image: profile.picture
+                ? upgradeProfileImageUrl(profile.picture, 512)
+                : profile.picture,
+              emailVerified: profile.email_verified,
+            }),
           },
         }
       : {},
