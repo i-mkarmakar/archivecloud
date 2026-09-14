@@ -1,0 +1,33 @@
+services:
+  archivecloud-db:
+    image: postgres:18
+    restart: always
+    volumes:
+      - db-data:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: archivecloud
+      POSTGRES_PASSWORD: archivecloud
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  archivecloud:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:9050}
+        SITE_URL: ${SITE_URL:-http://localhost:9050}
+    depends_on:
+      archivecloud-db:
+        condition: service_healthy
+    restart: always
+    ports:
+      - "9050:9050"
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  db-data:

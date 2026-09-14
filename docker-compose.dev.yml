@@ -1,0 +1,19 @@
+services:
+  archivecloud-db:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: archivecloud
+      POSTGRES_PASSWORD: archivecloud
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
