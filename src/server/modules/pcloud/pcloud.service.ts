@@ -1,0 +1,490 @@
+import type {
+  ConnectedAccount,
+  ProviderConfig,
+} from "@/generated/prisma/client";
+import { Readable } from "node:stream";
+import { env } from "@/server/config/env";
+import { prisma } from "@/server/config/prisma";
+import type { ProviderBrowseResult } from "@/server/modules/providers/types";
+import { decryptText, encryptText } from "@/server/utils/crypto";
+
+type PCloudEnv = typeof env & {
+  PCLOUD_CLIENT_ID?: string;
+  PCLOUD_CLIENT_SECRET?: string;
+  PCLOUD_REDIRECT_URI?: string;
+};
+
+const pcloudEnv = env as PCloudEnv;
+
+const APP_FOLDER_NAME = "archivecloud";
+const PCLOUD_AUTH_URL = "https://my.pcloud.com/oauth2/authorize";
+const PCLOUD_TOKEN_URL = "https://api.pcloud.com/oauth2_token";
+const PCLOUD_API = "https://api.pcloud.com";
+
+function isConfiguredEnvValue(
+  value: string | undefined,
+  placeholders: string[],
+) {
+  if (!value?.trim()) return false;
+  return !placeholders.includes(value.trim());
+}
+
+function pcloudRedirectUri() {
+  return (
+    pcloudEnv.PCLOUD_REDIRECT_URI?.trim() ||
+    `${env.APP_URL}/connected-accounts/pcloud/callback`
+  );
+}
+
+export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig | null> {
+  const existing = await prisma.providerConfig.findFirst({
+    where: { userId: null, provider: "pcloud", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) return existing;
+
+  const clientId = pcloudEnv.PCLOUD_CLIENT_ID?.trim();
+  const clientSecret = pcloudEnv.PCLOUD_CLIENT_SECRET?.trim();
+  const redirectUri = pcloudRedirectUri();
+
+  const hasClientId = isConfiguredEnvValue(clientId, [
+    "your-pcloud-client-id",
+    "your-client-id",
+    "build-pcloud-client-id",
+  ]);
+  const hasClientSecret = isConfiguredEnvValue(clientSecret, [
+    "your-pcloud-client-secret",
+    "your-client-secret",
+    "build-pcloud-client-secret",
+  ]);
+  if (!hasClientId || !hasClientSecret) return null;
+
+  await prisma.providerConfig.updateMany({
+    where: { userId: null, provider: "pcloud", status: "active" },
+    data: { status: "disabled" },
+  });
+
+  return prisma.providerConfig.create({
+    data: {
+      userId: null,
+      provider: "pcloud",
+      clientIdEncrypted: encryptText(clientId!),
+      clientSecretEncrypted: encryptText(clientSecret!),
+      redirectUri,
+      scopes: [],
+      status: "active",
+    },
+  });
+}
+
+export function buildPCloudAuthUrl(params: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+}) {
+  const url = new URL(PCLOUD_AUTH_URL);
+  url.searchParams.set("client_id", params.clientId);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("redirect_uri", params.redirectUri);
+  url.searchParams.set("state", params.state);
+  return url.toString();
+}
+
+type PCloudTokenResponse = {
+  result: number;
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  uid?: number;
+  error?: string;
+};
+
+type PCloudApiResponse<T> = {
+  result: number;
+  error?: string;
+} & T;
+
+async function parsePCloudTokenResponse(response: Response): Promise<PCloudTokenResponse> {
+  const data = (await response.json()) as PCloudTokenResponse;
+  if (!response.ok || data.result !== 0 || !data.access_token) {
+    throw new Error(
+      `pCloud token request failed: ${data.error ?? JSON.stringify(data)}`,
+    );
+  }
+  return data;
+}
+
+export async function exchangePCloudCode(params: {
+  config: ProviderConfig;
+  code: string;
+}): Promise<PCloudTokenResponse> {
+  const body = new URLSearchParams({
+    client_id: decryptText(params.config.clientIdEncrypted),
+    client_secret: decryptText(params.config.clientSecretEncrypted),
+    code: params.code,
+    redirect_uri: params.config.redirectUri,
+  });
+  const response = await fetch(PCLOUD_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  return parsePCloudTokenResponse(response);
+}
+
+async function refreshPCloudAccessToken(account: ConnectedAccount) {
+  if (!account.refreshTokenEncrypted || !account.providerConfigId) {
+    throw new Error("pCloud refresh token or provider config missing.");
+  }
+  const config = await prisma.providerConfig.findUniqueOrThrow({
+    where: { id: account.providerConfigId },
+  });
+  const body = new URLSearchParams({
+    client_id: decryptText(config.clientIdEncrypted),
+    client_secret: decryptText(config.clientSecretEncrypted),
+    refresh_token: decryptText(account.refreshTokenEncrypted),
+    grant_type: "refresh_token",
+  });
+  const response = await fetch(PCLOUD_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const tokens = await parsePCloudTokenResponse(response);
+  const tokenExpiresAt = tokens.expires_in
+    ? new Date(Date.now() + tokens.expires_in * 1000)
+    : null;
+  await prisma.connectedAccount.update({
+    where: { id: account.id },
+    data: {
+      accessTokenEncrypted: encryptText(tokens.access_token!),
+      tokenExpiresAt,
+      ...(tokens.refresh_token
+        ? { refreshTokenEncrypted: encryptText(tokens.refresh_token) }
+        : {}),
+    },
+  });
+  return tokens.access_token!;
+}
+
+export async function getPCloudAccessToken(account: ConnectedAccount) {
+  if (!account.accessTokenEncrypted) {
+    throw new Error("pCloud access token missing.");
+  }
+  const expiresSoon =
+    account.tokenExpiresAt != null &&
+    account.tokenExpiresAt.getTime() < Date.now() + 60_000;
+  if (expiresSoon && account.refreshTokenEncrypted) {
+    return refreshPCloudAccessToken(account);
+  }
+  return decryptText(account.accessTokenEncrypted);
+}
+
+async function pcloudApi<T>(
+  account: ConnectedAccount,
+  method: string,
+  params: Record<string, string | number | boolean | undefined> = {},
+): Promise<T> {
+  const accessToken = await getPCloudAccessToken(account);
+  const url = new URL(`${PCLOUD_API}/${method}`);
+  url.searchParams.set("access_token", accessToken);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  const response = await fetch(url);
+  const data = (await response.json()) as PCloudApiResponse<T>;
+  if (!response.ok || data.result !== 0) {
+    throw new Error(
+      `pCloud API ${method} failed: ${data.error ?? JSON.stringify(data)}`,
+    );
+  }
+  return data as T;
+}
+
+export async function getPCloudAccountInfo(account: ConnectedAccount) {
+  return pcloudApi<{
+    email: string;
+    userid: number;
+    premium?: boolean;
+    quota?: number;
+    usedquota?: number;
+  }>(account, "userinfo");
+}
+
+export async function syncPCloudQuota(accountId: string) {
+  const account = await prisma.connectedAccount.findUniqueOrThrow({
+    where: { id: accountId },
+  });
+  const info = await getPCloudAccountInfo(account);
+  const total = info.quota != null ? BigInt(info.quota) : null;
+  const used = BigInt(info.usedquota ?? 0);
+  const available = total === null ? null : total - used;
+
+  return prisma.storageAccount.upsert({
+    where: { connectedAccountId: accountId },
+    create: {
+      connectedAccountId: accountId,
+      totalBytes: total,
+      usedBytes: used,
+      availableBytes: available,
+      lastSyncedAt: new Date(),
+    },
+    update: {
+      totalBytes: total,
+      usedBytes: used,
+      availableBytes: available,
+      lastSyncedAt: new Date(),
+    },
+  });
+}
+
+function toPCloudFolderId(parentId: string) {
+  if (!parentId || parentId === "root") return 0;
+  const parsed = Number(parentId);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid pCloud folder id: ${parentId}`);
+  }
+  return parsed;
+}
+
+function guessMimeType(fileName: string) {
+  const lower = fileName.toLowerCase();
+  if (/\.(jpe?g)$/.test(lower)) return "image/jpeg";
+  if (/\.png$/.test(lower)) return "image/png";
+  if (/\.gif$/.test(lower)) return "image/gif";
+  if (/\.webp$/.test(lower)) return "image/webp";
+  if (/\.pdf$/.test(lower)) return "application/pdf";
+  if (/\.mp4$/.test(lower)) return "video/mp4";
+  if (/\.mov$/.test(lower)) return "video/quicktime";
+  if (/\.txt$/.test(lower)) return "text/plain";
+  if (/\.json$/.test(lower)) return "application/json";
+  if (/\.zip$/.test(lower)) return "application/zip";
+  return "application/octet-stream";
+}
+
+type PCloudEntry = {
+  isfolder?: boolean;
+  isdeleted?: boolean;
+  fileid?: number;
+  folderid?: number;
+  name: string;
+  size?: number;
+  contenttype?: string;
+  modified?: number;
+  created?: number;
+};
+
+export async function browsePCloudFolder(
+  accountId: string,
+  userId: string,
+  parentId: string,
+  searchQuery?: string,
+): Promise<ProviderBrowseResult> {
+  const account = await prisma.connectedAccount.findFirstOrThrow({
+    where: {
+      id: accountId,
+      userId,
+      provider: "pcloud",
+      status: "connected",
+    },
+  });
+
+  const folderId = toPCloudFolderId(parentId);
+  const listed = await pcloudApi<{ metadata: { contents?: PCloudEntry[] } }>(
+    account,
+    "listfolder",
+    { folderid: folderId, recursive: 0 },
+  );
+
+  let entries = (listed.metadata?.contents ?? []).filter(
+    (entry) => !entry.isdeleted,
+  );
+
+  const q = searchQuery?.trim().toLowerCase();
+  if (q) {
+    entries = entries.filter((entry) => entry.name.toLowerCase().includes(q));
+  }
+
+  const folders = entries
+    .filter((entry) => entry.isfolder)
+    .map((entry) => ({
+      id: String(entry.folderid ?? entry.name),
+      name: entry.name,
+      modifiedTime: new Date(
+        (entry.modified ?? entry.created ?? Date.now() / 1000) * 1000,
+      ).toISOString(),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const files = entries
+    .filter((entry) => !entry.isfolder)
+    .map((entry) => ({
+      id: String(entry.fileid ?? entry.name),
+      name: entry.name,
+      mimeType: entry.contenttype ?? guessMimeType(entry.name),
+      sizeBytes: String(entry.size ?? 0),
+      modifiedTime: new Date(
+        (entry.modified ?? entry.created ?? Date.now() / 1000) * 1000,
+      ).toISOString(),
+      hasThumbnail: false as boolean,
+      dbFileId: null as string | null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const providerFileIds = files.map((file) => file.id);
+  if (providerFileIds.length > 0) {
+    const tracked = await prisma.file.findMany({
+      where: {
+        userId,
+        connectedAccountId: accountId,
+        providerFileId: { in: providerFileIds },
+        status: "active",
+        deletedAt: null,
+      },
+      select: { id: true, providerFileId: true },
+    });
+    const dbByProviderId = new Map(
+      tracked.map((file) => [file.providerFileId, file.id]),
+    );
+    for (const file of files) {
+      file.dbFileId = dbByProviderId.get(file.id) ?? null;
+    }
+  }
+
+  const breadcrumbs: Array<{ id: string; name: string }> = [
+    { id: "root", name: "pCloud" },
+  ];
+  if (folderId !== 0) {
+    try {
+      const stat = await pcloudApi<{
+        metadata: { folderid?: number; name?: string; path?: string };
+      }>(account, "stat", { folderid: folderId });
+      const path = stat.metadata?.path;
+      if (path) {
+        const parts = path.split("/").filter(Boolean);
+        let currentId = 0;
+        for (const part of parts) {
+          const folderListing = await pcloudApi<{
+            metadata: { contents?: PCloudEntry[] };
+          }>(account, "listfolder", { folderid: currentId, recursive: 0 });
+          const match = (folderListing.metadata?.contents ?? []).find(
+            (entry) => entry.isfolder && entry.name === part,
+          );
+          if (!match?.folderid) break;
+          currentId = match.folderid;
+          breadcrumbs.push({ id: String(currentId), name: part });
+        }
+      } else if (stat.metadata?.name) {
+        breadcrumbs.push({
+          id: String(stat.metadata.folderid ?? folderId),
+          name: stat.metadata.name,
+        });
+      }
+    } catch {
+      breadcrumbs.push({ id: String(folderId), name: "Folder" });
+    }
+  }
+
+  return { folders, files, breadcrumbs };
+}
+
+export async function ensurePCloudAppFolder(account: ConnectedAccount) {
+  const created = await pcloudApi<{ metadata: { folderid: number } }>(
+    account,
+    "createfolderifnotexists",
+    { folderid: 0, name: APP_FOLDER_NAME },
+  );
+  return String(created.metadata.folderid);
+}
+
+export async function getPCloudFileMetadata(
+  account: ConnectedAccount,
+  fileId: string,
+) {
+  return pcloudApi<{
+    metadata: {
+      fileid: number;
+      name: string;
+      size?: number;
+      contenttype?: string;
+      modified?: number;
+      isfolder?: boolean;
+    };
+  }>(account, "stat", { fileid: Number(fileId) });
+}
+
+export async function downloadPCloudFileStream(
+  account: ConnectedAccount,
+  fileId: string,
+) {
+  const accessToken = await getPCloudAccessToken(account);
+  const url = new URL(`${PCLOUD_API}/downloadfile`);
+  url.searchParams.set("access_token", accessToken);
+  url.searchParams.set("fileid", fileId);
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    const text = await response.text();
+    throw new Error(`pCloud download failed: ${text}`);
+  }
+  return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+}
+
+function toBody(chunk: Buffer): BodyInit {
+  return new Blob([new Uint8Array(chunk)]);
+}
+
+export async function uploadPCloudFileFromStream(params: {
+  account: ConnectedAccount;
+  folderId: string | number;
+  fileName: string;
+  body: Readable;
+  sizeBytes?: bigint;
+}) {
+  const accessToken = await getPCloudAccessToken(params.account);
+  const chunks: Buffer[] = [];
+  for await (const piece of params.body) {
+    chunks.push(Buffer.isBuffer(piece) ? piece : Buffer.from(piece));
+  }
+  const buffer = Buffer.concat(chunks);
+
+  const url = new URL(`${PCLOUD_API}/uploadfile`);
+  url.searchParams.set("access_token", accessToken);
+  url.searchParams.set("folderid", String(params.folderId));
+  url.searchParams.set("filename", params.fileName);
+  url.searchParams.set("nopartial", "1");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/octet-stream",
+      ...(params.sizeBytes !== undefined
+        ? { "Content-Length": String(params.sizeBytes) }
+        : { "Content-Length": String(buffer.byteLength) }),
+    },
+    body: toBody(buffer),
+  });
+  const data = (await response.json()) as PCloudApiResponse<{
+    metadata: {
+      fileid: number;
+      name: string;
+      size?: number;
+      contenttype?: string;
+    };
+  }>;
+  if (!response.ok || data.result !== 0) {
+    throw new Error(
+      `pCloud upload failed: ${data.error ?? JSON.stringify(data)}`,
+    );
+  }
+  return data.metadata;
+}
+
+export async function deletePCloudFile(
+  account: ConnectedAccount,
+  fileId: string,
+) {
+  await pcloudApi(account, "deletefile", { fileid: Number(fileId) });
+}
