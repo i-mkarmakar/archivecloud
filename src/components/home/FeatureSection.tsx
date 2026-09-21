@@ -51,8 +51,7 @@ const FEATURES: {
   },
   {
     title: "Smart Upload Routing",
-    description:
-      "Automatically upload to the account with enough free space.",
+    description: "Automatically upload to the account with enough free space.",
     icon: Zap,
   },
   {
@@ -65,34 +64,45 @@ const FEATURES: {
 
 export function FeatureSection() {
   return (
-    <section id="features" className="scroll-mt-24 bg-[#F5FAFF] px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+    <section
+      id="features"
+      className="scroll-mt-24 bg-[#F5FAFF] px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16"
+    >
       <div className="mx-auto max-w-[1200px]">
         <div className="mx-auto max-w-2xl text-center">
           <SectionBadge>Features</SectionBadge>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#0F172A] sm:text-4xl lg:text-[2.75rem]">
+          <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#0F172A] sm:mt-4 sm:text-4xl lg:text-[2.75rem]">
             More than just a file viewer
           </h2>
-          <p className="mt-3 text-base text-[#64748B] sm:text-lg">
+          <p className="mt-2 text-sm text-[#64748B] sm:mt-3 sm:text-lg">
             A powerful set of tools to manage your files, built for individuals,
             teams and businesses.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        <div className="mt-6 grid grid-cols-2 items-start gap-2 sm:mt-12 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-5">
           {FEATURES.map((feature) => (
             <article
               key={feature.title}
-              className="rounded-2xl border border-[#E5EEF7] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(22,131,247,0.45)] sm:p-6"
+              className="group relative self-start overflow-hidden rounded-xl border border-[#E5EEF7] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(22,131,247,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1683F7]/40 sm:rounded-2xl sm:p-6"
             >
-              <div className="flex size-10 items-center justify-center rounded-xl bg-[#EAF4FF] text-[#1683F7]">
-                <feature.icon className="size-5" strokeWidth={1.75} />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#EAF4FF] text-[#1683F7] sm:size-10 sm:rounded-xl">
+                <feature.icon className="size-4 sm:size-5" strokeWidth={1.75} />
               </div>
-              <h3 className="mt-4 text-[16px] font-semibold text-[#0F172A]">
+              <h3 className="mt-2 text-sm font-semibold leading-snug text-[#0F172A] sm:mt-4 sm:text-[16px]">
                 {feature.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#64748B]">
+              <p className="mt-2 hidden text-sm leading-relaxed text-[#64748B] sm:block">
                 {feature.description}
               </p>
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0F172A]/70 p-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:hidden"
+              >
+                <p className="text-center text-[10px] leading-snug text-white">
+                  {feature.description}
+                </p>
+              </div>
             </article>
           ))}
         </div>

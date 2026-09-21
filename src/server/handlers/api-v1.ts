@@ -110,7 +110,11 @@ export async function apiV1CreateTransferHandler(request: Request) {
   ]);
 
   if (!sourceAccount || !destAccount) {
-    return errorJson("ACCOUNT_NOT_FOUND", "Source or destination account not found.", 404);
+    return errorJson(
+      "ACCOUNT_NOT_FOUND",
+      "Source or destination account not found.",
+      404,
+    );
   }
   if (
     !isSupportedProvider(sourceAccount.provider) ||

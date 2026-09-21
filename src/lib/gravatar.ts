@@ -1,4 +1,3 @@
-
 export function getProfileImageUrl({
   image,
   size = 512,
@@ -42,8 +41,7 @@ export function upgradeProfileImageUrl(url: string, size = 512): string {
       parsed.searchParams.set("size", String(size));
       return parsed.toString();
     }
-  } catch {
-  }
+  } catch {}
 
   return trimmed;
 }

@@ -1,5 +1,5 @@
-
-const LOCALE_PREFIX = /^\/(en|fr|de|es|pt|it|ja|zh|ko|nl|pl|ru|ar|hi|tr|sv|da|fi|no|cs|ro|uk|vi|th|id|ms)(?=\/|$)/i;
+const LOCALE_PREFIX =
+  /^\/(en|fr|de|es|pt|it|ja|zh|ko|nl|pl|ru|ar|hi|tr|sv|da|fi|no|cs|ro|uk|vi|th|id|ms)(?=\/|$)/i;
 
 export function normalizeAppPath(pathname: string): string {
   let path = pathname.trim();
@@ -23,11 +23,7 @@ export function safeCallbackUrl(
 ): string {
   if (!raw) return fallback;
 
-  if (
-    raw.includes("://") ||
-    raw.startsWith("//") ||
-    !raw.startsWith("/")
-  ) {
+  if (raw.includes("://") || raw.startsWith("//") || !raw.startsWith("/")) {
     return fallback;
   }
 

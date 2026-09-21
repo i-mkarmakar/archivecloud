@@ -153,8 +153,7 @@ export function DeleteAccountSection({
                       htmlFor="delete-account-reason"
                       className="text-sm font-semibold text-foreground"
                     >
-                      Reason for leaving{" "}
-                      <span className="text-danger">*</span>
+                      Reason for leaving <span className="text-danger">*</span>
                     </label>
                     <textarea
                       id="delete-account-reason"

@@ -105,7 +105,9 @@ type PCloudApiResponse<T> = {
   error?: string;
 } & T;
 
-async function parsePCloudTokenResponse(response: Response): Promise<PCloudTokenResponse> {
+async function parsePCloudTokenResponse(
+  response: Response,
+): Promise<PCloudTokenResponse> {
   const data = (await response.json()) as PCloudTokenResponse;
   if (!response.ok || data.result !== 0 || !data.access_token) {
     throw new Error(

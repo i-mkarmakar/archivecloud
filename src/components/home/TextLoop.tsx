@@ -75,7 +75,6 @@ function buildPath(
     }
     case "line":
       return `M -320 ${cy} L ${VIEW_W + 320} ${cy}`;
-    case "wave":
     default: {
       const a = Math.min(c * 2.2, room * 2);
       return `M -320 ${cy} Q -160 ${cy - a} 0 ${cy} T 320 ${cy} T 640 ${cy} T 960 ${cy} T 1280 ${cy} T ${VIEW_W + 320} ${cy}`;
@@ -161,9 +160,7 @@ export default function TextLoop({
       const reps =
         unitWidth > 0 ? Math.max(1, Math.round(length / unitWidth)) : 1;
       setMetrics((prev) =>
-        prev.length === length && prev.reps === reps
-          ? prev
-          : { length, reps },
+        prev.length === length && prev.reps === reps ? prev : { length, reps },
       );
     };
 
@@ -250,12 +247,7 @@ export default function TextLoop({
           strokeLinejoin="round"
         />
 
-        <text
-          ref={measureRef}
-          className="text-loop-measure"
-          style={textStyle}
-          aria-hidden="true"
-        >
+        <text ref={measureRef} className="text-loop-measure" style={textStyle}>
           {unit}
         </text>
 
@@ -264,7 +256,6 @@ export default function TextLoop({
           style={textStyle}
           fill={color}
           dominantBaseline="central"
-          aria-hidden="true"
           textLength={fitLength}
           lengthAdjust="spacing"
         >
@@ -278,7 +269,6 @@ export default function TextLoop({
           style={textStyle}
           fill={color}
           dominantBaseline="central"
-          aria-hidden="true"
           textLength={fitLength}
           lengthAdjust="spacing"
         >

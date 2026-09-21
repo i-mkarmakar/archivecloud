@@ -8,7 +8,6 @@ import {
   CopyCheck,
   EllipsisVertical,
   FolderArrowRight,
-  FolderPlus,
   Link,
   PersonPlus,
   Sliders,
@@ -771,7 +770,7 @@ export function AllFilesPage() {
     setFolderSearchParams(searchQuery ? { q: searchQuery } : {});
   }
 
-  async function viewFile() {
+  async function _viewFile() {
     if (!activeFile?.id) return;
     await openFilePreview(activeFile);
   }
@@ -898,7 +897,7 @@ export function AllFilesPage() {
     window.dispatchEvent(new Event("archivecloud:storage-changed"));
   }
 
-  async function toggleStar() {
+  async function _toggleStar() {
     if (!activeFile?.id) return;
     await updateFilesMetadata([activeFile.id], {
       isStarred: !activeFile.isStarred,
@@ -907,7 +906,7 @@ export function AllFilesPage() {
     await loadFiles();
   }
 
-  async function toggleArchive() {
+  async function _toggleArchive() {
     if (!activeFile?.id) return;
     await updateFilesMetadata([activeFile.id], {
       isArchived: !activeFile.isArchived,
@@ -1062,7 +1061,7 @@ export function AllFilesPage() {
     setContextMenu({ x: 0, y: 0, file: null });
   }
 
-  async function inviteToFile() {
+  async function _inviteToFile() {
     if (!activeFile?.id) return;
     setInviteTargetType("file");
     setInviteTargetId(activeFile.id);

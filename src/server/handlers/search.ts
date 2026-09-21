@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
-import { errorJson, json } from "@/server/http/responses";
+import { json } from "@/server/http/responses";
 import { searchAllConnectedAccounts } from "@/server/modules/search/cross-cloud-search";
 import { serializeFile } from "@/server/lib/file-serialize";
 

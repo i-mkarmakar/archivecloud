@@ -36,7 +36,10 @@ export function FAQSection() {
   const openItem = openIndex >= 0 ? FAQ_ITEMS[openIndex] : null;
 
   return (
-    <section id="faq" className="scroll-mt-24 px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+    <section
+      id="faq"
+      className="scroll-mt-24 px-4 py-12 sm:px-6 lg:px-8 lg:py-16"
+    >
       <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
         <div>
           <SectionBadge>FAQ</SectionBadge>
@@ -77,9 +80,8 @@ export function FAQSection() {
 
           {}
           {openItem ? (
-            <div
+            <section
               id="faq-home-answer"
-              role="region"
               aria-live="polite"
               className="mt-5 px-1"
             >
@@ -89,7 +91,7 @@ export function FAQSection() {
               <p className="mt-2 text-sm leading-relaxed text-[#64748B]">
                 {openItem.answer}
               </p>
-            </div>
+            </section>
           ) : null}
         </div>
       </div>

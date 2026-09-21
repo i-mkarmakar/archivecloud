@@ -220,8 +220,7 @@ export async function syncOneDriveQuota(accountId: string) {
   const drive = await graphJson<{
     quota?: { total?: number; used?: number; remaining?: number };
   }>(account, "/me/drive");
-  const total =
-    drive.quota?.total != null ? BigInt(drive.quota.total) : null;
+  const total = drive.quota?.total != null ? BigInt(drive.quota.total) : null;
   const used = BigInt(drive.quota?.used ?? 0);
   const available =
     drive.quota?.remaining != null
@@ -369,15 +368,19 @@ export async function ensureOneDriveAppFolder(account: ConnectedAccount) {
   );
   if (existing) return existing.id;
 
-  const created = await graphJson<DriveItem>(account, "/me/drive/root/children", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: APP_FOLDER_NAME,
-      folder: {},
-      "@microsoft.graph.conflictBehavior": "rename",
-    }),
-  });
+  const created = await graphJson<DriveItem>(
+    account,
+    "/me/drive/root/children",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: APP_FOLDER_NAME,
+        folder: {},
+        "@microsoft.graph.conflictBehavior": "rename",
+      }),
+    },
+  );
   return created.id;
 }
 

@@ -239,11 +239,15 @@ export function WhenToRunStep({
       </div>
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <label className="grid gap-1 text-xs font-semibold text-foreground">
+        <label
+          htmlFor="schedule-run-date"
+          className="grid gap-1 text-xs font-semibold text-foreground"
+        >
           Date ({tz})
           <span className="relative">
             <Calendar className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
             <Input
+              id="schedule-run-date"
               type="date"
               value={runDate}
               onChange={(e) => onDateChange(e.target.value)}
@@ -251,11 +255,15 @@ export function WhenToRunStep({
             />
           </span>
         </label>
-        <label className="grid gap-1 text-xs font-semibold text-foreground">
+        <label
+          htmlFor="schedule-run-time"
+          className="grid gap-1 text-xs font-semibold text-foreground"
+        >
           Run time ({tz})
           <span className="relative">
             <Clock className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
             <Input
+              id="schedule-run-time"
               type="time"
               value={runTime}
               onChange={(e) => onTimeChange(e.target.value)}

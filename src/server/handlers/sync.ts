@@ -117,7 +117,11 @@ export async function createFolderSyncHandler(request: Request) {
     return errorJson("ACCOUNT_NOT_FOUND", "Source account not found.", 404);
   }
   if (!destAccount) {
-    return errorJson("ACCOUNT_NOT_FOUND", "Destination account not found.", 404);
+    return errorJson(
+      "ACCOUNT_NOT_FOUND",
+      "Destination account not found.",
+      404,
+    );
   }
 
   if (
@@ -154,17 +158,11 @@ export async function createFolderSyncHandler(request: Request) {
     },
   });
 
-  await createAuditLog(
-    user.id,
-    "FOLDER_SYNC_CREATED",
-    "folder_sync",
-    sync.id,
-    {
-      sourceAccountId: sync.sourceAccountId,
-      destAccountId: sync.destAccountId,
-      scheduleKind: sync.scheduleKind,
-    },
-  );
+  await createAuditLog(user.id, "FOLDER_SYNC_CREATED", "folder_sync", sync.id, {
+    sourceAccountId: sync.sourceAccountId,
+    destAccountId: sync.destAccountId,
+    scheduleKind: sync.scheduleKind,
+  });
 
   return json({ syncId: sync.id }, 201);
 }
@@ -206,9 +204,12 @@ export async function patchFolderSyncHandler(
       status: z.enum(["active", "paused"]).optional(),
       pollEnabled: z.boolean().optional(),
     })
-    .refine((value) => value.status !== undefined || value.pollEnabled !== undefined, {
-      message: "Provide status and/or pollEnabled.",
-    })
+    .refine(
+      (value) => value.status !== undefined || value.pollEnabled !== undefined,
+      {
+        message: "Provide status and/or pollEnabled.",
+      },
+    )
     .parse(await request.json());
 
   const result = await prisma.folderSync.updateMany({
@@ -239,7 +240,9 @@ export async function patchFolderSyncHandler(
   if (body.pollEnabled !== undefined) {
     await createAuditLog(
       user.id,
-      body.pollEnabled ? "FOLDER_SYNC_POLL_ENABLED" : "FOLDER_SYNC_POLL_DISABLED",
+      body.pollEnabled
+        ? "FOLDER_SYNC_POLL_ENABLED"
+        : "FOLDER_SYNC_POLL_DISABLED",
       "folder_sync",
       id,
     );
@@ -247,7 +250,9 @@ export async function patchFolderSyncHandler(
 
   return json({
     ...(body.status !== undefined ? { status: body.status } : {}),
-    ...(body.pollEnabled !== undefined ? { pollEnabled: body.pollEnabled } : {}),
+    ...(body.pollEnabled !== undefined
+      ? { pollEnabled: body.pollEnabled }
+      : {}),
   });
 }
 

@@ -276,9 +276,7 @@ export function FileTable({
                               setCopiedFileId(file.id ?? null);
                               setTimeout(() => setCopiedFileId(null), 2000);
                             }
-                          } catch {
-                            
-                          }
+                          } catch {}
                         }}
                         className={
                           copiedFileId === file.id

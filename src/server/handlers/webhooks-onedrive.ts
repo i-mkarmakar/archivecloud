@@ -44,7 +44,7 @@ export async function oneDriveWebhookHandler(request: Request) {
         },
       },
     });
-    if (!channel || channel.status !== "active") continue;
+    if (channel?.status !== "active") continue;
     if (note.clientState && note.clientState !== channel.channelToken) {
       continue;
     }

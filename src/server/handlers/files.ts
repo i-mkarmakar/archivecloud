@@ -117,9 +117,7 @@ export async function listFilesHandler(request: Request) {
     ...(query.q ? { name: { contains: query.q } } : {}),
     ...(query.accountId ? { connectedAccountId: query.accountId } : {}),
     ...(query.kind ? { mimeType: { in: typeFilters[query.kind] || [] } } : {}),
-    ...(query.tagId
-      ? { fileTags: { some: { tagId: query.tagId } } }
-      : {}),
+    ...(query.tagId ? { fileTags: { some: { tagId: query.tagId } } } : {}),
     ...(query.minSize !== undefined || query.maxSize !== undefined
       ? {
           sizeBytes: {

@@ -1,9 +1,7 @@
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { google } from "googleapis";
 import { prisma } from "@/server/config/prisma";
-import {
-  getDropboxAccessToken,
-} from "@/server/modules/dropbox/dropbox.service";
+import { getDropboxAccessToken } from "@/server/modules/dropbox/dropbox.service";
 import { getAuthedGoogleClient } from "@/server/modules/google/google.service";
 import { getOneDriveAccessToken } from "@/server/modules/onedrive/onedrive.service";
 import { getPCloudAccessToken } from "@/server/modules/pcloud/pcloud.service";
@@ -61,8 +59,7 @@ async function searchGoogleDrive(
   const response = await drive.files.list({
     q,
     spaces: "drive",
-    fields:
-      "files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,parents)",
+    fields: "files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,parents)",
     pageSize: Math.min(limit, 100),
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,

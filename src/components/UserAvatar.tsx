@@ -39,10 +39,7 @@ function getDefaultUserAvatarSrc(seed?: string | null): string {
   return `${AVATAR_CDN}/${color}.jpg`;
 }
 
-function getUserInitials(
-  name?: string | null,
-  email?: string | null,
-): string {
+function getUserInitials(name?: string | null, email?: string | null): string {
   const trimmedName = name?.trim();
   if (trimmedName) {
     const parts = trimmedName.split(/\s+/).filter(Boolean);

@@ -212,9 +212,7 @@ export async function getDropboxAccountProfileWithToken(accessToken: string) {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) {
-    throw new Error(
-      `Dropbox profile fetch failed: ${await response.text()}`,
-    );
+    throw new Error(`Dropbox profile fetch failed: ${await response.text()}`);
   }
   return (await response.json()) as {
     account_id: string;
@@ -524,15 +522,18 @@ export async function uploadDropboxFileFromStream(params: {
         };
       }
 
-      const start = await fetch(`${DROPBOX_CONTENT}/files/upload_session/start`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/octet-stream",
-          "Dropbox-API-Arg": JSON.stringify({ close: false }),
+      const start = await fetch(
+        `${DROPBOX_CONTENT}/files/upload_session/start`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/octet-stream",
+            "Dropbox-API-Arg": JSON.stringify({ close: false }),
+          },
+          body: toBody(chunk),
         },
-        body: toBody(chunk),
-      });
+      );
       if (!start.ok) {
         throw new Error(
           `Dropbox upload session start failed: ${await start.text()}`,

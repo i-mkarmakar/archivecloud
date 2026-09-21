@@ -5,21 +5,20 @@ import { motion, useTime, useTransform } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export interface SquigglyTextProps {
-  
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
-  
+
   steps?: number;
-  
+
   stepDuration?: number;
-  
+
   scale?: number | [number, number];
-  
+
   baseFrequency?: number;
-  
+
   numOctaves?: number;
-  
+
   as?: "span" | "div";
 }
 
@@ -87,4 +86,3 @@ export function SquigglyText({
     </Wrapper>
   );
 }
-

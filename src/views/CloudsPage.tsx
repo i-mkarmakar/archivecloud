@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  Cloud,
-  Folder,
-  FolderOpen,
-} from "@gravity-ui/icons";
+import { ArrowRight, Cloud, Folder, FolderOpen } from "@gravity-ui/icons";
 import { Button, Card, toast } from "@heroui/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -146,10 +141,13 @@ export function CloudsPage() {
   async function renameItem(itemId: string, name: string) {
     if (!accountId) return;
     try {
-      await apiFetch(`/connected-accounts/${accountId}/items/${encodeURIComponent(itemId)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name }),
-      });
+      await apiFetch(
+        `/connected-accounts/${accountId}/items/${encodeURIComponent(itemId)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ name }),
+        },
+      );
       toast.success("Renamed");
       await loadBrowse();
     } catch (err) {
@@ -184,9 +182,7 @@ export function CloudsPage() {
   async function openVirtualModal(file: BrowseFile) {
     setVirtualFile(file);
     try {
-      const data = await apiFetch<{ folders: VirtualFolder[] }>(
-        "/vf",
-      );
+      const data = await apiFetch<{ folders: VirtualFolder[] }>("/vf");
       setVirtualFolders(data.folders);
       setVirtualFolderId(data.folders[0]?.id ?? "");
     } catch (err) {
@@ -228,9 +224,12 @@ export function CloudsPage() {
   async function deleteItem(itemId: string) {
     if (!accountId) return;
     try {
-      await apiFetch(`/connected-accounts/${accountId}/items/${encodeURIComponent(itemId)}`, {
-        method: "DELETE",
-      });
+      await apiFetch(
+        `/connected-accounts/${accountId}/items/${encodeURIComponent(itemId)}`,
+        {
+          method: "DELETE",
+        },
+      );
       toast.success("Deleted");
       await loadBrowse();
     } catch (err) {
@@ -263,7 +262,10 @@ export function CloudsPage() {
       />
 
       {loading ? (
-        <AccountCardsSkeleton className="mt-6" label="Loading connected clouds" />
+        <AccountCardsSkeleton
+          className="mt-6"
+          label="Loading connected clouds"
+        />
       ) : null}
       {error ? <p className="mt-6 text-sm text-danger">{error}</p> : null}
 
@@ -359,7 +361,11 @@ export function CloudsPage() {
             </div>
 
             {browseLoading ? (
-              <FileListSkeleton className="mt-6" count={8} label="Loading folder" />
+              <FileListSkeleton
+                className="mt-6"
+                count={8}
+                label="Loading folder"
+              />
             ) : null}
 
             {!browseLoading && browse ? (
@@ -479,7 +485,9 @@ export function CloudsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop/40 p-4">
           <Card className="w-full max-w-md p-5">
             <p className="text-lg font-extrabold">Add to virtual folder</p>
-            <p className="mt-1 truncate text-sm text-muted">{virtualFile.name}</p>
+            <p className="mt-1 truncate text-sm text-muted">
+              {virtualFile.name}
+            </p>
             {virtualFolders.length === 0 ? (
               <p className="mt-4 text-sm text-muted">
                 No virtual folders yet. Create one from the Virtual Folders
@@ -515,7 +523,9 @@ export function CloudsPage() {
               </Button>
               <Button
                 isDisabled={
-                  !virtualFolderId || addingToVirtual || virtualFolders.length === 0
+                  !virtualFolderId ||
+                  addingToVirtual ||
+                  virtualFolders.length === 0
                 }
                 onClick={() => addToVirtualFolder()}
               >

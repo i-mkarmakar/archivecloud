@@ -7,4 +7,3 @@ import { handleRoute } from "@/server/http/responses";
 export const DELETE = handleRoute((req, params) =>
   cancelScheduledTransferHandler(req, undefined, params),
 );
-

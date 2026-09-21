@@ -415,8 +415,7 @@ export async function deleteFolderHandler(
       const drive = google.drive({ version: "v3", auth });
       await drive.files.delete({ fileId: file.providerFileId });
       syncedAccountIds.add(file.connectedAccountId);
-    } catch {
-    }
+    } catch {}
   }
 
   const foldersToDelete = await prisma.folder.findMany({
@@ -430,8 +429,7 @@ export async function deleteFolderHandler(
         const drive = google.drive({ version: "v3", auth });
         await drive.files.delete({ fileId: f.providerFolderId });
         if (f.connectedAccountId) syncedAccountIds.add(f.connectedAccountId);
-      } catch {
-      }
+      } catch {}
     }
   }
 

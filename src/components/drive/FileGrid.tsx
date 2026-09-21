@@ -158,6 +158,7 @@ function DriveFileCard({
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: file card supports click-to-select alongside drag
     // biome-ignore lint/a11y/noStaticElementInteractions: file card supports click-to-select alongside drag
+    // biome-ignore lint/a11y/useAriaPropsSupportedByRole: selection state exposed for assistive tech on file cards
     <div
       draggable
       onDragStart={(event) => {
@@ -221,10 +222,7 @@ function DriveFileCard({
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center rounded-sm bg-[#e8eaed] dark:bg-background-secondary">
-              <FileIcon
-                kind={file.kind}
-                className={cfg.placeholderIcon}
-              />
+              <FileIcon kind={file.kind} className={cfg.placeholderIcon} />
             </div>
           )}
         </div>

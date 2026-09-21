@@ -12,11 +12,13 @@ const CTA_LOGOS = [
   },
   {
     src: "/brand/onedrive.svg",
-    className: "top-[48%] left-[10%] size-12 opacity-55 sm:left-[12%] sm:size-14",
+    className:
+      "top-[48%] left-[10%] size-12 opacity-55 sm:left-[12%] sm:size-14",
   },
   {
     src: "/brand/icloud.svg",
-    className: "top-[46%] right-[10%] size-12 opacity-55 sm:right-[12%] sm:size-14",
+    className:
+      "top-[46%] right-[10%] size-12 opacity-55 sm:right-[12%] sm:size-14",
   },
   {
     src: "/brand/google-photos.svg",

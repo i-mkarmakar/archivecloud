@@ -681,8 +681,7 @@ export async function googleCallbackHandler(request: Request) {
         dest.searchParams.set("googleDrive", "error");
         return NextResponse.redirect(dest.toString());
       }
-    } catch {
-    }
+    } catch {}
     return NextResponse.redirect(
       `${env.APP_URL}/google-connected?status=error`,
     );

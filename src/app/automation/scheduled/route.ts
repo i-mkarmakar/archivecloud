@@ -8,7 +8,4 @@ import {
 import { handleRoute } from "@/server/http/responses";
 
 export const GET = handleRoute((req) => listScheduledTransfersHandler(req));
-export const POST = handleRoute((req) =>
-  createScheduledTransferHandler(req),
-);
-
+export const POST = handleRoute((req) => createScheduledTransferHandler(req));

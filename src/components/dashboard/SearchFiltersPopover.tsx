@@ -220,23 +220,23 @@ export function SearchFiltersPopover({
                 </select>
               </div>
 
-            <div className="min-w-0">
-              <Label className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                Tag
-              </Label>
-              <select
-                value={filterTagId}
-                onChange={(e) => onFilterTagIdChange(e.target.value)}
-                className={selectClass}
-              >
-                <option value="">All Tags</option>
-                {tags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="min-w-0">
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Tag
+                </Label>
+                <select
+                  value={filterTagId}
+                  onChange={(e) => onFilterTagIdChange(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">All Tags</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="min-w-0">

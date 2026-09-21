@@ -50,9 +50,7 @@ export async function createApiKeyHandler(request: Request) {
     .object({
       name: z.string().trim().min(1).max(191),
       scopes: z
-        .array(
-          z.enum(["accounts:read", "transfers:read", "transfers:write"]),
-        )
+        .array(z.enum(["accounts:read", "transfers:read", "transfers:write"]))
         .min(1)
         .default(["accounts:read", "transfers:read", "transfers:write"]),
       expiresInDays: z.number().int().min(1).max(365).optional(),
@@ -95,7 +93,7 @@ export async function createApiKeyHandler(request: Request) {
   return json(
     {
       key: serializeApiKey(key),
-      
+
       secret: rawKey,
     },
     201,

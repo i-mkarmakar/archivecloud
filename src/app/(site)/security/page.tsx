@@ -49,8 +49,8 @@ export default function SecurityPage() {
       </h1>
       <p className="mt-4 text-[#64748B]">
         Archive Cloud is a gateway across the providers you already trust. We
-        focus on encrypted credentials, least-privilege OAuth, and stream-through
-        transfers so your content stays in your clouds.
+        focus on encrypted credentials, least-privilege OAuth, and
+        stream-through transfers so your content stays in your clouds.
       </p>
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2">

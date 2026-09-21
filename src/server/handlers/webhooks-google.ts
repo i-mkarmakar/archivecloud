@@ -39,7 +39,11 @@ export async function googleDriveWebhookHandler(request: Request) {
     return json({ ok: false, reason: "invalid_token" }, 403);
   }
 
-  if (resourceId && channelAlt.resourceId && resourceId !== channelAlt.resourceId) {
+  if (
+    resourceId &&
+    channelAlt.resourceId &&
+    resourceId !== channelAlt.resourceId
+  ) {
     return json({ ok: false, reason: "resource_mismatch" }, 403);
   }
 

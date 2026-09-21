@@ -1,11 +1,7 @@
 "use client";
 
 import { Button, Card, toast } from "@heroui/react";
-import {
-  Cloud,
-  Folder,
-  Magnifier,
-} from "@gravity-ui/icons";
+import { Cloud, Folder, Magnifier } from "@gravity-ui/icons";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/drive/PageHeader";
@@ -109,7 +105,9 @@ export function SearchPage() {
       {!q ? (
         <Card className="mt-6 p-8 text-center">
           <Magnifier className="mx-auto h-8 w-8 text-muted" />
-          <p className="mt-4 font-extrabold">Type a query in the header search</p>
+          <p className="mt-4 font-extrabold">
+            Type a query in the header search
+          </p>
           <p className="mt-2 text-sm text-muted">
             We’ll scan your Archive Cloud files and connected providers.
           </p>
@@ -143,7 +141,9 @@ export function SearchPage() {
                     key={file.id}
                     type="button"
                     className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-secondary"
-                    onClick={() => router.push(`/home?q=${encodeURIComponent(file.name)}`)}
+                    onClick={() =>
+                      router.push(`/home?q=${encodeURIComponent(file.name)}`)
+                    }
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold">{file.name}</p>
@@ -215,9 +215,7 @@ export function SearchPage() {
                         {hits.map((hit) => (
                           <div
                             key={`${cloud.accountId}-${hit.kind}-${hit.id}`}
-                            className={cn(
-                              "flex items-center gap-3 px-4 py-3",
-                            )}
+                            className={cn("flex items-center gap-3 px-4 py-3")}
                           >
                             {hit.kind === "folder" ? (
                               <Folder className="h-4 w-4 shrink-0 text-muted" />
@@ -229,7 +227,9 @@ export function SearchPage() {
                                 {hit.name}
                               </p>
                               <p className="truncate text-xs text-muted">
-                                {hit.kind === "folder" ? "Folder" : hit.mimeType}
+                                {hit.kind === "folder"
+                                  ? "Folder"
+                                  : hit.mimeType}
                                 {hit.sizeBytes
                                   ? ` · ${formatBytes(hit.sizeBytes)}`
                                   : ""}

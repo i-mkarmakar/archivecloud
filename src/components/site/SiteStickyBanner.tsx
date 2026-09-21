@@ -20,7 +20,7 @@ export function SiteStickyBanner({
           href={GITHUB_REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center font-semibold transition duration-200 hover:underline"
+          className="inline-flex items-center font-semibold underline transition duration-200 hover:opacity-90"
         >
           <span>Star on GitHub</span>
           <img

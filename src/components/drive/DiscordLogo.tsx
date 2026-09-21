@@ -1,10 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export function DiscordLogo({
-  className = "h-5 w-5",
-}: {
-  className?: string;
-}) {
+export function DiscordLogo({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <img
       src="/brand/discord.svg"

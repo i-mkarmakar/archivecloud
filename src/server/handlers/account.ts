@@ -205,7 +205,7 @@ export async function deleteAccountHandler(request: Request) {
   } catch {
     return errorJson(
       "VALIDATION_ERROR",
-      'Provide a reason and type DELETE to confirm.',
+      "Provide a reason and type DELETE to confirm.",
       400,
     );
   }

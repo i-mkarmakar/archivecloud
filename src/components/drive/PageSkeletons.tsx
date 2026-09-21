@@ -50,10 +50,7 @@ export function FileGridSkeleton({
               animationType="none"
               className="mt-3 h-3.5 w-4/5 rounded"
             />
-            <Skeleton
-              animationType="none"
-              className="mt-2 h-3 w-1/2 rounded"
-            />
+            <Skeleton animationType="none" className="mt-2 h-3 w-1/2 rounded" />
           </div>
         ))}
       </div>
@@ -254,7 +251,10 @@ export function FormPageSkeleton({
     <Shimmer className={cn("space-y-6", className)} label={label}>
       <div className="space-y-3">
         <Skeleton animationType="none" className="h-8 w-48 rounded-lg" />
-        <Skeleton animationType="none" className="h-4 w-72 max-w-full rounded" />
+        <Skeleton
+          animationType="none"
+          className="h-4 w-72 max-w-full rounded"
+        />
       </div>
       {["block-a", "block-b", "block-c"].map((id) => (
         <Card

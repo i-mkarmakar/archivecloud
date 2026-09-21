@@ -113,9 +113,7 @@ function groupItemsByDay(items: VirtualFolderItem[]) {
 export function VirtualFoldersPage() {
   const [folders, setFolders] = useState<VirtualFolder[]>([]);
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(
-    null,
-  );
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [items, setItems] = useState<VirtualFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -305,7 +303,9 @@ export function VirtualFoldersPage() {
     try {
       await apiFetch(`/vf/${folderId}`, { method: "DELETE" });
       toast.success("Virtual folder deleted");
-      setFolders((current) => current.filter((folder) => folder.id !== folderId));
+      setFolders((current) =>
+        current.filter((folder) => folder.id !== folderId),
+      );
       if (selectedFolderId === folderId) {
         setSelectedFolderId(null);
       }
@@ -412,7 +412,6 @@ export function VirtualFoldersPage() {
         >
           <div className="flex h-28 items-center justify-center bg-surface-secondary">
             {folder.thumbnailDataUrl ? (
-              // biome-ignore lint/performance/noImgElement: user-uploaded data URL thumbnail
               <img
                 src={folder.thumbnailDataUrl}
                 alt=""
@@ -637,13 +636,18 @@ export function VirtualFoldersPage() {
             Virtual Folders
           </p>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted">
-            Virtual folders are smart collections. Add files from different cloud
-            accounts and folders into one view, without moving, duplicating, or
-            modifying the originals.
+            Virtual folders are smart collections. Add files from different
+            cloud accounts and folders into one view, without moving,
+            duplicating, or modifying the originals.
           </p>
           <ul className="mx-auto mt-5 max-w-md space-y-2 text-left text-sm text-muted">
-            <li>• Group project files scattered across Google Drive, Dropbox, OneDrive, and more</li>
-            <li>• Organize photos and documents by topic, not by storage location</li>
+            <li>
+              • Group project files scattered across Google Drive, Dropbox,
+              OneDrive, and more
+            </li>
+            <li>
+              • Organize photos and documents by topic, not by storage location
+            </li>
             <li>• Build custom views for faster browsing</li>
           </ul>
           <Button className="mx-auto mt-8" onClick={openCreateModal}>
@@ -668,7 +672,6 @@ export function VirtualFoldersPage() {
                     onClick={() => setSelectedFolderId(folder.id)}
                   >
                     {folder.thumbnailDataUrl ? (
-                      // biome-ignore lint/performance/noImgElement: user-uploaded data URL thumbnail
                       <img
                         src={folder.thumbnailDataUrl}
                         alt=""
@@ -741,9 +744,8 @@ export function VirtualFoldersPage() {
         <div className="mt-6">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-muted">
-              {items.length}{" "}
-              {items.length === 1 ? "reference" : "references"} · remove only
-              unlinks from this collection
+              {items.length} {items.length === 1 ? "reference" : "references"} ·
+              remove only unlinks from this collection
             </p>
             <Button
               size="sm"
@@ -768,11 +770,15 @@ export function VirtualFoldersPage() {
         onClose={closeCreateModal}
       >
         <form onSubmit={createFolder} className="grid gap-5">
-          <label className="grid gap-2 text-sm font-semibold">
+          <label
+            htmlFor="virtual-folder-name"
+            className="grid gap-2 text-sm font-semibold"
+          >
             <span>
               Folder name <span className="text-danger">*</span>
             </span>
             <Input
+              id="virtual-folder-name"
               fullWidth
               value={createName}
               maxLength={MAX_NAME_LENGTH}
@@ -799,7 +805,6 @@ export function VirtualFoldersPage() {
               }}
             >
               {createThumbnail ? (
-                // biome-ignore lint/performance/noImgElement: user-uploaded data URL thumbnail
                 <img
                   src={createThumbnail}
                   alt=""
@@ -889,7 +894,10 @@ export function VirtualFoldersPage() {
 
           <div className="flex flex-wrap items-center gap-1 text-xs text-muted">
             {browseTrail.map((crumb, index) => (
-              <span key={`${crumb.id}-${index}`} className="flex items-center gap-1">
+              <span
+                key={`${crumb.id}-${index}`}
+                className="flex items-center gap-1"
+              >
                 {index > 0 ? <span>/</span> : null}
                 <button
                   type="button"
@@ -924,7 +932,9 @@ export function VirtualFoldersPage() {
                 >
                   <File className="h-4 w-4 shrink-0 text-muted" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{file.name}</p>
+                    <p className="truncate text-sm font-semibold">
+                      {file.name}
+                    </p>
                     <p className="text-xs text-muted">
                       {formatBytes(file.sizeBytes)}
                     </p>

@@ -31,7 +31,7 @@ export const OAUTH_CONNECT_MESSAGE_HANDLERS: Record<
 export async function connectOAuthPopup(options: {
   connectUrlPath: string;
   popupName: string;
-  
+
   popupTitle?: string;
 }): Promise<void> {
   const path =

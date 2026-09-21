@@ -59,7 +59,7 @@ export const StickyBanner = ({
         animate={{
           scale: 1,
         }}
-        className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer text-current"
+        className="absolute top-1/2 right-5 -translate-y-1/2 cursor-pointer text-current sm:right-6"
         onClick={() => updateOpen(!open)}
       >
         <CloseIcon className="h-5 w-5" />
@@ -80,6 +80,8 @@ const CloseIcon = (props: SVGProps<SVGSVGElement>) => {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
       {...props}
     >
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />

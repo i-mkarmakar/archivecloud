@@ -7,20 +7,18 @@ export type PlanFeature = {
 };
 
 export type PlanFeatureFlags = {
-  
   automation: boolean;
-  
+
   folderSync: boolean;
-  
+
   realtimeSync: boolean;
-  
+
   smartDistribution: boolean;
 };
 
 export type PlanLimits = {
-  
   monthlyTransferBytes: bigint | null;
-  
+
   maxCloudAccounts: number | null;
   features: PlanFeatureFlags;
 };
@@ -28,7 +26,7 @@ export type PlanLimits = {
 export type PlanDefinition = {
   id: PlanId;
   name: string;
-  
+
   priceUsd: number;
   tagline: string;
   features: PlanFeature[];
