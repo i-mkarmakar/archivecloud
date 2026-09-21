@@ -34,9 +34,9 @@ export function AutoSyncRestrictedModal({
       <Modal.Backdrop isDismissable>
         <Modal.Container placement="center" scroll="inside" size="md">
           <Modal.Dialog className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-hidden rounded-xl border border-border bg-white p-0 shadow-xl">
-            <Modal.CloseTrigger className="absolute right-3 top-3" />
+            <Modal.CloseTrigger className="absolute right-3 top-3 text-[#4b5563] hover:bg-black/5 hover:text-[#111827]" />
 
-            <Modal.Header className="flex flex-row items-center gap-3 border-0 px-5 pb-0 pt-5 pr-12">
+            <Modal.Header className="flex flex-row items-center gap-3 border-0 px-5 pb-0 pt-4 pr-12">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white">
                 <CircleExclamation className="h-4 w-4" />
               </span>
@@ -45,7 +45,7 @@ export function AutoSyncRestrictedModal({
               </Modal.Heading>
             </Modal.Header>
 
-            <Modal.Body className="gap-5 px-5 pb-5 pt-3">
+            <Modal.Body className="mt-0 flex-none gap-3 px-5 pb-4 pt-2">
               <p className="text-sm leading-relaxed text-[#4b5563]">
                 Creating new auto-sync pairs is restricted. Auto-Sync requires
                 an active subscription or Thunder plan.

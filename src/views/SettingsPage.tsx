@@ -161,8 +161,7 @@ function loadPrefs(): SettingsPrefs {
 function savePrefs(prefs: SettingsPrefs) {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-  }
+  } catch {}
 }
 
 function providerIconTint(provider: string) {
@@ -898,8 +897,13 @@ export function SettingsPage() {
                   <h3 className="text-base font-bold text-foreground">
                     Subscription & Billing
                   </h3>
-                  <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-                    {currentPlan.name} plan
+                  <span
+                    className={cn(
+                      "inline-flex h-4 shrink-0 items-center justify-center rounded-full px-1.5 text-[9px] font-bold leading-none tracking-wide text-white",
+                      hasThunder ? "bg-[#f97316] uppercase" : "bg-[#22c55e]",
+                    )}
+                  >
+                    {hasThunder ? "Thunder" : "Free"}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-muted">
@@ -1078,8 +1082,8 @@ export function SettingsPage() {
                 </h3>
               </div>
               <p className="mt-2 text-sm text-muted">
-                Stay updated with product tips, feature launches, and
-                Archive Cloud news.
+                Stay updated with product tips, feature launches, and Archive
+                Cloud news.
               </p>
               <div className="mt-4 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-foreground">

@@ -21,7 +21,7 @@ export type DashboardNavSection = {
   id: string;
   title: string;
   items: DashboardNavItem[];
-  
+
   showAccountCount?: boolean;
 };
 
@@ -46,7 +46,7 @@ export const dashboardNavSections: DashboardNavSection[] = [
         label: "Auto-Sync",
         icon: Thunderbolt,
         href: "/automation?view=sync",
-        badge: "THUNDER",
+        badge: "Thunder",
       },
       {
         label: "Schedule Tasks",
