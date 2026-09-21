@@ -1,12 +1,12 @@
 "use client";
 
-import { Button, Header, SearchField, Surface } from "@heroui/react";
 import { Bars, Magnifier, Xmark } from "@gravity-ui/icons";
+import { Button, Header, SearchField, Surface } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
-import { BrandLogo } from "@/components/drive/BrandLogo";
-import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
 import { dashboardContentClassName } from "@/components/dashboard/config";
 import { RotatingSearchPlaceholder } from "@/components/dashboard/RotatingSearchPlaceholder";
+import { BrandLogo } from "@/components/drive/BrandLogo";
+import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { cn } from "@/lib/utils";
 import { SearchFiltersPopover } from "./SearchFiltersPopover";

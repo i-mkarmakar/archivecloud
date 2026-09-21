@@ -21,7 +21,7 @@ export type DashboardNavSection = {
   id: string;
   title: string;
   items: DashboardNavItem[];
-  
+
   showAccountCount?: boolean;
 };
 

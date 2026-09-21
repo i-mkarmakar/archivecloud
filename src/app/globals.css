@@ -44,11 +44,14 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-shiny-text: shiny-text 8s infinite;
   @keyframes shiny-text {
-  0%, 90%, 100% {
-    background-position: calc(-100% - var(--shiny-width)) 0;
+    0%,
+    90%,
+    100% {
+      background-position: calc(-100% - var(--shiny-width)) 0;
     }
-  30%, 60% {
-    background-position: calc(100% + var(--shiny-width)) 0;
+    30%,
+    60% {
+      background-position: calc(100% + var(--shiny-width)) 0;
     }
   }
   --animate-rainbow: rainbow var(--speed, 2s) infinite linear;
@@ -56,13 +59,16 @@
   --color-color-4: var(--color-4);
   --color-color-3: var(--color-3);
   --color-color-2: var(--color-2);
-  --color-color-1: var(--color-1)
-;
+  --color-color-1: var(--color-1);
   @keyframes rainbow {
-  0% {
-    background-position: 0%;}
-  100% {
-    background-position: 200%;}}}
+    0% {
+      background-position: 0%;
+    }
+    100% {
+      background-position: 200%;
+    }
+  }
+}
 
 /* tweakcn Twitter theme — hex tokens */
 :root {
