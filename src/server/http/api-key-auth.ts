@@ -42,7 +42,7 @@ export async function resolveApiKeyFromRequest(
   const apiKey = await prisma.apiKey.findUnique({
     where: { keyHash },
   });
-  if (!apiKey || apiKey.status !== "active") return null;
+  if (apiKey?.status !== "active") return null;
   if (apiKey.revokedAt) return null;
   if (apiKey.expiresAt && apiKey.expiresAt.getTime() < Date.now()) return null;
 

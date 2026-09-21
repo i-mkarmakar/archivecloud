@@ -136,10 +136,16 @@ export async function upsertPolarSubscription(sub: PolarSubscriptionLike) {
     },
   });
 
-  await createAuditLog(userId, "BILLING_SUBSCRIPTION_UPSERTED", "billing", sub.id, {
-    status: sub.status,
-    planId: resolvedPlan,
-  });
+  await createAuditLog(
+    userId,
+    "BILLING_SUBSCRIPTION_UPSERTED",
+    "billing",
+    sub.id,
+    {
+      status: sub.status,
+      planId: resolvedPlan,
+    },
+  );
 }
 
 export async function grantLifetimeFromPolarOrder(order: PolarOrderLike) {
@@ -187,10 +193,16 @@ export async function grantLifetimeFromPolarOrder(order: PolarOrderLike) {
     },
   });
 
-  await createAuditLog(userId, "BILLING_LIFETIME_GRANTED", "billing", order.id, {
-    planId,
-    productId,
-  });
+  await createAuditLog(
+    userId,
+    "BILLING_LIFETIME_GRANTED",
+    "billing",
+    order.id,
+    {
+      planId,
+      productId,
+    },
+  );
 }
 
 export async function revokeLifetimeFromPolarOrder(order: PolarOrderLike) {

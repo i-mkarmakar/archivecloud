@@ -226,10 +226,7 @@ export function HelpPage() {
                   "hover:border-neutral-300 hover:bg-neutral-50",
                 )}
               >
-                <ServiceIcon
-                  providerId={service.id}
-                  label={service.title}
-                />
+                <ServiceIcon providerId={service.id} label={service.title} />
                 <h3 className="mt-3 text-sm font-semibold text-neutral-900">
                   {service.title}
                 </h3>

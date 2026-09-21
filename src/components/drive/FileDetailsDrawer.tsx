@@ -51,9 +51,7 @@ export function FileDetailsDrawer({
 }) {
   type TagDef = { id: string; name: string; color: string };
   const [allTags, setAllTags] = useState<TagDef[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
   const [loadingTags, setLoadingTags] = useState(false);
   const [savingTags, setSavingTags] = useState(false);
 
@@ -67,7 +65,9 @@ export function FileDetailsDrawer({
   }
 
   async function loadFileTags(activeFileId: string) {
-    const data = await apiFetch<{ tags: TagDef[] }>(`/files/${activeFileId}/tags`);
+    const data = await apiFetch<{ tags: TagDef[] }>(
+      `/files/${activeFileId}/tags`,
+    );
     setSelectedTagIds(new Set(data.tags.map((t) => t.id)));
   }
 
@@ -273,9 +273,7 @@ export function FileDetailsDrawer({
                         {selectedTags.length > 4 ? "…" : ""}
                       </p>
                     ) : (
-                      <p className="text-xs text-muted">
-                        No tags selected.
-                      </p>
+                      <p className="text-xs text-muted">No tags selected.</p>
                     )}
                   </div>
                 </>

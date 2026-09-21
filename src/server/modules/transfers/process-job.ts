@@ -176,13 +176,9 @@ export async function processTransferJob(jobId: string) {
         : job.type === "delete"
           ? "TRANSFER_DELETE_FAILED"
           : "TRANSFER_COPY_FAILED";
-    await createAuditLog(
-      job.userId,
-      failedAction,
-      "transfer_job",
-      jobId,
-      { message },
-    );
+    await createAuditLog(job.userId, failedAction, "transfer_job", jobId, {
+      message,
+    });
   }
 }
 

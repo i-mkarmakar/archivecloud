@@ -6,12 +6,14 @@ import { requirePlanFeature } from "@/server/modules/billing/plan-gate";
 import { isSupportedProvider } from "@/server/modules/providers/types";
 import { createAuditLog } from "@/server/utils/audit";
 import { runScheduledTransferTick } from "@/server/modules/automation/run-scheduled-tick";
-import { type ScheduledTransfer } from "@/generated/prisma/client";
+import type { ScheduledTransfer } from "@/generated/prisma/client";
 
-function serializeScheduledTask(task: ScheduledTransfer & {
-  sourceAccount: { email: string | null; displayName: string | null };
-  destAccount: { email: string | null; displayName: string | null };
-}) {
+function serializeScheduledTask(
+  task: ScheduledTransfer & {
+    sourceAccount: { email: string | null; displayName: string | null };
+    destAccount: { email: string | null; displayName: string | null };
+  },
+) {
   return {
     id: task.id,
     status: task.status,
@@ -189,4 +191,3 @@ export async function tickAutomationHandler(request: Request) {
   });
   return json(result);
 }
-

@@ -4,10 +4,7 @@ import { prisma } from "@/server/config/prisma";
 import { env } from "@/server/config/env";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import {
-  isAdminEmail,
-  isBillingEnabled,
-} from "@/server/modules/billing/admin";
+import { isAdminEmail, isBillingEnabled } from "@/server/modules/billing/admin";
 import { getUserPlanId } from "@/server/modules/billing/plan-gate";
 import {
   createPolarClient,
@@ -50,7 +47,8 @@ export async function getBillingStatusHandler(request: Request) {
           id: subscription.id,
           status: subscription.status,
           planId: normalizePlanId(subscription.planId),
-          currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+          currentPeriodEnd:
+            subscription.currentPeriodEnd?.toISOString() ?? null,
           cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
         }
       : null,
@@ -127,11 +125,17 @@ export async function createBillingCheckoutHandler(request: Request) {
     },
   });
 
-  await createAuditLog(user.id, "BILLING_CHECKOUT_CREATED", "billing", undefined, {
-    planId,
-    period: "lifetime",
-    checkoutId: checkout.id,
-  });
+  await createAuditLog(
+    user.id,
+    "BILLING_CHECKOUT_CREATED",
+    "billing",
+    undefined,
+    {
+      planId,
+      period: "lifetime",
+      checkoutId: checkout.id,
+    },
+  );
 
   return json({ url: checkout.url, checkoutId: checkout.id });
 }

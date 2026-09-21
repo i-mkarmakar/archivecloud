@@ -5,13 +5,7 @@ import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata: Metadata = createPageMetadata("Privacy Policy");
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-10">
       <h2 className="text-xl font-semibold tracking-tight text-foreground">
@@ -50,9 +44,10 @@ export default function PrivacyPage() {
         Privacy Policy
       </h1>
       <p className="mt-4 leading-relaxed text-muted-foreground">
-        At Archive Cloud, we respect your privacy and are committed to protecting
-        your personal information. This Privacy Policy explains what information
-        we collect, how we use it, and your rights when using our platform.
+        At Archive Cloud, we respect your privacy and are committed to
+        protecting your personal information. This Privacy Policy explains what
+        information we collect, how we use it, and your rights when using our
+        platform.
       </p>
 
       <Section title="Information We Collect">
@@ -106,9 +101,7 @@ export default function PrivacyPage() {
             delete, preview, download, and share.
           </li>
           <li>Maintain and improve our services.</li>
-          <li>
-            Provide customer support and communicate important updates.
-          </li>
+          <li>Provide customer support and communicate important updates.</li>
         </ul>
         <p>
           We do not sell, rent, or share your information with third parties for
@@ -119,46 +112,44 @@ export default function PrivacyPage() {
       <Section title="Third-Party Services">
         <SubSection title="Google Services">
           <p>
-            When you connect Google Drive or Shared Drive, Archive Cloud requests
-            the following OAuth scopes:
+            When you connect Google Drive or Shared Drive, Archive Cloud
+            requests the following OAuth scopes:
           </p>
           <ul className="list-disc space-y-2 pl-5 break-all">
             <li>
               <code className="text-sm text-foreground">
                 https://www.googleapis.com/auth/userinfo.profile
               </code>{" "}
-             : Access your basic profile information (name).
+              : Access your basic profile information (name).
             </li>
             <li>
               <code className="text-sm text-foreground">
                 https://www.googleapis.com/auth/userinfo.email
               </code>{" "}
-             : Access your email address to identify your account.
+              : Access your email address to identify your account.
             </li>
             <li>
               <code className="text-sm text-foreground">
                 https://www.googleapis.com/auth/drive
               </code>{" "}
-             : Allow file management actions (create, view, rename, move, and
+              : Allow file management actions (create, view, rename, move, and
               delete files/folders in your Google Drive or Shared Drive).
             </li>
           </ul>
-          <p>
-            When you connect Google Photos, Archive Cloud requests:
-          </p>
+          <p>When you connect Google Photos, Archive Cloud requests:</p>
           <ul className="list-disc space-y-2 pl-5 break-all">
             <li>
               <code className="text-sm text-foreground">
                 https://www.googleapis.com/auth/photoslibrary
               </code>{" "}
-             : Access and manage media in your Google Photos library as needed
+              : Access and manage media in your Google Photos library as needed
               for browse, upload, and related features.
             </li>
             <li>
               <code className="text-sm text-foreground">
                 https://www.googleapis.com/auth/photoslibrary.sharing
               </code>{" "}
-             : Manage sharing for Google Photos content as needed by the
+              : Manage sharing for Google Photos content as needed by the
               product.
             </li>
             <li>
@@ -169,7 +160,7 @@ export default function PrivacyPage() {
               <code className="text-sm text-foreground">
                 https://www.googleapis.com/auth/userinfo.profile
               </code>{" "}
-             : Identify your Google account.
+              : Identify your Google account.
             </li>
           </ul>
           <p>
@@ -200,9 +191,7 @@ export default function PrivacyPage() {
             needed for browse, upload, transfer, and related operations.
           </p>
           <ul className="list-disc space-y-2 pl-5">
-            <li>
-              Authenticate your Dropbox account securely using OAuth 2.0.
-            </li>
+            <li>Authenticate your Dropbox account securely using OAuth 2.0.</li>
             <li>
               Perform file operations such as upload, create folders, rename,
               move, and delete within your Dropbox storage.
@@ -278,11 +267,11 @@ export default function PrivacyPage() {
         <SubSection title="Other connected providers">
           <p>
             Archive Cloud may also let you connect pCloud and iCloud. For those
-            providers we store only the credentials or
-            tokens needed to operate the integration (encrypted at rest where
-            applicable) and metadata required to show your files in the product.
-            Disconnecting a provider or deleting your Archive Cloud account
-            removes that linked access data.
+            providers we store only the credentials or tokens needed to operate
+            the integration (encrypted at rest where applicable) and metadata
+            required to show your files in the product. Disconnecting a provider
+            or deleting your Archive Cloud account removes that linked access
+            data.
           </p>
         </SubSection>
       </Section>
@@ -344,9 +333,7 @@ export default function PrivacyPage() {
           <li>
             Request deletion of your Archive Cloud account and all related data.
           </li>
-          <li>
-            Contact us with questions or concerns regarding your data.
-          </li>
+          <li>Contact us with questions or concerns regarding your data.</li>
         </ul>
       </Section>
 

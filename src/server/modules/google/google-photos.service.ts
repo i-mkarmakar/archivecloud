@@ -469,9 +469,7 @@ export async function downloadGooglePhotosFileStream(
   const downloadUrl = `${item.baseUrl}=d`;
   const response = await fetch(downloadUrl, { headers });
   if (!response.ok || !response.body) {
-    throw new Error(
-      `Google Photos download failed: ${await response.text()}`,
-    );
+    throw new Error(`Google Photos download failed: ${await response.text()}`);
   }
   return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
 }

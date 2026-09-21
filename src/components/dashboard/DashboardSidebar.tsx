@@ -57,8 +57,7 @@ function loadProviderOrder(): string[] {
 function saveProviderOrder(order: string[]) {
   try {
     window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(order));
-  } catch {
-  }
+  } catch {}
 }
 
 function sortGroupsByOrder<T extends { provider: string }>(
@@ -590,6 +589,7 @@ export function DashboardSidebar({
                               draggingProvider !== group.provider;
 
                             return (
+                              // biome-ignore lint/a11y/noStaticElementInteractions: provider group is a drag-and-drop target
                               <div
                                 key={group.provider}
                                 className={cn(

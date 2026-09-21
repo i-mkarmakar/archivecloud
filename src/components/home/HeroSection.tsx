@@ -23,8 +23,8 @@ export function HeroSection() {
         />
 
         <div className="relative z-10 mx-auto flex max-w-[920px] flex-col items-center text-center">
-          <div className="rounded-full border border-black/5 bg-neutral-100 text-base">
-            <span className="inline-flex items-center justify-center px-4 py-1 text-xs font-medium tracking-wide text-neutral-600 sm:text-[13px]">
+          <div className="max-w-[calc(100vw-2rem)] rounded-full border border-black/5 bg-neutral-100">
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-neutral-600 sm:px-4 sm:py-1 sm:text-[13px]">
               Open source ✦ Self-hostable ✦ Your data, your control
             </span>
           </div>

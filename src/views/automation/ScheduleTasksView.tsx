@@ -10,7 +10,7 @@ import {
   Plus,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import { Button, Card, Input, Skeleton, toast } from "@heroui/react";
+import { Button, Card, Skeleton, toast } from "@heroui/react";
 import {
   useCallback,
   useEffect,
@@ -306,7 +306,9 @@ export function ScheduleTasksView() {
       await reloadFiles();
       await loadTasks();
     } catch (err) {
-      toast.danger(err instanceof Error ? err.message : "Failed to create task");
+      toast.danger(
+        err instanceof Error ? err.message : "Failed to create task",
+      );
     } finally {
       setCreating(false);
     }
@@ -345,7 +347,9 @@ export function ScheduleTasksView() {
 
     return {
       activeCount: active.length,
-      nextRunLabel: nextRun ? formatNextRun(new Date(nextRun).toISOString()) : "—",
+      nextRunLabel: nextRun
+        ? formatNextRun(new Date(nextRun).toISOString())
+        : "—",
       nextRunHint:
         active.length === 0
           ? "No upcoming runs"
@@ -609,8 +613,8 @@ export function ScheduleTasksView() {
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
               Automate Move and Copy operations across your connected clouds.
-              Create a schedule once and Archive Cloud will run it on your behalf.
-              Every run is recorded with a full per-file audit trail.
+              Create a schedule once and Archive Cloud will run it on your
+              behalf. Every run is recorded with a full per-file audit trail.
             </p>
             <Button className="mt-6" variant="primary" onPress={openCreate}>
               <Plus className="h-4 w-4" />

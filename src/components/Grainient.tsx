@@ -29,7 +29,7 @@ export interface GrainientProps {
   color3?: string;
   lightMode?: boolean;
   className?: string;
-  
+
   onReady?: () => void;
 }
 
@@ -308,9 +308,7 @@ const Grainient = ({
         ctxMap.delete(container);
         try {
           container.removeChild(canvas);
-        } catch {
-          
-        }
+        } catch {}
       };
     } catch {
       notifyReady();

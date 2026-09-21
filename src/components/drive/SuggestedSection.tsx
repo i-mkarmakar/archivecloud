@@ -15,7 +15,7 @@ export function SuggestedSection({
   title: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  
+
   variant?: "plain" | "pill";
   children?: ReactNode;
   className?: string;

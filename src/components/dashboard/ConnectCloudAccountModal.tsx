@@ -132,7 +132,7 @@ export function ConnectCloudAccountModal({
   open: boolean;
   onClose: () => void;
   onConnected?: () => void;
-  
+
   initialProviderId?: SupportedProviderId | null;
 }) {
   const state = useOverlayState({

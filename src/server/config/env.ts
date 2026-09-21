@@ -69,29 +69,30 @@ const envSchema = z.object({
     (value) => (typeof value === "string" && !value.trim() ? undefined : value),
     z.string().min(16).optional(),
   ),
-  
+
   WEBHOOK_BASE_URL: z.string().url().optional(),
-  
+
   POLAR_ACCESS_TOKEN: optionalNonEmptyString,
-  
+
   POLAR_WEBHOOK_SECRET: optionalNonEmptyString,
-  
+
   POLAR_SERVER: z.enum(["sandbox", "production"]).default("sandbox"),
-  
+
   POLAR_PRODUCT_THUNDER_LIFETIME: optionalNonEmptyString,
-  
+
   POLAR_PRODUCT_POWER_LIFETIME: optionalNonEmptyString,
-  
+
   ADMIN_EMAIL: optionalNonEmptyString,
-  
+
   ADMIN_NAME: optionalNonEmptyString,
-  
+
   DEFAULT_USER_PLAN: z.preprocess((value) => {
     if (typeof value === "string" && !value.trim()) return undefined;
-    if (value === "power" || value === "plus" || value === "pro") return "thunder";
+    if (value === "power" || value === "plus" || value === "pro")
+      return "thunder";
     return value;
   }, z.enum(["free", "thunder"]).optional()),
-  
+
   BILLING_ENABLED: z.preprocess((value) => {
     if (value === undefined || value === "") return undefined;
     if (typeof value === "boolean") return value;

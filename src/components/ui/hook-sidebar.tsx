@@ -162,6 +162,7 @@ export function HookSidebar({
         </span>
       )}
 
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: tracks pointer for rail hover indicator */}
       <div
         ref={listRef}
         onMouseLeave={() => setPointerInside(false)}

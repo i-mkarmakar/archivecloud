@@ -1,11 +1,9 @@
-
 const APP_BOOT_KEY = "archivecloud.appBoot";
 
 export function markAppBoot() {
   try {
     sessionStorage.setItem(APP_BOOT_KEY, String(Date.now()));
-  } catch {
-  }
+  } catch {}
 }
 
 export function hasAppBoot() {

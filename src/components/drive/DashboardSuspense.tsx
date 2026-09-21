@@ -55,23 +55,15 @@ export function AutomationPageFallback() {
 }
 
 export function SearchPageFallback() {
-  return (
-    <CardListSkeleton className="mt-6" count={6} label="Loading search" />
-  );
+  return <CardListSkeleton className="mt-6" count={6} label="Loading search" />;
 }
 
 export function CloudsPageFallback() {
   return (
-    <AccountCardsSkeleton
-      className="mt-6"
-      count={3}
-      label="Loading clouds"
-    />
+    <AccountCardsSkeleton className="mt-6" count={3} label="Loading clouds" />
   );
 }
 
 export function BillingSuccessFallback() {
-  return (
-    <FormPageSkeleton className="p-6" label="Loading" />
-  );
+  return <FormPageSkeleton className="p-6" label="Loading" />;
 }

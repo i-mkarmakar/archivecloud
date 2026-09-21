@@ -59,7 +59,9 @@ function PlanCard({
             ({billingHint})
           </span>
         ) : (
-          <span className="ml-1 text-sm font-semibold text-muted">/ forever</span>
+          <span className="ml-1 text-sm font-semibold text-muted">
+            / forever
+          </span>
         )}
       </p>
       <p className="mt-2 text-sm text-muted">{planTagline(plan)}</p>

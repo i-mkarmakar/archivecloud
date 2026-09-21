@@ -6,7 +6,10 @@ function parseGithubRepo(url: string): string | null {
   try {
     const parsed = new URL(url);
     if (!parsed.hostname.endsWith("github.com")) return null;
-    const parts = parsed.pathname.replace(/^\//, "").replace(/\.git$/, "").split("/");
+    const parts = parsed.pathname
+      .replace(/^\//, "")
+      .replace(/\.git$/, "")
+      .split("/");
     if (parts.length < 2 || !parts[0] || !parts[1]) return null;
     return `${parts[0]}/${parts[1]}`;
   } catch {
@@ -50,7 +53,8 @@ export async function getGithubStars(): Promise<number | null> {
       data &&
       typeof data === "object" &&
       "stargazers_count" in data &&
-      typeof (data as { stargazers_count: unknown }).stargazers_count === "number"
+      typeof (data as { stargazers_count: unknown }).stargazers_count ===
+        "number"
         ? (data as { stargazers_count: number }).stargazers_count
         : null;
 

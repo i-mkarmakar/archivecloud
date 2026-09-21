@@ -97,8 +97,7 @@ export async function ensureGoogleDriveWatch(
             resourceId: existing.resourceId,
           },
         });
-      } catch {
-      }
+      } catch {}
     }
   }
 
@@ -119,9 +118,7 @@ export async function ensureGoogleDriveWatch(
   return { registered: true };
 }
 
-export async function stopGoogleDriveWatches(
-  accountId: string,
-): Promise<void> {
+export async function stopGoogleDriveWatches(accountId: string): Promise<void> {
   const channels = await prisma.providerWebhookChannel.findMany({
     where: {
       connectedAccountId: accountId,
@@ -146,8 +143,7 @@ export async function stopGoogleDriveWatches(
           },
         });
       }
-    } catch {
-    }
+    } catch {}
     await prisma.providerWebhookChannel.update({
       where: { id: channel.id },
       data: { status: "stopped" },

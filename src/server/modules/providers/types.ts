@@ -1,4 +1,3 @@
-
 export const SUPPORTED_PROVIDERS = [
   "google_drive",
   "google_photos",
@@ -22,7 +21,7 @@ export type ProviderCatalogEntry = {
   id: SupportedProvider;
   label: string;
   authKind: ProviderAuthKind;
-  
+
   supportsMove: boolean;
 };
 

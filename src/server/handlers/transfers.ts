@@ -11,29 +11,27 @@ import {
 } from "@/server/modules/transfers/usage";
 import { createAuditLog } from "@/server/utils/audit";
 
-function serializeJob(
-  job: {
-    id: string;
-    type: string;
-    status: string;
-    sourceAccountId: string;
-    destAccountId: string;
-    sourceProviderFileId: string;
-    destProviderFileId: string | null;
-    destParentId: string | null;
-    fileName: string;
-    mimeType: string;
-    sizeBytes: bigint;
-    transferredBytes: bigint;
-    errorMessage: string | null;
-    startedAt: Date | null;
-    completedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-    sourceAccount?: { email: string; displayName: string | null } | null;
-    destAccount?: { email: string; displayName: string | null } | null;
-  },
-) {
+function serializeJob(job: {
+  id: string;
+  type: string;
+  status: string;
+  sourceAccountId: string;
+  destAccountId: string;
+  sourceProviderFileId: string;
+  destProviderFileId: string | null;
+  destParentId: string | null;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: bigint;
+  transferredBytes: bigint;
+  errorMessage: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  sourceAccount?: { email: string; displayName: string | null } | null;
+  destAccount?: { email: string; displayName: string | null } | null;
+}) {
   return {
     id: job.id,
     type: job.type,
@@ -135,7 +133,7 @@ export async function createTransferCopyHandler(request: Request) {
       sourceProviderFileId: z.string().min(1),
       destParentId: z.string().min(1).optional().nullable(),
       fileName: z.string().trim().min(1).max(255).optional(),
-      
+
       sourceFileId: z.string().min(1).optional(),
     })
     .parse(await request.json());
@@ -301,11 +299,7 @@ export async function retryTransferJobHandler(
   });
   if (!job) return errorJson("NOT_FOUND", "Job not found.", 404);
   if (job.status !== "failed") {
-    return errorJson(
-      "INVALID_STATUS",
-      "Only failed jobs can be retried.",
-      400,
-    );
+    return errorJson("INVALID_STATUS", "Only failed jobs can be retried.", 400);
   }
 
   const updated = await prisma.transferJob.update({

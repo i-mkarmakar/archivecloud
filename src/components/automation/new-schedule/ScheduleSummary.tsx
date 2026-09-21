@@ -127,9 +127,7 @@ export function ScheduleSummary({
 
         <div className="flex gap-1.5 rounded-lg border border-border bg-white p-2 text-[11px] leading-snug text-muted-foreground">
           <CircleInfo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" />
-          <p>
-            Failed runs only show in the schedules list. No notifications.
-          </p>
+          <p>Failed runs only show in the schedules list. No notifications.</p>
         </div>
       </div>
     </aside>

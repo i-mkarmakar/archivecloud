@@ -80,7 +80,10 @@ export function SidebarPlanLimits({
           >
             <span className="flex min-w-0 items-center gap-2 font-medium">
               <span
-                className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.dotClass)}
+                className={cn(
+                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                  item.dotClass,
+                )}
               />
               <span className="truncate">{item.label}</span>
             </span>

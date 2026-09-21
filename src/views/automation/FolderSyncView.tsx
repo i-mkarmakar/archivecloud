@@ -10,12 +10,7 @@ import {
   Thunderbolt,
 } from "@gravity-ui/icons";
 import { Button, Card, Input, Skeleton, toast } from "@heroui/react";
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { AutoSyncRestrictedModal } from "@/components/drive/AutoSyncRestrictedModal";
 import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
@@ -108,10 +103,7 @@ function AutoSyncPageSkeleton() {
       aria-busy="true"
       aria-label="Loading Auto-Sync"
     >
-      <Skeleton
-        animationType="none"
-        className="h-[58px] w-full rounded-xl"
-      />
+      <Skeleton animationType="none" className="h-[58px] w-full rounded-xl" />
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {["stat-a", "stat-b", "stat-c"].map((id) => (
@@ -123,10 +115,7 @@ function AutoSyncPageSkeleton() {
               animationType="none"
               className="absolute right-4 top-4 h-9 w-9 rounded-full"
             />
-            <Skeleton
-              animationType="none"
-              className="h-3 w-24 rounded"
-            />
+            <Skeleton animationType="none" className="h-3 w-24 rounded" />
             <Skeleton
               animationType="none"
               className="mt-3 h-8 w-16 rounded-lg"
@@ -166,9 +155,18 @@ function FolderSyncListSkeleton() {
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton animationType="none" className="h-4 w-48 max-w-full rounded" />
-              <Skeleton animationType="none" className="h-3 w-36 max-w-full rounded" />
-              <Skeleton animationType="none" className="h-3 w-28 max-w-full rounded" />
+              <Skeleton
+                animationType="none"
+                className="h-4 w-48 max-w-full rounded"
+              />
+              <Skeleton
+                animationType="none"
+                className="h-3 w-36 max-w-full rounded"
+              />
+              <Skeleton
+                animationType="none"
+                className="h-3 w-28 max-w-full rounded"
+              />
             </div>
             <div className="flex shrink-0 flex-col gap-2">
               <Skeleton animationType="none" className="h-8 w-20 rounded-lg" />
@@ -238,7 +236,9 @@ export function FolderSyncView() {
       );
     } catch (err) {
       toast.danger(
-        err instanceof Error ? err.message : "Failed to load connected accounts",
+        err instanceof Error
+          ? err.message
+          : "Failed to load connected accounts",
       );
     } finally {
       setAccountsLoading(false);
@@ -572,9 +572,7 @@ export function FolderSyncView() {
           <Card className="p-5">
             <p className="font-extrabold">Folder syncs</p>
 
-            {folderSyncsLoading ? (
-              <FolderSyncListSkeleton />
-            ) : null}
+            {folderSyncsLoading ? <FolderSyncListSkeleton /> : null}
 
             {!folderSyncsLoading && folderSyncs.length === 0 ? (
               <p className="mt-3 text-sm text-muted">No folder syncs yet.</p>

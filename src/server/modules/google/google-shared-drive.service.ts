@@ -3,7 +3,7 @@ import type {
   ProviderConfig,
 } from "@/generated/prisma/client";
 import { google } from "googleapis";
-import { Readable } from "node:stream";
+import type { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
@@ -286,8 +286,7 @@ export async function browseGoogleSharedDriveFolder(
   const driveId = requireSharedDriveId(account);
   const auth = await getAuthedGoogleClient(account);
   const drive = google.drive({ version: "v3", auth });
-  const googleParentId =
-    !parentId || parentId === "root" ? driveId : parentId;
+  const googleParentId = !parentId || parentId === "root" ? driveId : parentId;
 
   const queryParts = [
     `'${googleParentId}' in parents`,

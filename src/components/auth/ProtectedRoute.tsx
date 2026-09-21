@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppPreloader } from "@/components/AppPreloader";
 import { authClient } from "@/lib/auth-client";
-import {
-  APP_BOOT_MIN_MS,
-  consumeAppBoot,
-  hasAppBoot,
-} from "@/lib/app-boot";
+import { APP_BOOT_MIN_MS, consumeAppBoot, hasAppBoot } from "@/lib/app-boot";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
 import { usePathname, useRouter } from "next/navigation";
 

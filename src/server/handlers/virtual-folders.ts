@@ -20,8 +20,7 @@ const thumbnailDataUrlSchema = z
       /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(value) &&
       estimateDataUrlBytes(value) <= MAX_THUMBNAIL_BYTES,
     {
-      message:
-        "Thumbnail must be a PNG, JPG, or WEBP image of at most 5MB.",
+      message: "Thumbnail must be a PNG, JPG, or WEBP image of at most 5MB.",
     },
   );
 
@@ -124,7 +123,8 @@ export async function getVirtualFolderHandler(
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
   const id = params?.id;
-  if (!id) return errorJson("FOLDER_NOT_FOUND", "Virtual folder not found.", 404);
+  if (!id)
+    return errorJson("FOLDER_NOT_FOUND", "Virtual folder not found.", 404);
 
   const folder = await prisma.virtualFolder.findFirst({
     where: { id, userId: user.id },
@@ -180,7 +180,8 @@ export async function updateVirtualFolderHandler(
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
   const id = params?.id;
-  if (!id) return errorJson("FOLDER_NOT_FOUND", "Virtual folder not found.", 404);
+  if (!id)
+    return errorJson("FOLDER_NOT_FOUND", "Virtual folder not found.", 404);
 
   const body = z
     .object({
@@ -232,7 +233,8 @@ export async function deleteVirtualFolderHandler(
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
   const id = params?.id;
-  if (!id) return errorJson("FOLDER_NOT_FOUND", "Virtual folder not found.", 404);
+  if (!id)
+    return errorJson("FOLDER_NOT_FOUND", "Virtual folder not found.", 404);
 
   const result = await prisma.virtualFolder.deleteMany({
     where: { id, userId: user.id },

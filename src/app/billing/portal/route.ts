@@ -3,10 +3,13 @@ export const dynamic = "force-dynamic";
 
 import { CustomerPortal } from "@polar-sh/nextjs";
 import { headers } from "next/headers";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { env } from "@/server/config/env";
-import { getPolarServer, isPolarConfigured } from "@/server/modules/billing/polar";
+import {
+  getPolarServer,
+  isPolarConfigured,
+} from "@/server/modules/billing/polar";
 import { errorJson } from "@/server/http/responses";
 
 export const GET = async (req: NextRequest) => {

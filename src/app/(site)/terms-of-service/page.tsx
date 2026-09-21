@@ -5,13 +5,7 @@ import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata: Metadata = createPageMetadata("Terms of Service");
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-10">
       <h2 className="text-xl font-semibold tracking-tight text-foreground">
@@ -31,18 +25,19 @@ export default function TermsPage() {
         Terms of Service
       </h1>
       <p className="mt-4 leading-relaxed text-muted-foreground">
-        Welcome to Archive Cloud. These Terms and Conditions (&ldquo;Terms&rdquo;)
-        govern your access to and use of our platform and services
-        (&ldquo;Services&rdquo;). By using Archive Cloud, you agree to be bound by
-        these Terms. If you do not agree, please do not use our Services.
+        Welcome to Archive Cloud. These Terms and Conditions
+        (&ldquo;Terms&rdquo;) govern your access to and use of our platform and
+        services (&ldquo;Services&rdquo;). By using Archive Cloud, you agree to
+        be bound by these Terms. If you do not agree, please do not use our
+        Services.
       </p>
 
       <Section title="Overview of Services">
         <p>
-          Archive Cloud provides a platform that allows users to connect, manage,
-          and operate across multiple cloud storage accounts (including Google
-          Drive, Google Photos, Shared Drive, OneDrive, Dropbox, pCloud, and
-          iCloud).
+          Archive Cloud provides a platform that allows users to connect,
+          manage, and operate across multiple cloud storage accounts (including
+          Google Drive, Google Photos, Shared Drive, OneDrive, Dropbox, pCloud,
+          and iCloud).
         </p>
         <p>
           Our Services enable actions such as uploading, browsing, transferring,
@@ -82,9 +77,7 @@ export default function TermsPage() {
             Not attempt to interfere with or disrupt our systems, security
             measures, or networks.
           </li>
-          <li>
-            Not reverse-engineer, decompile, or copy our Services.
-          </li>
+          <li>Not reverse-engineer, decompile, or copy our Services.</li>
           <li>
             You are solely responsible for the files you manage through our
             platform.
@@ -181,8 +174,7 @@ export default function TermsPage() {
           </li>
           <li>
             We are not responsible for downtime caused by third-party providers
-            (including Google, Microsoft, Dropbox, pCloud, and
-            Apple/iCloud).
+            (including Google, Microsoft, Dropbox, pCloud, and Apple/iCloud).
           </li>
         </ul>
       </Section>
@@ -190,8 +182,8 @@ export default function TermsPage() {
       <Section title="Intellectual Property">
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            Archive Cloud and its logo, design, and software are our intellectual
-            property.
+            Archive Cloud and its logo, design, and software are our
+            intellectual property.
           </li>
           <li>
             You may not copy, modify, distribute, or resell any part of our
@@ -240,10 +232,10 @@ export default function TermsPage() {
 
       <Section title="Indemnification">
         <p>
-          You agree to indemnify and hold harmless Archive Cloud, its affiliates,
-          employees, and partners from any claims, damages, or liabilities
-          arising from your use of the Services, violation of these Terms, or
-          infringement of third-party rights.
+          You agree to indemnify and hold harmless Archive Cloud, its
+          affiliates, employees, and partners from any claims, damages, or
+          liabilities arising from your use of the Services, violation of these
+          Terms, or infringement of third-party rights.
         </p>
       </Section>
 

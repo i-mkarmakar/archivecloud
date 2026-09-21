@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   className?: string;
-  
+
   label?: string;
 };
 

@@ -737,7 +737,7 @@ export async function resumableChunkHandler(
     where: { id: session.targetConnectedAccountId, userId: user.id },
   });
   const auth = await getAuthedGoogleClient(account);
-  const drive = google.drive({ version: "v3", auth });
+  const _drive = google.drive({ version: "v3", auth });
   const token = await auth.getAccessToken();
 
   const putHeaders = new Headers();

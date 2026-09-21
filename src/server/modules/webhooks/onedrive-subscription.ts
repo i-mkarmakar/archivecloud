@@ -124,8 +124,7 @@ export async function stopOneDriveSubscriptions(
           headers: { Authorization: `Bearer ${accessToken}` },
         });
       }
-    } catch {
-    }
+    } catch {}
     await prisma.providerWebhookChannel.update({
       where: { id: channel.id },
       data: { status: "stopped" },

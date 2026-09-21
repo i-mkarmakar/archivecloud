@@ -1,10 +1,6 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import type {
-  ButtonHTMLAttributes,
-  MouseEventHandler,
-  ReactNode,
-} from "react";
+import type { ButtonHTMLAttributes, MouseEventHandler, ReactNode } from "react";
 
 type InteractiveHoverButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;

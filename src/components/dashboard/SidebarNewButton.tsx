@@ -89,10 +89,7 @@ export function SidebarNewButton({
         aria-label="New"
       >
         <PlusIcon
-          className={cn(
-            "shrink-0",
-            iconOnly ? "h-5 w-5" : "h-[18px] w-[18px]",
-          )}
+          className={cn("shrink-0", iconOnly ? "h-5 w-5" : "h-[18px] w-[18px]")}
         />
         {iconOnly ? null : <span>New</span>}
       </Popover.Trigger>

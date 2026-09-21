@@ -1,6 +1,6 @@
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { google } from "googleapis";
-import { Readable } from "node:stream";
+import type { Readable } from "node:stream";
 import {
   browseDropboxFolder,
   deleteDropboxFile,

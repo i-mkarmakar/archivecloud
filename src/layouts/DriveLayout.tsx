@@ -53,7 +53,9 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   const [uploadProgressCollapsed, setUploadProgressCollapsed] = useState(false);
 
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [tags, setTags] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [tags, setTags] = useState<
+    Array<{ id: string; name: string; color: string }>
+  >([]);
   const [filterKind, setFilterKind] = useState(sp.get("kind") ?? "");
   const [filterAccountId, setFilterAccountId] = useState(
     sp.get("accountId") ?? "",
@@ -89,16 +91,14 @@ export function DriveLayout({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem("archivecloud:sidebar-expanded");
       if (stored === "0") setDesktopSidebarExpanded(false);
       if (stored === "1") setDesktopSidebarExpanded(true);
-    } catch {
-    }
+    } catch {}
   }, []);
 
   function setDesktopSidebarExpandedAndPersist(next: boolean) {
     setDesktopSidebarExpanded(next);
     try {
       localStorage.setItem("archivecloud:sidebar-expanded", next ? "1" : "0");
-    } catch {
-    }
+    } catch {}
   }
 
   useEffect(() => {
@@ -114,7 +114,9 @@ export function DriveLayout({ children }: { children: ReactNode }) {
       void loadConnectedAccounts();
       void loadSidebarStats();
     } else if (status === "error") {
-      toast.danger("Could not connect Google Drive. You can retry in Settings.");
+      toast.danger(
+        "Could not connect Google Drive. You can retry in Settings.",
+      );
     }
     const next = new URLSearchParams(sp.toString());
     next.delete("googleDrive");
@@ -140,9 +142,9 @@ export function DriveLayout({ children }: { children: ReactNode }) {
 
   async function loadTags() {
     try {
-      const data = await apiFetch<{ tags: Array<{ id: string; name: string; color: string }> }>(
-        "/tags",
-      );
+      const data = await apiFetch<{
+        tags: Array<{ id: string; name: string; color: string }>;
+      }>("/tags");
       setTags(data.tags);
     } catch (e) {
       console.error("Failed to load tags for filter dropdown", e);

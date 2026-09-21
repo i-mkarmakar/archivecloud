@@ -172,9 +172,9 @@ export function RunHistoryPage() {
     try {
       const [jobsRes, schedulesRes] = await Promise.all([
         apiFetch<{ jobs: TransferJob[] }>("/transfers?limit=100"),
-        apiFetch<{ tasks: ScheduledTaskOption[] }>("/automation/scheduled").catch(
-          () => ({ tasks: [] as ScheduledTaskOption[] }),
-        ),
+        apiFetch<{ tasks: ScheduledTaskOption[] }>(
+          "/automation/scheduled",
+        ).catch(() => ({ tasks: [] as ScheduledTaskOption[] })),
       ]);
       setJobs(jobsRes.jobs);
       setSchedules(
@@ -320,17 +320,10 @@ export function RunHistoryPage() {
     range !== "30d" ||
     query.trim().length > 0;
 
-  const showEmpty =
-    !loading &&
-    !error &&
-    jobs.length === 0 &&
-    !filtersActive;
+  const showEmpty = !loading && !error && jobs.length === 0 && !filtersActive;
 
   const showNoMatches =
-    !loading &&
-    !error &&
-    !showEmpty &&
-    filteredJobs.length === 0;
+    !loading && !error && !showEmpty && filteredJobs.length === 0;
 
   return (
     <>
@@ -605,7 +598,9 @@ export function RunHistoryPage() {
                       : ""}
                   </p>
                   {job.errorMessage ? (
-                    <p className="mt-2 text-sm text-danger">{job.errorMessage}</p>
+                    <p className="mt-2 text-sm text-danger">
+                      {job.errorMessage}
+                    </p>
                   ) : null}
                 </div>
                 {job.status === "failed" ? (

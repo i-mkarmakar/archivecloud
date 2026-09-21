@@ -12,7 +12,7 @@ async function findSharedFile(token: string) {
     },
     include: { file: { include: { connectedAccount: true } } },
   });
-  if (!share || share.file.status !== "active") return null;
+  if (share?.file.status !== "active") return null;
   return share.file;
 }
 
@@ -25,8 +25,7 @@ export async function getPublicFileHandler(
   if (!token)
     return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
   const file = await findSharedFile(token);
-  if (!file)
-    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  if (!file) return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
   return json({
     file: {
       id: file.id,
@@ -47,8 +46,7 @@ export async function downloadPublicFileHandler(
   if (!token)
     return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
   const file = await findSharedFile(token);
-  if (!file)
-    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  if (!file) return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
   return streamProviderFileResponse(
     file,
     request.headers.get("range") ?? undefined,
@@ -65,8 +63,7 @@ export async function previewPublicFileHandler(
   if (!token)
     return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
   const file = await findSharedFile(token);
-  if (!file)
-    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  if (!file) return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
   return streamProviderFileResponse(
     file,
     request.headers.get("range") ?? undefined,

@@ -47,7 +47,8 @@ export async function getDiscordMemberCount(): Promise<number | null> {
       "approximate_member_count" in data &&
       typeof (data as { approximate_member_count: unknown })
         .approximate_member_count === "number"
-        ? (data as { approximate_member_count: number }).approximate_member_count
+        ? (data as { approximate_member_count: number })
+            .approximate_member_count
         : null;
 
     return count != null && Number.isFinite(count) ? count : null;

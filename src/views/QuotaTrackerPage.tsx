@@ -307,232 +307,241 @@ export function QuotaTrackerPage() {
         </>
       ) : (
         <>
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-        <Card className="p-5">
-          <p className="text-sm text-muted">Total Storage</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="text-2xl font-extrabold">
-              {formatBytes(summary?.totalBytes)}
-            </p>
-            {accounts.length > 0 ? (
-              <StatBadge
-                value={`${accounts.length} drive${accounts.length === 1 ? "" : "s"}`}
-                variant="neutral"
-              />
-            ) : null}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-muted">Used Storage</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="text-2xl font-extrabold">
-              {formatBytes(summary?.usedBytes)}
-            </p>
-            {summary ? (
-              <StatBadge
-                value={`${usedPct}%`}
-                trend="up"
-                variant={statBadgeVariant(usedPct)}
-              />
-            ) : null}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-muted">Available</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="text-2xl font-extrabold">
-              {formatBytes(summary?.availableBytes)}
-            </p>
-            {summary ? (
-              <StatBadge value={`${availPct}%`} trend="up" variant="success" />
-            ) : null}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-muted">Accounts</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="text-2xl font-extrabold">{accounts.length}</p>
-            {accounts.length > 0 ? (
-              <StatBadge
-                value={`${connectedCount} connected`}
-                variant={
-                  connectedCount === accounts.length ? "success" : "warning"
-                }
-              />
-            ) : null}
-          </div>
-        </Card>
-      </div>
-
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        <Button variant="outline">All Accounts</Button>
-        <Button variant="secondary">
-          <Speedometer className="h-4 w-4" />
-          Most available
-        </Button>
-      </div>
-
-      <section className="mt-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-lg font-extrabold">Upload Routing</h2>
-            <p className="mt-1 text-sm text-muted">
-              Choose how new uploads pick connected storage accounts.
-            </p>
-          </div>
-          <label className="grid gap-2 text-sm font-semibold lg:w-64">
-            Routing mode
-            <select
-              className="h-11 rounded-xl border border-border bg-surface px-3 text-sm"
-              value={routingPolicy.mode}
-              onChange={(event) =>
-                saveRoutingPolicy({
-                  ...routingPolicy,
-                  mode: event.target.value as RoutingMode,
-                }).catch((error) =>
-                  toast.danger(
-                    error instanceof Error
-                      ? error.message
-                      : "Failed to update routing policy",
-                  ),
-                )
-              }
-            >
-              <option value="most_available">Most available</option>
-              <option value="round_robin">Round robin</option>
-              <option value="priority">Priority order</option>
-            </select>
-          </label>
-        </div>
-        <div className="mt-4 grid gap-3">
-          {orderedAccounts().map((account, index) => (
-            <div
-              key={account.id}
-              className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-foreground">
-                  <ProviderIcon />
-                </div>
-                <div>
-                  <p className="font-semibold">
-                    {account.displayName || account.email}
-                  </p>
-                  <p className="text-sm text-muted">
-                    Google Drive ·{" "}
-                    {formatBytes(account.storageAccount?.usedBytes)} used ·{" "}
-                    {availableLabel(account)} free
-                  </p>
-                </div>
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+            <Card className="p-5">
+              <p className="text-sm text-muted">Total Storage</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-2xl font-extrabold">
+                  {formatBytes(summary?.totalBytes)}
+                </p>
+                {accounts.length > 0 ? (
+                  <StatBadge
+                    value={`${accounts.length} drive${accounts.length === 1 ? "" : "s"}`}
+                    variant="neutral"
+                  />
+                ) : null}
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => moveAccount(account.id, -1)}
-                  isDisabled={index === 0}
-                >
-                  Up
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => moveAccount(account.id, 1)}
-                  isDisabled={index === accounts.length - 1}
-                >
-                  Down
-                </Button>
+            </Card>
+            <Card className="p-5">
+              <p className="text-sm text-muted">Used Storage</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-2xl font-extrabold">
+                  {formatBytes(summary?.usedBytes)}
+                </p>
+                {summary ? (
+                  <StatBadge
+                    value={`${usedPct}%`}
+                    trend="up"
+                    variant={statBadgeVariant(usedPct)}
+                  />
+                ) : null}
               </div>
-            </div>
-          ))}
-          {accounts.length === 0 ? (
-            <p className="text-sm text-muted">
-              Connect storage accounts to configure routing.
-            </p>
-          ) : null}
-        </div>
-      </section>
-
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
-        {accounts.length === 0 ? (
-          <div className="col-span-full flex min-h-[200px] items-center justify-center py-8">
-            <div className="text-center">
-              <h2 className="text-xl font-extrabold">No connected drives</h2>
-              <p className="mt-2 text-sm text-muted">
-                Connect Google Drive to start tracking quota.
-              </p>
-              <Button className="mt-5" onClick={connectDrive}>
-                <Link className="h-4 w-4" />
-                Connect Drive
-              </Button>
-            </div>
+            </Card>
+            <Card className="p-5">
+              <p className="text-sm text-muted">Available</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-2xl font-extrabold">
+                  {formatBytes(summary?.availableBytes)}
+                </p>
+                {summary ? (
+                  <StatBadge
+                    value={`${availPct}%`}
+                    trend="up"
+                    variant="success"
+                  />
+                ) : null}
+              </div>
+            </Card>
+            <Card className="p-5">
+              <p className="text-sm text-muted">Accounts</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-2xl font-extrabold">{accounts.length}</p>
+                {accounts.length > 0 ? (
+                  <StatBadge
+                    value={`${connectedCount} connected`}
+                    variant={
+                      connectedCount === accounts.length ? "success" : "warning"
+                    }
+                  />
+                ) : null}
+              </div>
+            </Card>
           </div>
-        ) : (
-          accounts.map((account) => {
-            const percent = pct(account);
-            const color = statusColor(percent);
-            return (
-              <section key={account.id} className="overflow-hidden p-1">
-                <div className="flex items-start justify-between gap-4">
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Button variant="outline">All Accounts</Button>
+            <Button variant="secondary">
+              <Speedometer className="h-4 w-4" />
+              Most available
+            </Button>
+          </div>
+
+          <section className="mt-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold">Upload Routing</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Choose how new uploads pick connected storage accounts.
+                </p>
+              </div>
+              <label className="grid gap-2 text-sm font-semibold lg:w-64">
+                Routing mode
+                <select
+                  className="h-11 rounded-xl border border-border bg-surface px-3 text-sm"
+                  value={routingPolicy.mode}
+                  onChange={(event) =>
+                    saveRoutingPolicy({
+                      ...routingPolicy,
+                      mode: event.target.value as RoutingMode,
+                    }).catch((error) =>
+                      toast.danger(
+                        error instanceof Error
+                          ? error.message
+                          : "Failed to update routing policy",
+                      ),
+                    )
+                  }
+                >
+                  <option value="most_available">Most available</option>
+                  <option value="round_robin">Round robin</option>
+                  <option value="priority">Priority order</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 grid gap-3">
+              {orderedAccounts().map((account, index) => (
+                <div
+                  key={account.id}
+                  className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-foreground">
                       <ProviderIcon />
                     </div>
                     <div>
-                      <h2 className="font-extrabold">Google Drive</h2>
-                      <p className="text-sm text-muted">{account.email}</p>
+                      <p className="font-semibold">
+                        {account.displayName || account.email}
+                      </p>
+                      <p className="text-sm text-muted">
+                        Google Drive ·{" "}
+                        {formatBytes(account.storageAccount?.usedBytes)} used ·{" "}
+                        {availableLabel(account)} free
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      isIconOnly
                       size="sm"
-                      onClick={() => sync(account.id)}
-                      isDisabled={syncingAccountId === account.id}
+                      onClick={() => moveAccount(account.id, -1)}
+                      isDisabled={index === 0}
                     >
-                      <ArrowRotateRight
-                        className={
-                          syncingAccountId === account.id
-                            ? "h-5 w-5 animate-spin"
-                            : "h-5 w-5"
-                        }
-                      />
+                      Up
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => moveAccount(account.id, 1)}
+                      isDisabled={index === accounts.length - 1}
+                    >
+                      Down
                     </Button>
                   </div>
                 </div>
-                <div className="mt-6">
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <span
-                        className={cn(
-                          "h-3 w-3 rounded-full",
-                          color.split(" ")[0],
-                        )}
-                      />
-                      storage
-                    </span>
-                    <span className="font-bold">{percent}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-surface-secondary">
-                    <div
-                      className={cn("h-full rounded-full", color.split(" ")[0])}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-sm text-muted">
-                    <span>
-                      {formatBytes(account.storageAccount?.usedBytes)} /{" "}
-                      {storageLimitLabel(account)}
-                    </span>
-                    <span>Available {availableLabel(account)}</span>
-                  </div>
+              ))}
+              {accounts.length === 0 ? (
+                <p className="text-sm text-muted">
+                  Connect storage accounts to configure routing.
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          <div className="mt-6 grid gap-5 md:grid-cols-2">
+            {accounts.length === 0 ? (
+              <div className="col-span-full flex min-h-[200px] items-center justify-center py-8">
+                <div className="text-center">
+                  <h2 className="text-xl font-extrabold">
+                    No connected drives
+                  </h2>
+                  <p className="mt-2 text-sm text-muted">
+                    Connect Google Drive to start tracking quota.
+                  </p>
+                  <Button className="mt-5" onClick={connectDrive}>
+                    <Link className="h-4 w-4" />
+                    Connect Drive
+                  </Button>
                 </div>
-              </section>
-            );
-          })
-        )}
-      </div>
+              </div>
+            ) : (
+              accounts.map((account) => {
+                const percent = pct(account);
+                const color = statusColor(percent);
+                return (
+                  <section key={account.id} className="overflow-hidden p-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                          <ProviderIcon />
+                        </div>
+                        <div>
+                          <h2 className="font-extrabold">Google Drive</h2>
+                          <p className="text-sm text-muted">{account.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          isIconOnly
+                          size="sm"
+                          onClick={() => sync(account.id)}
+                          isDisabled={syncingAccountId === account.id}
+                        >
+                          <ArrowRotateRight
+                            className={
+                              syncingAccountId === account.id
+                                ? "h-5 w-5 animate-spin"
+                                : "h-5 w-5"
+                            }
+                          />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-6">
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2 font-semibold">
+                          <span
+                            className={cn(
+                              "h-3 w-3 rounded-full",
+                              color.split(" ")[0],
+                            )}
+                          />
+                          storage
+                        </span>
+                        <span className="font-bold">{percent}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-surface-secondary">
+                        <div
+                          className={cn(
+                            "h-full rounded-full",
+                            color.split(" ")[0],
+                          )}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-sm text-muted">
+                        <span>
+                          {formatBytes(account.storageAccount?.usedBytes)} /{" "}
+                          {storageLimitLabel(account)}
+                        </span>
+                        <span>Available {availableLabel(account)}</span>
+                      </div>
+                    </div>
+                  </section>
+                );
+              })
+            )}
+          </div>
         </>
       )}
     </>

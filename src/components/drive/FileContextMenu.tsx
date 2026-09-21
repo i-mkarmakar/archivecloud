@@ -104,12 +104,7 @@ export function FileContextMenu({
           onClick={onDownload}
         />
         <MenuItem icon={FolderArrowRight} label="Move" onClick={onMove} />
-        <MenuItem
-          icon={TrashBin}
-          label="Remove"
-          onClick={onRemove}
-          danger
-        />
+        <MenuItem icon={TrashBin} label="Remove" onClick={onRemove} danger />
         <MenuItem icon={Tag} label="Manage Tags" onClick={onManageTags} />
         <MenuItem
           icon={NodesRight}

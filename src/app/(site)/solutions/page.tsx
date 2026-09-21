@@ -82,7 +82,9 @@ export default function SolutionsPage() {
                 <h2 className="text-base font-semibold text-[#0F172A]">
                   {item.title}
                 </h2>
-                <p className="mt-2 text-sm text-[#64748B]">{item.description}</p>
+                <p className="mt-2 text-sm text-[#64748B]">
+                  {item.description}
+                </p>
                 <Link
                   href={item.href}
                   className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[#0F172A] underline-offset-4 hover:underline"

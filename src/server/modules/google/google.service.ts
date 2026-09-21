@@ -189,8 +189,7 @@ export async function syncGoogleDriveBreakdown(accountId: string) {
         photoBytes += BigInt(service.bytesUsed);
       }
     }
-  } catch {
-  }
+  } catch {}
 
   let pageToken: string | undefined;
   const fileQuery = `trashed = false and mimeType != '${googleDriveFolderMimeType}'`;
