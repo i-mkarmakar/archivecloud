@@ -22,7 +22,7 @@ export function HeroSection() {
           className="pointer-events-none absolute top-36 -right-6 z-20 hidden h-auto w-[140px] rotate-12 select-none mix-blend-screen lg:block xl:top-44 xl:-right-10 xl:w-[180px] 2xl:-right-14 2xl:w-[210px]"
         />
 
-        <div className="relative z-10 mx-auto flex max-w-[920px] flex-col items-center text-center">
+        <div className="relative z-10 mx-auto flex max-w-[920px] flex-col items-center pt-10 text-center sm:pt-12 lg:pt-8">
           <div className="max-w-[calc(100vw-2rem)] rounded-full border border-black/5 bg-neutral-100">
             <span className="inline-flex items-center justify-center px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-neutral-600 sm:px-4 sm:py-1 sm:text-[13px]">
               Open source ✦ Self-hostable ✦ Your data, your control
@@ -44,7 +44,7 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto mt-24 max-w-[1080px] lg:mt-32">
+      <div className="relative z-10 mx-auto mt-14 max-w-[1080px] sm:mt-16 lg:mt-24">
         <div className="overflow-hidden rounded-[20px] border border-[#D7E6F5] bg-white shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] sm:rounded-[24px]">
           <img
             src="/assets/archivecloud-dashboard.png"

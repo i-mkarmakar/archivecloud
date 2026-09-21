@@ -66,19 +66,19 @@ function FooterColumn({
 }) {
   return (
     <div>
-      <h3 className="text-[15px] font-semibold tracking-tight text-[#111827]">
+      <h3 className="text-sm font-semibold tracking-tight text-[#111827] sm:text-[15px]">
         {title}
       </h3>
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-2.5 space-y-2 sm:mt-4 sm:space-y-3">
         {links.map((link) => {
           const className = link.emphasized
-            ? "inline-flex items-center gap-0.5 text-[15px] text-[#111827] underline decoration-[#111827]/40 underline-offset-4 transition-colors hover:decoration-[#111827]"
-            : "text-[15px] text-[#6B7280] transition-colors hover:text-[#111827]";
+            ? "inline-flex items-center gap-0.5 text-sm text-[#111827] underline decoration-[#111827]/40 underline-offset-4 transition-colors hover:decoration-[#111827] sm:text-[15px]"
+            : "text-sm text-[#6B7280] transition-colors hover:text-[#111827] sm:text-[15px]";
 
           const content = link.emphasized ? (
             <>
               {link.label}
-              <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
+              <ArrowUpRight className="size-3 shrink-0 sm:size-3.5" aria-hidden />
             </>
           ) : (
             link.label
@@ -112,18 +112,18 @@ function FooterColumn({
 export function SiteFooter() {
   return (
     <footer className="bg-white">
-      <div className="mx-auto max-w-[1100px] px-6 py-16 sm:px-8 lg:px-10 lg:py-20">
+      <div className="mx-auto max-w-[1100px] px-4 py-8 sm:px-8 sm:py-16 lg:px-10 lg:py-20">
         <div className="max-w-md">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <BrandLogo className="h-10 w-10" />
-            <span className="text-lg font-semibold tracking-tight text-[#111827]">
+          <Link href="/" className="inline-flex items-center gap-2 sm:gap-2.5">
+            <BrandLogo className="h-8 w-8 sm:h-10 sm:w-10" />
+            <span className="text-base font-semibold tracking-tight text-[#111827] sm:text-lg">
               Archive Cloud
             </span>
           </Link>
-          <p className="mt-3 text-[15px] leading-relaxed text-[#6B7280]">
+          <p className="mt-2 text-sm leading-relaxed text-[#6B7280] sm:mt-3 sm:text-[15px]">
             Open-source multi-cloud storage hub that doesn&apos;t lock you in.
           </p>
-          <div className="mt-4 flex items-center gap-3 text-[#111827]">
+          <div className="mt-3 flex items-center gap-2.5 text-[#111827] sm:mt-4 sm:gap-3">
             <a
               href={GITHUB_REPO_URL}
               target="_blank"
@@ -131,7 +131,7 @@ export function SiteFooter() {
               aria-label="GitHub"
               className="transition-opacity hover:opacity-70"
             >
-              <GithubLogo className="size-5" />
+              <GithubLogo className="size-4 sm:size-5" />
             </a>
             <a
               href={DISCORD_INVITE_URL}
@@ -140,15 +140,15 @@ export function SiteFooter() {
               aria-label="Discord"
               className="group"
             >
-              <DiscordLogo className="size-5" />
+              <DiscordLogo className="size-4 sm:size-5" />
             </a>
           </div>
-          <p className="mt-3 text-[15px] text-[#6B7280]">
+          <p className="mt-2 text-xs text-[#6B7280] sm:mt-3 sm:text-[15px]">
             Copyright © 2026 Archive Cloud. All rights reserved.
           </p>
         </div>
 
-        <div className="mt-16 grid grid-cols-2 gap-x-8 gap-y-10 sm:mt-20 sm:grid-cols-4 sm:gap-x-12">
+        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:mt-20 sm:grid-cols-4 sm:gap-x-12 sm:gap-y-10">
           <FooterColumn title="Product" links={PRODUCT} />
           <FooterColumn title="Clouds" links={CLOUDS} />
           <FooterColumn title="Links" links={LINKS} />

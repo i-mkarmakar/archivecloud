@@ -21,7 +21,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
-      // Above site banner (z-100000) and fixed navbar (z-99999)
+      // Above fixed navbar (z-99999)
       "fixed inset-0 z-[100001] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}

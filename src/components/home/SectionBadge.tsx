@@ -14,7 +14,9 @@ export function SectionBadge({
         className,
       )}
     >
-      <span aria-hidden>✦</span>
+      <span aria-hidden className="text-base leading-none sm:text-lg">
+        ✦
+      </span>
       {children}
     </span>
   );
