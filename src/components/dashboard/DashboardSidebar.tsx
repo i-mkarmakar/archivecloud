@@ -831,7 +831,7 @@ export function DashboardSidebar({
                                   {item.label}
                                 </span>
                                 {item.badge && currentPlanId !== "thunder" ? (
-                                  <span className="inline-flex h-4 shrink-0 items-center justify-center rounded-full bg-[#f97316] px-1.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
+                                  <span className="inline-flex h-4 shrink-0 items-center justify-center rounded-full bg-[#f97316] px-1.5 text-[9px] font-bold leading-none tracking-wide text-white">
                                     {item.badge}
                                   </span>
                                 ) : null}

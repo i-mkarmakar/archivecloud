@@ -244,6 +244,20 @@
   }
 }
 
+/*
+ * HeroUI CloseButton defaults to `text-muted`. Shadcn's --muted is a light surface
+ * color, so X icons render nearly invisible on white dialogs (modals portal outside
+ * .drive-app where --muted is remapped for text).
+ */
+.close-button--default {
+  color: var(--muted-foreground);
+}
+
+.close-button--default:hover,
+.close-button--default[data-hovered="true"] {
+  color: var(--foreground);
+}
+
 body {
   margin: 0;
   min-width: 320px;

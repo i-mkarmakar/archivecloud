@@ -1,7 +1,4 @@
 import { HeroGoogleSignupButton } from "@/components/home/HeroGoogleSignupButton";
-import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
-import { SquigglyText } from "@/components/ui/squiggly-text";
-import { cn } from "@/lib/utils";
 
 export function HeroSection() {
   return (
@@ -26,27 +23,16 @@ export function HeroSection() {
         />
 
         <div className="relative z-10 mx-auto flex max-w-[920px] flex-col items-center text-center">
-          <div
-            className={cn(
-              "group rounded-full border border-black/5 bg-neutral-100 text-base transition-all ease-in hover:bg-neutral-200",
-            )}
-          >
-            <AnimatedShinyText className="inline-flex items-center justify-center px-4 py-1 text-xs font-medium tracking-wide transition ease-out hover:text-neutral-600 hover:duration-300 sm:text-[13px]">
+          <div className="rounded-full border border-black/5 bg-neutral-100 text-base">
+            <span className="inline-flex items-center justify-center px-4 py-1 text-xs font-medium tracking-wide text-neutral-600 sm:text-[13px]">
               Open source ✦ Self-hostable ✦ Your data, your control
-            </AnimatedShinyText>
+            </span>
           </div>
 
           <h1 className="mt-6 text-balance text-[2.5rem] leading-[1.08] font-bold tracking-tight text-[#0F172A] sm:text-5xl md:text-6xl lg:text-[4.5rem]">
             One place for all
             <br className="hidden sm:block" /> your{" "}
-            <SquigglyText
-              stepDuration={70}
-              scale={[6, 9]}
-              className="text-primary"
-            >
-              Cloud
-            </SquigglyText>{" "}
-            storage
+            <span className="text-primary">Cloud</span> storage
           </h1>
 
           <p className="mt-5 max-w-2xl text-pretty text-base leading-relaxed text-[#64748B] sm:text-lg">

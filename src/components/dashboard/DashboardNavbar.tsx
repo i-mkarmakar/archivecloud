@@ -4,8 +4,10 @@ import { Button, Header, SearchField, Surface } from "@heroui/react";
 import { Bars, Magnifier, Xmark } from "@gravity-ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { BrandLogo } from "@/components/drive/BrandLogo";
+import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
 import { dashboardContentClassName } from "@/components/dashboard/config";
 import { RotatingSearchPlaceholder } from "@/components/dashboard/RotatingSearchPlaceholder";
+import { useUserPlan } from "@/hooks/useUserPlan";
 import { cn } from "@/lib/utils";
 import { SearchFiltersPopover } from "./SearchFiltersPopover";
 import { SystemInfoPopover } from "./SystemInfoPopover";
@@ -75,7 +77,25 @@ export function DashboardNavbar({
   showDesktopBrand?: boolean;
 }) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+  const { planId, canUpgrade } = useUserPlan();
+
+  const upgradeButton = (
+    <Button
+      variant="primary"
+      className="shrink-0 gap-1.5"
+      onPress={() => setUpgradeOpen(true)}
+    >
+      <img
+        src="/assets/Thunder.gif"
+        alt=""
+        aria-hidden
+        className="h-5 w-5 object-contain"
+      />
+      Upgrade
+    </Button>
+  );
 
   useEffect(() => {
     if (!mobileSearchOpen) return;
@@ -162,7 +182,8 @@ export function DashboardNavbar({
                 >
                   <Bars className="h-5 w-5" />
                 </Button>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  {canUpgrade ? upgradeButton : null}
                   <Button
                     variant="outline"
                     isIconOnly
@@ -190,12 +211,20 @@ export function DashboardNavbar({
               ) : null}
             </div>
             {searchField()}
-            <div className="hidden items-center justify-end lg:flex">
+            <div className="hidden items-center justify-end gap-4 lg:flex">
+              {canUpgrade ? upgradeButton : null}
               <SystemInfoPopover />
             </div>
           </div>
         </div>
       </Header>
+      {canUpgrade ? (
+        <UpgradePlanModal
+          open={upgradeOpen}
+          onClose={() => setUpgradeOpen(false)}
+          currentPlanId={planId}
+        />
+      ) : null}
     </Surface>
   );
 }

@@ -898,8 +898,15 @@ export function SettingsPage() {
                   <h3 className="text-base font-bold text-foreground">
                     Subscription & Billing
                   </h3>
-                  <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-                    {currentPlan.name} plan
+                  <span
+                    className={cn(
+                      "inline-flex h-4 shrink-0 items-center justify-center rounded-full px-1.5 text-[9px] font-bold leading-none tracking-wide text-white",
+                      hasThunder
+                        ? "bg-[#f97316] uppercase"
+                        : "bg-[#22c55e]",
+                    )}
+                  >
+                    {hasThunder ? "Thunder" : "Free"}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-muted">

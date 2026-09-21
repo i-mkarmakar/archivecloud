@@ -39,7 +39,7 @@ export function DummyModal({
       <Modal.Backdrop isDismissable>
         <Modal.Container placement="center" scroll="inside" size="md">
           <Modal.Dialog className={cn("max-h-[calc(100dvh-2rem)]", className)}>
-            <Modal.CloseTrigger />
+            <Modal.CloseTrigger className="text-[#4b5563] hover:bg-black/5 hover:text-[#111827]" />
             <Modal.Header className="pr-10">
               <Modal.Heading className="text-xl font-extrabold tracking-tight">
                 {title}
