@@ -1,11 +1,22 @@
 "use client";
 
 import TextLoop from "@/components/home/TextLoop";
+import { useEffect, useState } from "react";
 
 export function OpenSourceTextLoop() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   return (
     <section
-      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden py-0"
+      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden py-3 sm:py-0"
       aria-label="Open source"
     >
       <TextLoop
@@ -15,13 +26,14 @@ export function OpenSourceTextLoop() {
         direction="forward"
         separator="✦"
         curviness={90}
-        fontSize={22}
+        fontSize={isMobile ? 26 : 22}
         fontWeight={800}
-        letterSpacing={2}
+        letterSpacing={isMobile ? 1.5 : 2}
         color="#ffffff"
         ribbon
         ribbonColor="#1e9df1"
-        ribbonWidth={36}
+        ribbonWidth={isMobile ? 56 : 36}
+        separatorPadding={isMobile ? 1 : 1}
         pauseOnHover
         className="w-full"
       />

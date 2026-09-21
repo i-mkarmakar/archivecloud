@@ -84,25 +84,17 @@ export function FeatureSection() {
           {FEATURES.map((feature) => (
             <article
               key={feature.title}
-              className="group relative self-start overflow-hidden rounded-xl border border-[#E5EEF7] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(22,131,247,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1683F7]/40 sm:rounded-2xl sm:p-6"
+              className="rounded-xl border border-[#E5EEF7] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(22,131,247,0.45)] sm:rounded-2xl sm:p-6"
             >
               <div className="flex size-8 items-center justify-center rounded-lg bg-[#EAF4FF] text-[#1683F7] sm:size-10 sm:rounded-xl">
                 <feature.icon className="size-4 sm:size-5" strokeWidth={1.75} />
               </div>
-              <h3 className="mt-2 text-sm font-semibold leading-snug text-[#0F172A] sm:mt-4 sm:text-[16px]">
+              <h3 className="mt-2 text-xs font-semibold leading-snug text-[#0F172A] sm:mt-4 sm:text-[16px]">
                 {feature.title}
               </h3>
               <p className="mt-2 hidden text-sm leading-relaxed text-[#64748B] sm:block">
                 {feature.description}
               </p>
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0F172A]/70 p-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:hidden"
-              >
-                <p className="text-center text-[10px] leading-snug text-white">
-                  {feature.description}
-                </p>
-              </div>
             </article>
           ))}
         </div>

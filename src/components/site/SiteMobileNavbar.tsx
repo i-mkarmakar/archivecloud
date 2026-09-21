@@ -11,6 +11,7 @@ import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 const navMenuVariants = {
   hidden: {},
@@ -51,17 +52,29 @@ export function SiteMobileNavbar({
   scrolled = false,
   githubStars = null,
   discordMembers = null,
+  onOpenChange,
 }: {
   scrolled?: boolean;
   githubStars?: number | null;
   discordMembers?: number | null;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { data: session } = authClient.useSession();
   const isSignedIn = Boolean(session?.user);
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const setOpen = (open: boolean) => {
+    setIsOpen(open);
+    onOpenChange?.(open);
+  };
 
   const handleClose = () => {
-    setIsOpen(false);
+    setOpen(false);
   };
 
   useEffect(() => {
@@ -76,7 +89,7 @@ export function SiteMobileNavbar({
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
+      if (event.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -90,7 +103,7 @@ export function SiteMobileNavbar({
         type="button"
         aria-label="Open menu"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen(true)}
+        onClick={() => setOpen(true)}
         className={cn(
           "flex size-9 cursor-pointer items-center justify-center text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           scrolled && "hover:bg-black/5",
@@ -99,87 +112,93 @@ export function SiteMobileNavbar({
         <Menu size={22} />
       </button>
 
-      <AnimatePresence>
-        {isOpen ? (
-          <>
-            <motion.button
-              type="button"
-              aria-label="Close menu backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[100001] cursor-pointer bg-black/40 lg:hidden"
-              onClick={handleClose}
-            />
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.3, type: "tween" }}
-              className="fixed top-0 right-0 z-[100002] flex h-dvh w-[80%] flex-col items-start gap-4 bg-background px-8 font-[family-name:var(--font-manrope),ui-sans-serif,system-ui,sans-serif] lg:hidden"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Mobile navigation"
-            >
-              <button
-                type="button"
-                aria-label="Close menu"
-                onClick={handleClose}
-                className="absolute top-4 right-6 flex size-9 cursor-pointer items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <X size={22} className="text-foreground" />
-              </button>
-
-              <motion.nav
-                variants={navMenuVariants}
-                initial="hidden"
-                animate="show"
-                className="mt-16 flex w-full flex-col gap-1"
-              >
-                {NAV_LINKS.map((link) => (
-                  <motion.div key={link.href} variants={navItemVariants}>
-                    <Link
-                      href={link.href}
+      {mounted
+        ? createPortal(
+            <AnimatePresence>
+              {isOpen ? (
+                <>
+                  <motion.button
+                    type="button"
+                    aria-label="Close menu backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-[100001] cursor-pointer bg-black/40 lg:hidden"
+                    onClick={handleClose}
+                  />
+                  <motion.div
+                    initial={{ x: "100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "100%" }}
+                    transition={{ duration: 0.3, type: "tween" }}
+                    className="fixed top-0 right-0 z-[100002] flex h-dvh w-[80%] flex-col items-start gap-4 bg-background px-8 font-[family-name:var(--font-manrope),ui-sans-serif,system-ui,sans-serif] lg:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Mobile navigation"
+                  >
+                    <button
+                      type="button"
+                      aria-label="Close menu"
                       onClick={handleClose}
-                      className="block cursor-pointer py-2.5 text-left text-xl font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      className="absolute top-4 right-6 flex size-9 cursor-pointer items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      {link.title}
-                    </Link>
-                  </motion.div>
-                ))}
-              </motion.nav>
+                      <X size={22} className="text-foreground" />
+                    </button>
 
-              <motion.div
-                className="w-full"
-                variants={buttonVariantsMotion}
-                initial="hidden"
-                animate="show"
-              >
-                {isSignedIn ? (
-                  <Link
-                    href="/home"
-                    onClick={handleClose}
-                    className={buttonVariants({
-                      className: "mt-3 w-full cursor-pointer px-5 py-6 text-sm",
-                    })}
-                  >
-                    Dashboard
-                  </Link>
-                ) : (
-                  <InteractiveHoverButton
-                    href="/auth/sign-up"
-                    onClick={handleClose}
-                    className="mt-3 h-12 w-full cursor-pointer justify-center px-5 text-sm"
-                  >
-                    Try for free
-                  </InteractiveHoverButton>
-                )}
-              </motion.div>
-            </motion.div>
-          </>
-        ) : null}
-      </AnimatePresence>
+                    <motion.nav
+                      variants={navMenuVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="mt-16 flex w-full flex-col gap-1"
+                    >
+                      {NAV_LINKS.map((link) => (
+                        <motion.div key={link.href} variants={navItemVariants}>
+                          <Link
+                            href={link.href}
+                            onClick={handleClose}
+                            className="block cursor-pointer py-2.5 text-left text-xl font-medium text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            {link.title}
+                          </Link>
+                        </motion.div>
+                      ))}
+                    </motion.nav>
+
+                    <motion.div
+                      className="w-full"
+                      variants={buttonVariantsMotion}
+                      initial="hidden"
+                      animate="show"
+                    >
+                      {isSignedIn ? (
+                        <Link
+                          href="/home"
+                          onClick={handleClose}
+                          className={buttonVariants({
+                            className:
+                              "mt-3 w-full cursor-pointer px-5 py-6 text-sm",
+                          })}
+                        >
+                          Dashboard
+                        </Link>
+                      ) : (
+                        <InteractiveHoverButton
+                          href="/auth/sign-up"
+                          onClick={handleClose}
+                          className="mt-3 h-12 w-full cursor-pointer justify-center px-5 text-sm"
+                        >
+                          Try for free
+                        </InteractiveHoverButton>
+                      )}
+                    </motion.div>
+                  </motion.div>
+                </>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

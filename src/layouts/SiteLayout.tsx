@@ -13,7 +13,7 @@ export async function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0F172A] antialiased">
       <SiteHeader githubStars={githubStars} discordMembers={discordMembers} />
-      <main className="relative z-0 mx-auto mt-[calc(5rem+var(--site-banner-offset,0px))] w-full transition-[margin] duration-300 md:mt-[calc(6rem+var(--site-banner-offset,0px))]">
+      <main className="relative z-0 mx-auto mt-16 w-full md:mt-20">
         {children}
       </main>
       <SiteFooter />
