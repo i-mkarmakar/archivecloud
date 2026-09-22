@@ -78,7 +78,10 @@ function FooterColumn({
           const content = link.emphasized ? (
             <>
               {link.label}
-              <ArrowUpRight className="size-3 shrink-0 sm:size-3.5" aria-hidden />
+              <ArrowUpRight
+                className="size-3 shrink-0 sm:size-3.5"
+                aria-hidden
+              />
             </>
           ) : (
             link.label

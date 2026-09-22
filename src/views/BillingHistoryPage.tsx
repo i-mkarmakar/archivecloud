@@ -55,7 +55,9 @@ export function BillingHistoryPage() {
       } catch (err) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "Failed to load billing history",
+            err instanceof Error
+              ? err.message
+              : "Failed to load billing history",
           );
           setOrders([]);
         }
@@ -150,13 +152,13 @@ export function BillingHistoryPage() {
                   size="sm"
                   variant="outline"
                   className="shrink-0"
-                  isDisabled={downloadingId === order.id || !order.invoiceNumber}
+                  isDisabled={
+                    downloadingId === order.id || !order.invoiceNumber
+                  }
                   onPress={() => void downloadInvoice(order)}
                 >
                   <ArrowUpRightFromSquare className="size-4" />
-                  {downloadingId === order.id
-                    ? "Opening…"
-                    : "Download invoice"}
+                  {downloadingId === order.id ? "Opening…" : "Download invoice"}
                 </Button>
               </div>
             </Card>
