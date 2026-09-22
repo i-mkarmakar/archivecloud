@@ -116,26 +116,50 @@ export function HookSidebar({
     const list = listRef.current;
     if (!list) return;
 
-    const measure = () =>
-      setCenters(
-        itemRefs.current.map((el) =>
-          el ? el.offsetTop + el.offsetHeight / 2 : 0,
-        ),
+    const measure = () => {
+      const next = itemRefs.current.map((el) =>
+        el ? el.offsetTop + el.offsetHeight / 2 : 0,
       );
+      setCenters((prev) => {
+        if (
+          prev.length === next.length &&
+          prev.every((value, index) => value === next[index])
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
 
     measure();
     const frame = window.requestAnimationFrame(measure);
+    const timeout = window.setTimeout(measure, 50);
+
     const observer = new ResizeObserver(measure);
     observer.observe(list);
+    for (const el of itemRefs.current) {
+      if (el) observer.observe(el);
+    }
+
+    window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
       observer.disconnect();
+      window.removeEventListener("resize", measure);
     };
-  }, [items.length, value, internalValue]);
+  }, [items.length, activeIndex]);
 
-  const activeY = activeIndex < 0 ? null : (centers[activeIndex] ?? null);
-  const hoverY = hoverIndex === null ? null : (centers[hoverIndex] ?? null);
+  const activeY =
+    activeIndex < 0 || centers.length === 0
+      ? null
+      : (centers[activeIndex] ?? null);
+  const hoverY =
+    hoverIndex === null || centers.length === 0
+      ? null
+      : (centers[hoverIndex] ?? null);
 
+  // above the active row the accent line already covers the span, so draw only the corner
   const hoverFrom =
     activeY !== null && hoverY !== null && hoverY <= activeY
       ? Math.max(0, hoverY - CORNER)
@@ -166,7 +190,7 @@ export function HookSidebar({
       <div
         ref={listRef}
         onMouseLeave={() => setPointerInside(false)}
-        className="relative flex flex-col gap-0"
+        className="relative flex flex-col gap-0.5"
       >
         <Rail
           from={hoverFrom}
@@ -203,9 +227,9 @@ export function HookSidebar({
             onBlur: () => setFocusInside(false),
             onClick: () => select(index),
             className: cn(
-              "rounded-md py-1 pl-5 pr-2 text-left text-sm transition-colors duration-200 motion-reduce:transition-none",
+              "rounded-lg py-1.5 pl-5 pr-2 text-left text-sm transition-colors duration-200 motion-reduce:transition-none",
               isActive
-                ? "font-medium text-foreground"
+                ? "text-foreground"
                 : "text-foreground/50 hover:text-foreground/80",
             ),
           };

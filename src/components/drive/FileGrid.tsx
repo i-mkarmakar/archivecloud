@@ -3,10 +3,9 @@
 import { EllipsisVertical } from "@gravity-ui/icons";
 import type { MouseEvent } from "react";
 import { useState } from "react";
+import { AccountAccessBadge } from "@/components/drive/AccountAccessBadge";
 import { FileIcon } from "@/components/drive/FileIcon";
-import { GoogleDriveLogo } from "@/components/drive/GoogleDriveLogo";
 import type { FileItem } from "@/data/drive-data";
-import { getProfileImageUrl } from "@/lib/gravatar";
 import { cn } from "@/lib/utils";
 
 export type FileSizeScale = "xs" | "sm" | "md" | "lg";
@@ -91,51 +90,6 @@ function activityLabel(file: FileItem) {
   return file.openedDate ? `Opened • ${file.openedDate}` : "In Drive";
 }
 
-function DriveAccountBadge({
-  file,
-  compact = false,
-}: {
-  file: FileItem;
-  compact?: boolean;
-}) {
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const avatarSrc = getProfileImageUrl({
-    image: file.accountAvatarUrl,
-    size: 64,
-  });
-  const label =
-    file.accountEmail ||
-    file.accountDisplayName ||
-    file.accountProvider ||
-    "Google Drive";
-  const showAvatar = Boolean(avatarSrc) && !avatarFailed;
-
-  return (
-    <span
-      className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/5 dark:bg-surface dark:ring-white/10",
-        compact ? "h-4 w-4" : "h-6 w-6",
-      )}
-      title={label}
-    >
-      {showAvatar ? (
-        <img
-          src={avatarSrc}
-          alt=""
-          className="h-full w-full object-cover"
-          loading="lazy"
-          onError={() => setAvatarFailed(true)}
-        />
-      ) : (
-        <GoogleDriveLogo
-          className={compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"}
-          showFallbackIcon
-        />
-      )}
-    </span>
-  );
-}
-
 function DriveFileCard({
   file,
   selected,
@@ -173,7 +127,7 @@ function DriveFileCard({
         "group relative flex cursor-grab flex-col overflow-hidden border transition active:cursor-grabbing",
         sizeScale === "xs" ? "rounded-lg" : "rounded-xl",
         selected
-          ? "border-[#0b57d0] bg-[#c2e7ff] dark:border-primary dark:bg-primary/25"
+          ? "border-primary bg-primary/25 dark:border-primary dark:bg-primary/25"
           : "border-transparent bg-[#f0f4f9] hover:shadow-sm dark:bg-surface-secondary",
       )}
     >
@@ -229,7 +183,7 @@ function DriveFileCard({
       </div>
 
       <div className={cn("flex items-center", cfg.footer)}>
-        <DriveAccountBadge file={file} compact={sizeScale === "xs"} />
+        <AccountAccessBadge file={file} compact={sizeScale === "xs"} />
         <p
           className={cn(
             "min-w-0 truncate text-muted",

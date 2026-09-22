@@ -1,18 +1,17 @@
 "use client";
 
 import {
-  ArrowRotateRight,
   Bell,
   Camera,
   CircleInfo,
   Envelope,
   FileText,
-  Key,
   Lock,
   Megaphone,
   Pencil,
   Plus,
   TrashBin,
+  TriangleExclamation,
 } from "@gravity-ui/icons";
 import { Button, Switch, toast } from "@heroui/react";
 import Link from "next/link";
@@ -46,6 +45,11 @@ import { sessionUserToAuthUser } from "@/lib/auth-user";
 import { getProfileImageUrl } from "@/lib/gravatar";
 import { fileToAvatarDataUrl } from "@/lib/profile-avatar";
 import { providerLabel } from "@/lib/providers";
+import {
+  loadProviderOrder,
+  PROVIDER_ORDER_CHANGED_EVENT,
+  sortAccountsByProviderOrder,
+} from "@/lib/provider-order";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +59,6 @@ const SETTINGS_NAV = [
   { id: "settings-subscription", label: "Subscription" },
   { id: "settings-preferences", label: "Preferences" },
   { id: "settings-accounts", label: "Accounts" },
-  { id: "settings-api-keys", label: "API keys" },
   { id: "settings-delete", label: "Delete account" },
 ] as const;
 
@@ -93,17 +96,6 @@ type ConnectedAccount = {
   } | null;
 };
 
-type ApiKeyRow = {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  scopes: string[];
-  status: string;
-  lastUsedAt: string | null;
-  expiresAt: string | null;
-  createdAt: string;
-};
-
 type LinkedAccount = {
   id: string;
   providerId: string;
@@ -133,9 +125,6 @@ const DEFAULT_PREFS: SettingsPrefs = {
   announcements: true,
 };
 
-const inputClassName =
-  "h-10 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20";
-
 function splitDisplayName(fullName: string) {
   const trimmed = fullName.trim();
   if (!trimmed) return { firstName: "", lastName: "" };
@@ -164,41 +153,17 @@ function savePrefs(prefs: SettingsPrefs) {
   } catch {}
 }
 
-function providerIconTint(provider: string) {
-  switch (provider) {
-    case "google_drive":
-    case "google_shared_drive":
-    case "google_photos":
-      return "bg-rose-50";
-    case "dropbox":
-      return "bg-sky-50";
-    case "onedrive":
-      return "bg-blue-50";
-    case "pcloud":
-      return "bg-indigo-50";
-    default:
-      return "bg-surface-secondary";
-  }
-}
-
 function ConnectedAccountProviderIcon({ provider }: { provider: string }) {
   return (
-    <span
-      className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-        providerIconTint(provider),
-      )}
-    >
-      <ProviderBrandIcon
-        name={provider}
-        className="h-6 w-6"
-        fallback={
-          <span className="text-sm font-bold text-foreground">
-            {providerLabel(provider).charAt(0)}
-          </span>
-        }
-      />
-    </span>
+    <ProviderBrandIcon
+      name={provider}
+      className="h-8 w-8"
+      fallback={
+        <span className="text-sm font-bold text-foreground">
+          {providerLabel(provider).charAt(0)}
+        </span>
+      }
+    />
   );
 }
 
@@ -275,12 +240,21 @@ export function SettingsPage() {
   const hasSmartDistribution = hasFeature("smartDistribution");
 
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
-  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
+  const [providerOrder, setProviderOrder] = useState<string[]>([]);
+  const orderedAccounts = useMemo(
+    () => sortAccountsByProviderOrder(accounts, providerOrder),
+    [accounts, providerOrder],
+  );
   const [disconnectingAccountId, setDisconnectingAccountId] = useState<
     string | null
   >(null);
   const [accountToDisconnect, setAccountToDisconnect] =
     useState<ConnectedAccount | null>(null);
+  const [accountToEdit, setAccountToEdit] = useState<ConnectedAccount | null>(
+    null,
+  );
+  const [editAlias, setEditAlias] = useState("");
+  const [savingAlias, setSavingAlias] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [routingPolicy, setRoutingPolicy] = useState<RoutingPolicy>({
@@ -300,12 +274,6 @@ export function SettingsPage() {
 
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
-
-  const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
-  const [apiKeyName, setApiKeyName] = useState("");
-  const [creatingApiKey, setCreatingApiKey] = useState(false);
-  const [revokingApiKeyId, setRevokingApiKeyId] = useState<string | null>(null);
-  const [newApiKeySecret, setNewApiKeySecret] = useState<string | null>(null);
 
   const [prefs, setPrefs] = useState<SettingsPrefs>(DEFAULT_PREFS);
   const [prefsReady, setPrefsReady] = useState(false);
@@ -450,11 +418,6 @@ export function SettingsPage() {
     (account) => account.providerId === "google",
   );
 
-  const loadApiKeys = useCallback(async () => {
-    const data = await apiFetch<{ keys: ApiKeyRow[] }>("/api-keys");
-    setApiKeys(data.keys);
-  }, []);
-
   const loadLinkedAccounts = useCallback(async () => {
     setLoadingAccounts(true);
     try {
@@ -469,12 +432,12 @@ export function SettingsPage() {
     }
   }, []);
 
-  async function loadAccounts() {
+  const loadAccounts = useCallback(async () => {
     const accountsData = await apiFetch<{ accounts: ConnectedAccount[] }>(
       "/connected-accounts",
     );
     setAccounts(accountsData.accounts);
-  }
+  }, []);
 
   function reloadAfterConnect() {
     loadAccounts()
@@ -554,9 +517,48 @@ export function SettingsPage() {
 
   useEffect(() => {
     loadAccounts().catch(() => undefined);
-    loadApiKeys().catch(() => undefined);
     loadLinkedAccounts().catch(() => undefined);
-  }, [loadApiKeys, loadLinkedAccounts]);
+  }, [loadAccounts, loadLinkedAccounts]);
+
+  useEffect(() => {
+    setProviderOrder(loadProviderOrder());
+    function onProviderOrderChanged() {
+      setProviderOrder(loadProviderOrder());
+    }
+    window.addEventListener(
+      PROVIDER_ORDER_CHANGED_EVENT,
+      onProviderOrderChanged,
+    );
+    window.addEventListener("storage", onProviderOrderChanged);
+    return () => {
+      window.removeEventListener(
+        PROVIDER_ORDER_CHANGED_EVENT,
+        onProviderOrderChanged,
+      );
+      window.removeEventListener("storage", onProviderOrderChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    function onStorageChanged() {
+      loadAccounts().catch(() => undefined);
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        loadAccounts().catch(() => undefined);
+        setProviderOrder(loadProviderOrder());
+      }
+    }
+    window.addEventListener("archivecloud:storage-changed", onStorageChanged);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener(
+        "archivecloud:storage-changed",
+        onStorageChanged,
+      );
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [loadAccounts]);
 
   useEffect(() => {
     if (!planLoaded || !hasSmartDistribution) return;
@@ -643,16 +645,50 @@ export function SettingsPage() {
     }
   }
 
-  async function sync(accountId: string) {
-    setSyncingAccountId(accountId);
+  function openEditAlias(account: ConnectedAccount) {
+    const current =
+      account.displayName?.trim() || `My ${providerLabel(account.provider)}`;
+    setAccountToEdit(account);
+    setEditAlias(current.slice(0, 50));
+  }
+
+  function closeEditAlias() {
+    if (savingAlias) return;
+    setAccountToEdit(null);
+    setEditAlias("");
+  }
+
+  async function saveAlias() {
+    if (!accountToEdit) return;
+    const nextAlias = editAlias.trim();
+    if (!nextAlias) {
+      toast.danger("Alias cannot be empty.");
+      return;
+    }
+    const current =
+      accountToEdit.displayName?.trim() ||
+      `My ${providerLabel(accountToEdit.provider)}`;
+    if (nextAlias === current) {
+      closeEditAlias();
+      return;
+    }
+    setSavingAlias(true);
     try {
-      await apiFetch(`/connected-accounts/${accountId}/sync-quota`, {
-        method: "POST",
+      await apiFetch(`/connected-accounts/${accountToEdit.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ alias: nextAlias }),
       });
+      toast.success("Account renamed.");
+      setAccountToEdit(null);
+      setEditAlias("");
       await loadAccounts();
       window.dispatchEvent(new Event("archivecloud:storage-changed"));
+    } catch (error) {
+      toast.danger(
+        error instanceof Error ? error.message : "Failed to update alias",
+      );
     } finally {
-      setSyncingAccountId(null);
+      setSavingAlias(false);
     }
   }
 
@@ -678,48 +714,6 @@ export function SettingsPage() {
     }
   }
 
-  async function createApiKey() {
-    const name = apiKeyName.trim() || "API key";
-    setCreatingApiKey(true);
-    try {
-      const created = await apiFetch<{ key: ApiKeyRow; secret: string }>(
-        "/api-keys",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name,
-            scopes: ["accounts:read", "transfers"],
-          }),
-        },
-      );
-      setNewApiKeySecret(created.secret);
-      setApiKeyName("");
-      toast.success("API key created.");
-      await loadApiKeys();
-    } catch (error) {
-      toast.danger(
-        error instanceof Error ? error.message : "Failed to create API key",
-      );
-    } finally {
-      setCreatingApiKey(false);
-    }
-  }
-
-  async function revokeApiKey(id: string) {
-    setRevokingApiKeyId(id);
-    try {
-      await apiFetch(`/api-keys/${id}`, { method: "DELETE" });
-      toast.success("API key revoked.");
-      await loadApiKeys();
-    } catch (error) {
-      toast.danger(
-        error instanceof Error ? error.message : "Failed to revoke API key",
-      );
-    } finally {
-      setRevokingApiKeyId(null);
-    }
-  }
-
   if (isPending) {
     return (
       <main className="p-8">
@@ -732,7 +726,6 @@ export function SettingsPage() {
     <>
       <div className="relative flex gap-20 pb-8 lg:gap-28">
         <div className="min-w-0 flex-1 space-y-5">
-          {}
           <div id="settings-profile" className="scroll-mt-24">
             <PageHeader
               title="Profile"
@@ -745,7 +738,7 @@ export function SettingsPage() {
               </h2>
 
               <div className="mt-5 flex flex-col gap-2">
-                <div className="group relative size-24 shrink-0 overflow-hidden rounded-full">
+                <div className="group relative w-fit shrink-0">
                   <UserAvatar
                     name={user?.name}
                     email={user?.email}
@@ -753,6 +746,8 @@ export function SettingsPage() {
                       profileImageUrl && !avatarError ? profileImageUrl : null
                     }
                     size="lg"
+                    storyRing
+                    storyRingThick
                     className="size-24"
                     fallbackClassName="text-2xl font-bold"
                     alt="User"
@@ -760,12 +755,14 @@ export function SettingsPage() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-x-0 bottom-0 z-10 flex h-1/2 w-full cursor-pointer items-center justify-center rounded-b-full border-0 bg-black/40 p-0 opacity-0 shadow-none transition-opacity hover:bg-black/50 group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-50"
+                    className="absolute inset-[6px] z-10 flex cursor-pointer items-end justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 opacity-0 shadow-none transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-50"
                     onClick={() => avatarInputRef.current?.click()}
                     disabled={savingAvatar}
                     aria-label="Change photo"
                   >
-                    <Camera className="size-5 text-white" aria-hidden />
+                    <span className="flex h-1/2 w-full items-center justify-center bg-black/40 hover:bg-black/50">
+                      <Camera className="size-5 text-white" aria-hidden />
+                    </span>
                     <span className="sr-only">Change photo</span>
                   </button>
                   <input
@@ -879,7 +876,6 @@ export function SettingsPage() {
             )}
           </div>
 
-          {}
           <div className="pt-4">
             <h2 className="text-2xl font-extrabold tracking-tight text-foreground">
               Settings
@@ -1158,7 +1154,6 @@ export function SettingsPage() {
             </SettingsCard>
           </div>
 
-          {}
           <SettingsCard id="settings-accounts">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
@@ -1179,7 +1174,7 @@ export function SettingsPage() {
               </Button>
             </div>
 
-            {accounts.length === 0 ? (
+            {orderedAccounts.length === 0 ? (
               <div className="mt-6 flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-border px-4 py-8">
                 <p className="text-center text-sm text-muted">
                   No connected accounts yet. Click Connect Account to link a
@@ -1188,12 +1183,11 @@ export function SettingsPage() {
               </div>
             ) : (
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {accounts.map((account) => {
+                {orderedAccounts.map((account) => {
                   const title =
                     account.displayName?.trim() ||
                     `My ${providerLabel(account.provider)}`;
                   const connectedOn = formatConnectedOn(account.createdAt);
-                  const isSyncing = syncingAccountId === account.id;
 
                   return (
                     <div
@@ -1207,19 +1201,12 @@ export function SettingsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            title="Sync quota"
-                            aria-label={`Sync ${title}`}
-                            disabled={isSyncing}
-                            onClick={() =>
-                              sync(account.id).catch(() => undefined)
-                            }
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                            title="Edit alias"
+                            aria-label={`Edit alias for ${title}`}
+                            onClick={() => openEditAlias(account)}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10"
                           >
-                            {isSyncing ? (
-                              <ArrowRotateRight className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Pencil className="h-4 w-4" />
-                            )}
+                            <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
@@ -1255,104 +1242,7 @@ export function SettingsPage() {
             )}
           </SettingsCard>
 
-          {}
-          <SettingsCard id="settings-api-keys">
-            <div className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-foreground" />
-              <h3 className="text-base font-bold text-foreground">API keys</h3>
-            </div>
-            <p className="mt-2 text-sm text-muted">
-              Automate Archive Cloud with Bearer keys for{" "}
-              <code className="rounded bg-surface-secondary px-1 text-xs">
-                /api/v1/accounts
-              </code>{" "}
-              and{" "}
-              <code className="rounded bg-surface-secondary px-1 text-xs">
-                /api/v1/transfers
-              </code>
-              .
-            </p>
-            {newApiKeySecret ? (
-              <div className="mt-3 rounded-xl border border-border bg-surface-secondary p-3">
-                <p className="text-xs font-semibold text-muted">
-                  Copy this key now. It won’t be shown again.
-                </p>
-                <code className="mt-2 block break-all text-sm">
-                  {newApiKeySecret}
-                </code>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onPress={() => {
-                      void navigator.clipboard.writeText(newApiKeySecret);
-                      toast.success("Copied to clipboard.");
-                    }}
-                  >
-                    Copy
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onPress={() => setNewApiKeySecret(null)}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <input
-                className={`${inputClassName} max-w-xs`}
-                placeholder="Key name (e.g. CI bot)"
-                value={apiKeyName}
-                onChange={(event) => setApiKeyName(event.target.value)}
-              />
-              <Button
-                size="sm"
-                onPress={() => createApiKey().catch(() => undefined)}
-                isDisabled={creatingApiKey}
-              >
-                {creatingApiKey ? "Creating..." : "Create API key"}
-              </Button>
-            </div>
-            <div className="mt-3 grid gap-2">
-              {apiKeys.length === 0 ? (
-                <p className="text-sm text-muted">No API keys yet.</p>
-              ) : (
-                apiKeys.map((key) => (
-                  <div
-                    key={key.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-secondary px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">{key.name}</p>
-                      <p className="text-xs text-muted">
-                        {key.keyPrefix}… · {key.status}
-                      </p>
-                    </div>
-                    {key.status === "active" ? (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        isDisabled={revokingApiKeyId === key.id}
-                        onPress={() =>
-                          revokeApiKey(key.id).catch(() => undefined)
-                        }
-                      >
-                        {revokingApiKeyId === key.id ? "Revoking..." : "Revoke"}
-                      </Button>
-                    ) : null}
-                  </div>
-                ))
-              )}
-            </div>
-          </SettingsCard>
-
           <DeleteAccountSection email={user?.email ?? ""} />
-
-          {}
-          <div aria-hidden className="h-[45vh] shrink-0" />
         </div>
 
         <aside className="hidden w-40 shrink-0 lg:block">
@@ -1383,12 +1273,79 @@ export function SettingsPage() {
       ) : null}
 
       <DummyModal
+        open={Boolean(accountToEdit)}
+        title="Rename Account"
+        onClose={closeEditAlias}
+      >
+        <div className="grid gap-5">
+          <div className="grid gap-2">
+            <label
+              htmlFor="edit-account-alias"
+              className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+            >
+              Account Name
+              <span className="text-danger" aria-hidden>
+                *
+              </span>
+              <CircleInfo className="h-3.5 w-3.5 text-primary" aria-hidden />
+            </label>
+            <input
+              id="edit-account-alias"
+              className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={editAlias}
+              onChange={(event) =>
+                setEditAlias(event.target.value.slice(0, 50))
+              }
+              maxLength={50}
+              autoComplete="off"
+              disabled={savingAlias}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void saveAlias();
+                }
+              }}
+            />
+            <p className="text-xs text-muted">
+              {editAlias.length}/50 characters
+            </p>
+          </div>
+          <div>
+            <Button
+              variant="primary"
+              onPress={() => void saveAlias()}
+              isDisabled={savingAlias || !editAlias.trim()}
+            >
+              {savingAlias ? "Renaming..." : "Rename"}
+            </Button>
+          </div>
+        </div>
+      </DummyModal>
+
+      <DummyModal
         open={Boolean(accountToDisconnect)}
-        title="Disconnect storage?"
-        description="This will remove this storage account from Archive Cloud."
-        onClose={() => setAccountToDisconnect(null)}
+        title="Disconnect Cloud Account"
+        size="lg"
+        className="sm:min-w-[36rem]"
+        onClose={() => {
+          if (disconnectingAccountId) return;
+          setAccountToDisconnect(null);
+        }}
       >
         <div className="grid gap-4">
+          {accountToDisconnect ? (
+            <p className="text-sm leading-relaxed text-muted">
+              Are you sure you want to disconnect the{" "}
+              <span className="font-semibold text-foreground">
+                {accountToDisconnect.displayName?.trim() ||
+                  `My ${providerLabel(accountToDisconnect.provider)}`}
+              </span>{" "}
+              cloud account from your Archive Cloud account? This action will
+              remove Archive Cloud&apos;s access to the account. You can
+              reconnect it at any time.
+            </p>
+          ) : null}
+
           <div className="rounded-xl bg-background-secondary p-4 text-sm text-muted">
             <p className="font-semibold text-foreground">
               {accountToDisconnect?.email}
@@ -1403,6 +1360,18 @@ export function SettingsPage() {
               {formatBytes(accountToDisconnect?.storageAccount?.usedBytes)}
             </p>
           </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
+              <TriangleExclamation className="h-4 w-4 shrink-0" />
+              Warning
+            </div>
+            <p className="mt-1.5 text-sm leading-relaxed text-amber-800/90">
+              If you have any active schedule jobs, they will also be deleted
+              automatically.
+            </p>
+          </div>
+
           <div className="grid gap-3 sm:flex sm:justify-end">
             <Button
               variant="outline"
@@ -1416,7 +1385,6 @@ export function SettingsPage() {
               onPress={disconnect}
               isDisabled={Boolean(disconnectingAccountId)}
             >
-              <TrashBin className="h-4 w-4" />
               {disconnectingAccountId ? "Disconnecting..." : "Disconnect"}
             </Button>
           </div>

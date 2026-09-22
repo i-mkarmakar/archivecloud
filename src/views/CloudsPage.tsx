@@ -111,6 +111,13 @@ export function CloudsPage() {
   }, [loadAccounts]);
 
   useEffect(() => {
+    const nextAccountId = sp.get("accountId");
+    const nextParentId = sp.get("parentId");
+    if (nextAccountId) setAccountId(nextAccountId);
+    if (nextParentId) setParentId(nextParentId);
+  }, [sp]);
+
+  useEffect(() => {
     loadBrowse().catch(() => undefined);
   }, [loadBrowse]);
 
