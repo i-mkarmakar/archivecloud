@@ -2,7 +2,8 @@
 
 import { Drawer, toast, useOverlayState } from "@heroui/react";
 import { useSearchParams } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { BillingSuccessOverlay } from "@/components/billing/BillingSuccessOverlay";
 import { dashboardContentClassName } from "@/components/dashboard/config";
 import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
@@ -332,6 +333,10 @@ export function DriveLayout({ children }: { children: ReactNode }) {
         }
         onRetry={retryFailedUpload}
       />
+
+      <Suspense fallback={null}>
+        <BillingSuccessOverlay />
+      </Suspense>
     </div>
   );
 }

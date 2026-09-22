@@ -139,3 +139,229 @@ export async function createBillingCheckoutHandler(request: Request) {
 
   return json({ url: checkout.url, checkoutId: checkout.id });
 }
+
+function orderBelongsToUser(
+  order: {
+    customerId: string;
+    customer: { externalId?: string | null; email?: string | null };
+    metadata: Record<string, unknown>;
+  },
+  user: { id: string; email: string; polarCustomerId: string | null },
+) {
+  const userId = user.id.trim();
+  const metaUserId = order.metadata?.userId;
+  if (typeof metaUserId === "string" && metaUserId.trim() === userId)
+    return true;
+  if (order.customer.externalId?.trim() === userId) return true;
+  if (user.polarCustomerId && order.customerId === user.polarCustomerId)
+    return true;
+  if (
+    order.customer.email &&
+    order.customer.email.toLowerCase() === user.email.toLowerCase()
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function resolveDownloadUrl(
+  polar: ReturnType<typeof createPolarClient>,
+  orderId: string,
+  alreadyGenerated: boolean,
+): Promise<string | null> {
+  // Invoice PDF needs billing name/address; generation can fail or lag.
+  // Prefer invoice when ready, otherwise fall back to receipt PDF.
+  try {
+    if (!alreadyGenerated) {
+      try {
+        await polar.orders.generateInvoice({ id: orderId });
+      } catch {
+        // Missing billing details or already generating.
+      }
+    }
+    try {
+      const invoice = await polar.orders.invoice({ id: orderId });
+      if (invoice.url) return invoice.url;
+    } catch {
+      // Not ready yet.
+    }
+  } catch {
+    // Ignore and try receipt.
+  }
+
+  try {
+    const receipt = await polar.orders.receipt({ id: orderId });
+    if (receipt?.url) return receipt.url;
+  } catch {
+    // Receipt may still be rendering (202).
+  }
+
+  return null;
+}
+
+export async function getBillingInvoiceHandler(request: Request) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+
+  if (!isPolarConfigured()) {
+    return errorJson(
+      "BILLING_NOT_CONFIGURED",
+      "Polar billing is not configured yet.",
+      503,
+    );
+  }
+
+  const url = new URL(request.url);
+  const checkoutId = url.searchParams.get("checkout_id")?.trim();
+  const orderId = url.searchParams.get("order_id")?.trim();
+  if (!checkoutId && !orderId) {
+    return errorJson(
+      "VALIDATION_ERROR",
+      "checkout_id or order_id is required.",
+      400,
+    );
+  }
+
+  const dbUser = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { email: true, polarCustomerId: true },
+  });
+
+  const polar = createPolarClient();
+  let order: Awaited<ReturnType<typeof polar.orders.get>> | null = null;
+
+  if (orderId) {
+    try {
+      order = await polar.orders.get({ id: orderId });
+    } catch {
+      order = null;
+    }
+  } else if (checkoutId) {
+    const page = await polar.orders.list({
+      checkoutId,
+      limit: 1,
+    });
+    order = page.result.items[0] ?? null;
+
+    if (!order) {
+      const byCustomer = await polar.orders.list({
+        externalCustomerId: user.id.trim(),
+        limit: 1,
+        sorting: ["-created_at"],
+      });
+      order = byCustomer.result.items[0] ?? null;
+    }
+  }
+
+  if (
+    !order ||
+    !orderBelongsToUser(order, {
+      id: user.id,
+      email: dbUser.email,
+      polarCustomerId: dbUser.polarCustomerId,
+    })
+  ) {
+    return json({
+      invoiceNumber: null,
+      downloadUrl: null,
+      pending: true,
+    });
+  }
+
+  const invoiceNumber = order.invoiceNumber;
+  if (!invoiceNumber) {
+    return json({
+      invoiceNumber: null,
+      downloadUrl: null,
+      pending: true,
+    });
+  }
+
+  const downloadUrl = await resolveDownloadUrl(
+    polar,
+    order.id,
+    order.isInvoiceGenerated,
+  );
+
+  return json({
+    invoiceNumber,
+    downloadUrl,
+    pending: !downloadUrl,
+  });
+}
+
+export async function listBillingHistoryHandler(request: Request) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+
+  if (!isPolarConfigured()) {
+    return errorJson(
+      "BILLING_NOT_CONFIGURED",
+      "Polar billing is not configured yet.",
+      503,
+    );
+  }
+
+  const dbUser = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { email: true, polarCustomerId: true },
+  });
+
+  const polar = createPolarClient();
+  const externalId = user.id.trim();
+
+  const pages = await Promise.all([
+    polar.orders.list({
+      externalCustomerId: externalId,
+      limit: 50,
+      sorting: ["-created_at"],
+    }),
+    user.id !== externalId
+      ? polar.orders.list({
+          externalCustomerId: user.id,
+          limit: 50,
+          sorting: ["-created_at"],
+        })
+      : Promise.resolve(null),
+    dbUser.polarCustomerId
+      ? polar.orders.list({
+          customerId: dbUser.polarCustomerId,
+          limit: 50,
+          sorting: ["-created_at"],
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const byId = new Map<string, (typeof pages)[0]["result"]["items"][number]>();
+  for (const page of pages) {
+    if (!page) continue;
+    for (const item of page.result.items) {
+      byId.set(item.id, item);
+    }
+  }
+
+  const items = [...byId.values()]
+    .filter((order) =>
+      orderBelongsToUser(order, {
+        id: user.id,
+        email: dbUser.email,
+        polarCustomerId: dbUser.polarCustomerId,
+      }),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .map((order) => ({
+      id: order.id,
+      invoiceNumber: order.invoiceNumber,
+      status: order.status,
+      paid: order.paid,
+      totalAmount: order.totalAmount,
+      currency: order.currency,
+      createdAt: order.createdAt.toISOString(),
+      checkoutId: order.checkoutId,
+    }));
+
+  return json({ items });
+}

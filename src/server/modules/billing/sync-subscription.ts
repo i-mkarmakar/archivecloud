@@ -8,10 +8,18 @@ type PolarSubscriptionLike = {
   id: string;
   status: string;
   cancelAtPeriodEnd?: boolean | null;
+  cancel_at_period_end?: boolean | null;
   currentPeriodEnd?: string | Date | null;
+  current_period_end?: string | Date | null;
   customerId?: string | null;
-  customer?: { id?: string; externalId?: string | null } | null;
+  customer_id?: string | null;
+  customer?: {
+    id?: string;
+    externalId?: string | null;
+    external_id?: string | null;
+  } | null;
   productId?: string | null;
+  product_id?: string | null;
   product?: { id?: string } | null;
   metadata?: Record<string, unknown> | null;
 };
@@ -21,12 +29,19 @@ type PolarOrderLike = {
   status?: string | null;
   paid?: boolean | null;
   customerId?: string | null;
-  customer?: { id?: string; externalId?: string | null } | null;
+  customer_id?: string | null;
+  customer?: {
+    id?: string;
+    externalId?: string | null;
+    external_id?: string | null;
+  } | null;
   productId?: string | null;
+  product_id?: string | null;
   product?: { id?: string } | null;
   metadata?: Record<string, unknown> | null;
   items?: Array<{
     productId?: string | null;
+    product_id?: string | null;
     product?: { id?: string } | null;
   }> | null;
 };
@@ -39,12 +54,20 @@ function asDate(value: string | Date | null | undefined): Date | null {
 
 function resolveUserId(entity: {
   metadata?: Record<string, unknown> | null;
-  customer?: { externalId?: string | null } | null;
+  customer?: {
+    externalId?: string | null;
+    external_id?: string | null;
+  } | null;
 }): string | null {
-  const fromMeta = entity.metadata?.userId;
-  if (typeof fromMeta === "string" && fromMeta.length > 0) return fromMeta;
-  const external = entity.customer?.externalId;
-  if (typeof external === "string" && external.length > 0) return external;
+  const fromMeta = entity.metadata?.userId ?? entity.metadata?.user_id;
+  if (typeof fromMeta === "string" && fromMeta.trim().length > 0) {
+    return fromMeta.trim();
+  }
+  const external =
+    entity.customer?.externalId ?? entity.customer?.external_id ?? null;
+  if (typeof external === "string" && external.trim().length > 0) {
+    return external.trim();
+  }
   return null;
 }
 
@@ -52,7 +75,7 @@ function resolvePlanIdFromMetaAndProduct(
   metadata: Record<string, unknown> | null | undefined,
   productId: string | null | undefined,
 ): PlanId {
-  const fromMeta = metadata?.planId;
+  const fromMeta = metadata?.planId ?? metadata?.plan_id;
   if (typeof fromMeta === "string") {
     if (
       fromMeta === "thunder" ||
@@ -73,8 +96,12 @@ function resolvePlanIdFromMetaAndProduct(
 
 function orderProductId(order: PolarOrderLike): string {
   if (order.productId) return order.productId;
+  if (order.product_id) return order.product_id;
   if (order.product?.id) return order.product.id;
-  const fromItem = order.items?.[0]?.productId ?? order.items?.[0]?.product?.id;
+  const fromItem =
+    order.items?.[0]?.productId ??
+    order.items?.[0]?.product_id ??
+    order.items?.[0]?.product?.id;
   if (fromItem) return fromItem;
   return "unknown";
 }
@@ -101,9 +128,11 @@ export async function upsertPolarSubscription(sub: PolarSubscriptionLike) {
     return;
   }
 
-  const productId = sub.productId ?? sub.product?.id ?? "unknown";
+  const productId =
+    sub.productId ?? sub.product_id ?? sub.product?.id ?? "unknown";
   const planId = resolvePlanIdFromMetaAndProduct(sub.metadata, productId);
-  const polarCustomerId = sub.customerId ?? sub.customer?.id ?? null;
+  const polarCustomerId =
+    sub.customerId ?? sub.customer_id ?? sub.customer?.id ?? null;
 
   await prisma.billingSubscription.upsert({
     where: { polarSubscriptionId: sub.id },
@@ -113,15 +142,19 @@ export async function upsertPolarSubscription(sub: PolarSubscriptionLike) {
       polarProductId: productId,
       planId,
       status: sub.status,
-      currentPeriodEnd: asDate(sub.currentPeriodEnd),
-      cancelAtPeriodEnd: Boolean(sub.cancelAtPeriodEnd),
+      currentPeriodEnd: asDate(sub.currentPeriodEnd ?? sub.current_period_end),
+      cancelAtPeriodEnd: Boolean(
+        sub.cancelAtPeriodEnd ?? sub.cancel_at_period_end,
+      ),
     },
     update: {
       polarProductId: productId,
       planId,
       status: sub.status,
-      currentPeriodEnd: asDate(sub.currentPeriodEnd),
-      cancelAtPeriodEnd: Boolean(sub.cancelAtPeriodEnd),
+      currentPeriodEnd: asDate(sub.currentPeriodEnd ?? sub.current_period_end),
+      cancelAtPeriodEnd: Boolean(
+        sub.cancelAtPeriodEnd ?? sub.cancel_at_period_end,
+      ),
     },
   });
 
@@ -163,7 +196,8 @@ export async function grantLifetimeFromPolarOrder(order: PolarOrderLike) {
 
   const productId = orderProductId(order);
   const planId = resolvePlanIdFromMetaAndProduct(order.metadata, productId);
-  const polarCustomerId = order.customerId ?? order.customer?.id ?? null;
+  const polarCustomerId =
+    order.customerId ?? order.customer_id ?? order.customer?.id ?? null;
   const polarOrderKey = `order:${order.id}`;
 
   await prisma.billingSubscription.upsert({
