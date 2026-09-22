@@ -235,6 +235,8 @@ export function SharedPage() {
   const [viewMode, setViewMode] = useFileViewMode("archivecloud:shared-view");
   const [foldersOpen, setFoldersOpen] = useState(true);
   const [filesOpen, setFilesOpen] = useState(true);
+  const [accountFilterOpen, setAccountFilterOpen] = useState(false);
+  const [sortFilterOpen, setSortFilterOpen] = useState(false);
 
   function patchSharedParams(patch: Record<string, string | null | undefined>) {
     const next = new URLSearchParams(sp.toString());
@@ -569,7 +571,10 @@ export function SharedPage() {
             <FileViewToggle mode={viewMode} onChange={setViewMode} />
           ) : (
             <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-              <Popover>
+              <Popover
+                isOpen={accountFilterOpen}
+                onOpenChange={setAccountFilterOpen}
+              >
                 <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
                   <span className="flex min-w-0 items-center gap-2">
                     {selectedAccount ? (
@@ -595,7 +600,10 @@ export function SharedPage() {
                           ? "bg-primary/10 font-semibold text-primary"
                           : "font-medium text-foreground hover:bg-black/5",
                       )}
-                      onClick={() => patchSharedParams({ accountId: null })}
+                      onClick={() => {
+                        setAccountFilterOpen(false);
+                        patchSharedParams({ accountId: null });
+                      }}
                     >
                       All Accounts
                     </button>
@@ -609,9 +617,10 @@ export function SharedPage() {
                             ? "bg-primary/10 font-semibold text-primary"
                             : "font-medium text-foreground hover:bg-black/5",
                         )}
-                        onClick={() =>
-                          patchSharedParams({ accountId: account.id })
-                        }
+                        onClick={() => {
+                          setAccountFilterOpen(false);
+                          patchSharedParams({ accountId: account.id });
+                        }}
                       >
                         <AccountProviderIcon provider={account.provider} />
                         <span className="min-w-0 flex-1 truncate">
@@ -623,7 +632,7 @@ export function SharedPage() {
                 </Popover.Content>
               </Popover>
 
-              <Popover>
+              <Popover isOpen={sortFilterOpen} onOpenChange={setSortFilterOpen}>
                 <Popover.Trigger className="inline-flex h-10 min-w-[10rem] max-w-[13rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
                   <span className="flex min-w-0 items-center gap-2">
                     <Sliders className="h-4 w-4 shrink-0 text-muted" />
@@ -643,14 +652,15 @@ export function SharedPage() {
                             ? "bg-primary/10 font-semibold text-primary"
                             : "font-medium text-foreground hover:bg-black/5",
                         )}
-                        onClick={() =>
+                        onClick={() => {
+                          setSortFilterOpen(false);
                           patchSharedParams({
                             sort:
                               option.value === "created_desc"
                                 ? null
                                 : option.value,
-                          })
-                        }
+                          });
+                        }}
                       >
                         {option.label}
                       </button>

@@ -14,6 +14,7 @@ import {
   Separator,
 } from "@heroui/react";
 import { Sliders } from "@gravity-ui/icons";
+import { useState } from "react";
 
 type ConnectedAccount = {
   id: string;
@@ -152,11 +153,12 @@ export function SearchFiltersPopover({
   onApply: () => void;
   onClear: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const selectClass =
     "mt-1 block h-10 w-full rounded-xl border border-border bg-background-secondary px-3 text-sm focus:border-border focus:bg-surface focus:outline-none";
 
   return (
-    <Popover>
+    <Popover isOpen={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={buttonVariants({
           variant: "ghost",
@@ -288,7 +290,14 @@ export function SearchFiltersPopover({
           <Separator />
 
           <div className="flex justify-end gap-2 px-4 py-3">
-            <Button variant="primary" size="sm" onPress={onApply}>
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => {
+                setOpen(false);
+                onApply();
+              }}
+            >
               Apply Filters
             </Button>
           </div>

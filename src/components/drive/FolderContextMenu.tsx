@@ -78,6 +78,10 @@ export function FolderContextMenu({
   if (!folder) return null;
   const safeX = Math.max(12, Math.min(x, window.innerWidth - 228));
   const safeY = Math.max(12, Math.min(y, window.innerHeight - 280));
+  const run = (action: () => void) => {
+    onClose();
+    action();
+  };
 
   return (
     <>
@@ -114,19 +118,32 @@ export function FolderContextMenu({
 
         {}
         <div className="p-1.5">
-          <MenuItem icon={Copy} label="Copy Link" onClick={onCopyLink} />
-          <MenuItem icon={Scissors} label="Cut" onClick={onCut} kbd="⌘X" />
-          <MenuItem icon={Pencil} label="Rename" onClick={onRename} />
+          <MenuItem
+            icon={Copy}
+            label="Copy Link"
+            onClick={() => run(onCopyLink)}
+          />
+          <MenuItem
+            icon={Scissors}
+            label="Cut"
+            onClick={() => run(onCut)}
+            kbd="⌘X"
+          />
+          <MenuItem
+            icon={Pencil}
+            label="Rename"
+            onClick={() => run(onRename)}
+          />
           <MenuItem
             icon={PersonPlus}
             label="Invite Member"
-            onClick={onInvite}
+            onClick={() => run(onInvite)}
           />
           <div className="my-1 h-px bg-surface-secondary dark:bg-accent" />
           <MenuItem
             icon={TrashBin}
             label="Delete Folder"
-            onClick={onDelete}
+            onClick={() => run(onDelete)}
             danger
           />
         </div>
