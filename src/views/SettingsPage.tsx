@@ -931,9 +931,9 @@ export function SettingsPage() {
                     </div>
                   </div>
                   {billingEnabled ? (
-                    <Link href="/billing/portal">
+                    <Link href="/billing/history">
                       <Button size="sm" variant="outline" className="shrink-0">
-                        Billing portal
+                        View invoices
                       </Button>
                     </Link>
                   ) : null}
@@ -992,22 +992,15 @@ export function SettingsPage() {
                       Billing & invoices
                     </p>
                     <p className="mt-0.5 text-xs text-muted">
-                      View payment history when checkout is live.
+                      View payment history and download invoices.
                     </p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  onPress={() =>
-                    toast.info(
-                      "Billing history will appear after payments go live.",
-                    )
-                  }
-                >
-                  History
-                </Button>
+                <Link href="/billing/history">
+                  <Button size="sm" variant="outline" className="shrink-0">
+                    History
+                  </Button>
+                </Link>
               </div>
             </div>
           </SettingsCard>

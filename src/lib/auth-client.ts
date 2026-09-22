@@ -7,11 +7,13 @@ import {
 import type { Auth } from "@/lib/auth";
 
 export const authClient = createAuthClient({
+  // Prefer the current page origin so ngrok/public tunnels don't call localhost
+  // from a public HTTPS page (browser blocks that → Failed to fetch).
   baseURL:
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.BETTER_AUTH_URL ||
-    (typeof window !== "undefined"
+    typeof window !== "undefined"
       ? window.location.origin
-      : "http://localhost:9050"),
+      : process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.BETTER_AUTH_URL ||
+        "http://localhost:9050",
   plugins: [inferAdditionalFields<Auth>(), emailOTPClient()],
 });

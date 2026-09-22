@@ -33,7 +33,18 @@ export const auth = betterAuth({
       joins: true,
     },
   },
-  trustedOrigins: [env.BETTER_AUTH_URL],
+  trustedOrigins: [
+    env.BETTER_AUTH_URL,
+    "http://localhost:9050",
+    "http://127.0.0.1:9050",
+    // ngrok (static free domain + legacy hosts) for local webhook testing
+    "*.ngrok-free.app",
+    "https://*.ngrok-free.app",
+    "*.ngrok.app",
+    "https://*.ngrok.app",
+    "*.ngrok.io",
+    "https://*.ngrok.io",
+  ],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

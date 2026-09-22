@@ -171,7 +171,7 @@ export function UpgradePlanModal({
                 <p className="mt-6 text-center text-sm text-muted">
                   Need a receipt or refund help?{" "}
                   <a
-                    href="/billing/portal"
+                    href="/billing/history"
                     className="font-semibold text-foreground underline-offset-4 hover:underline"
                   >
                     Open Polar billing portal
