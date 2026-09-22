@@ -57,7 +57,7 @@ export function ScheduleSummary({
             >
               {operation}
             </span>
-            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700">
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
               Folder
             </span>
           </div>
@@ -97,13 +97,13 @@ export function ScheduleSummary({
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-[#1e9df1]/35 bg-[#1e9df1]/5 p-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#1e9df1]">
+        <div className="rounded-lg border border-primary/35 bg-primary/5 p-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
             Next runs
           </p>
           {startAt ? (
             <div className="mt-1.5 flex items-start gap-2 text-xs">
-              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#1e9df1] text-[9px] font-bold text-white">
+              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
                 1
               </span>
               <div className="min-w-0 flex-1">
@@ -111,7 +111,7 @@ export function ScheduleSummary({
                   <p className="font-semibold leading-snug text-foreground">
                     {fireLabel}
                   </p>
-                  <span className="shrink-0 rounded bg-[#1e9df1] px-1 py-0.5 text-[9px] font-bold uppercase text-white">
+                  <span className="shrink-0 rounded bg-primary px-1 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
                     Next
                   </span>
                 </div>

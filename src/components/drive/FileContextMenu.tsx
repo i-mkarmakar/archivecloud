@@ -74,6 +74,10 @@ export function FileContextMenu({
 
   const safeX = Math.max(12, Math.min(x, window.innerWidth - 240));
   const safeY = Math.max(12, Math.min(y, window.innerHeight - 380));
+  const run = (action: () => void) => {
+    onClose();
+    action();
+  };
 
   return (
     <>
@@ -91,30 +95,47 @@ export function FileContextMenu({
             : { insetInline: "0.75rem", bottom: "0.75rem", position: "fixed" }
         }
       >
-        <MenuItem icon={CircleInfo} label="Details" onClick={onDetails} />
+        <MenuItem
+          icon={CircleInfo}
+          label="Details"
+          onClick={() => run(onDetails)}
+        />
         <MenuItem
           icon={ArrowUpRightFromSquare}
           label="Go to Google Drive"
-          onClick={onGoToDrive}
+          onClick={() => run(onGoToDrive)}
         />
-        <MenuItem icon={Pencil} label="Rename" onClick={onRename} />
+        <MenuItem icon={Pencil} label="Rename" onClick={() => run(onRename)} />
         <MenuItem
           icon={ArrowDownToLine}
           label="Download"
-          onClick={onDownload}
+          onClick={() => run(onDownload)}
         />
-        <MenuItem icon={FolderArrowRight} label="Move" onClick={onMove} />
-        <MenuItem icon={TrashBin} label="Remove" onClick={onRemove} danger />
-        <MenuItem icon={Tag} label="Manage Tags" onClick={onManageTags} />
+        <MenuItem
+          icon={FolderArrowRight}
+          label="Move"
+          onClick={() => run(onMove)}
+        />
+        <MenuItem
+          icon={TrashBin}
+          label="Remove"
+          onClick={() => run(onRemove)}
+          danger
+        />
+        <MenuItem
+          icon={Tag}
+          label="Manage Tags"
+          onClick={() => run(onManageTags)}
+        />
         <MenuItem
           icon={NodesRight}
           label="Public Link"
-          onClick={onPublicLink}
+          onClick={() => run(onPublicLink)}
         />
         <MenuItem
           icon={FolderPlus}
           label="Add to Virtual Folder"
-          onClick={onAddToVirtualFolder}
+          onClick={() => run(onAddToVirtualFolder)}
         />
       </div>
     </>

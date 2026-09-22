@@ -15,9 +15,7 @@ import {
  * Official SDKs ≥ 1.0.0-alpha.19 try both. We mirror that on 0.49.x.
  */
 
-export function polarWebhookHeaders(
-  headers: Headers,
-): Record<string, string> {
+export function polarWebhookHeaders(headers: Headers): Record<string, string> {
   const read = (...names: string[]) => {
     for (const name of names) {
       const value = headers.get(name);

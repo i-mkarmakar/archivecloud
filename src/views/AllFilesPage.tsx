@@ -85,8 +85,55 @@ type ConnectedAccount = {
   provider: string;
   email: string;
   displayName?: string | null;
+  avatarUrl?: string | null;
   status: string;
 };
+
+type ProviderBrowseFolder = {
+  id: string;
+  name: string;
+  modifiedTime: string;
+};
+
+type ProviderBrowseFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: string;
+  modifiedTime: string;
+  dbFileId?: string | null;
+};
+
+type ProviderBrowseResult = {
+  folders: ProviderBrowseFolder[];
+  files: ProviderBrowseFile[];
+};
+
+const ACCOUNT_FOLDER_PREFIX = "account:";
+const LINKED_FOLDER_PREFIX = "linked:";
+const LINKED_FILE_PREFIX = "linked:";
+
+function isAccountFolderId(id: string | undefined | null) {
+  return Boolean(id?.startsWith(ACCOUNT_FOLDER_PREFIX));
+}
+
+function isLinkedFolderId(id: string | undefined | null) {
+  return Boolean(id?.startsWith(LINKED_FOLDER_PREFIX));
+}
+
+function isLinkedFileId(id: string | undefined | null) {
+  return Boolean(id?.startsWith(LINKED_FILE_PREFIX));
+}
+
+function parseLinkedRef(id: string) {
+  const rest = id.slice(LINKED_FOLDER_PREFIX.length);
+  const splitAt = rest.indexOf(":");
+  if (splitAt <= 0) return null;
+  return {
+    accountId: rest.slice(0, splitAt),
+    providerId: rest.slice(splitAt + 1),
+  };
+}
 
 type FileSort =
   | "created_desc"
@@ -294,6 +341,11 @@ export function AllFilesPage() {
   >([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [selectedTargetAccountId, setSelectedTargetAccountId] = useState("");
+  const [linkedFolders, setLinkedFolders] = useState<FolderItem[]>([]);
+  const [linkedFiles, setLinkedFiles] = useState<FileItem[]>([]);
+  const [linkedLoading, setLinkedLoading] = useState(false);
+  const [accountFilterOpen, setAccountFilterOpen] = useState(false);
+  const [sortFilterOpen, setSortFilterOpen] = useState(false);
 
   async function loadFiles() {
     const params = new URLSearchParams();
@@ -343,6 +395,149 @@ export function AllFilesPage() {
 
   async function loadAll() {
     await Promise.all([loadFiles(), loadFolders()]);
+  }
+
+  function mapLinkedFolder(
+    account: ConnectedAccount,
+    folder: ProviderBrowseFolder,
+  ): FolderItem {
+    return {
+      id: `${LINKED_FOLDER_PREFIX}${account.id}:${folder.id}`,
+      name: folder.name,
+      color: defaultFolderColor,
+      updated: `${providerLabel(account.provider)} · ${formatDate(folder.modifiedTime)}`,
+      providerFolderId: folder.id,
+    };
+  }
+
+  function mapLinkedFile(
+    account: ConnectedAccount,
+    file: ProviderBrowseFile,
+  ): FileItem {
+    const mapped = mapApiFileToItem({
+      id: file.dbFileId || `${LINKED_FILE_PREFIX}${account.id}:${file.id}`,
+      name: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes || "0",
+      createdAt: file.modifiedTime,
+      updatedAt: file.modifiedTime,
+      providerFileId: file.id,
+      connectedAccountId: account.id,
+      connectedAccount: {
+        id: account.id,
+        email: account.email,
+        provider: account.provider,
+        displayName: account.displayName,
+        avatarUrl: account.avatarUrl ?? null,
+      },
+    });
+    return {
+      ...mapped,
+      accountAvatarUrl: account.avatarUrl ?? mapped.accountAvatarUrl ?? null,
+      thumbnailUrl: file.dbFileId
+        ? `/files/${file.dbFileId}/thumbnail`
+        : `/connected-accounts/${account.id}/files/${encodeURIComponent(file.id)}/preview`,
+    };
+  }
+
+  function mapAccountAsFolder(account: ConnectedAccount): FolderItem {
+    return {
+      id: `${ACCOUNT_FOLDER_PREFIX}${account.id}`,
+      name: accountTitle(account),
+      color: defaultFolderColor,
+      updated: providerLabel(account.provider),
+    };
+  }
+
+  async function loadLinkedStorage(accounts: ConnectedAccount[]) {
+    if (activeFolderId || searchQuery) {
+      setLinkedFolders([]);
+      setLinkedFiles([]);
+      return;
+    }
+
+    const connected = accounts.filter(
+      (account) => account.status === "connected",
+    );
+    if (connected.length === 0) {
+      setLinkedFolders([]);
+      setLinkedFiles([]);
+      return;
+    }
+
+    setLinkedLoading(true);
+    try {
+      const targets = filterAccountId
+        ? connected.filter((account) => account.id === filterAccountId)
+        : connected;
+
+      if (targets.length === 0) {
+        setLinkedFolders([]);
+        setLinkedFiles([]);
+        return;
+      }
+
+      const results = await Promise.all(
+        targets.map(async (account) => {
+          try {
+            const browse = await apiFetch<ProviderBrowseResult>(
+              `/connected-accounts/${account.id}/browse?parentId=root`,
+            );
+            return { account, browse };
+          } catch (error) {
+            console.warn(
+              `Failed to browse ${account.provider} (${account.id}):`,
+              error instanceof Error ? error.message : error,
+            );
+            return {
+              account,
+              browse: { folders: [], files: [] } as ProviderBrowseResult,
+            };
+          }
+        }),
+      );
+
+      const nextFolders: FolderItem[] = [];
+      const nextFiles: FileItem[] = [];
+
+      for (const { account, browse } of results) {
+        for (const folder of browse.folders ?? []) {
+          const mapped = mapLinkedFolder(account, folder);
+          if (!filterAccountId) {
+            mapped.updated = `${providerLabel(account.provider)} · ${accountTitle(account)}`;
+          }
+          nextFolders.push(mapped);
+        }
+        for (const file of browse.files ?? []) {
+          nextFiles.push(mapLinkedFile(account, file));
+        }
+      }
+
+      // If nothing came back from providers, still show account entry points.
+      if (
+        nextFolders.length === 0 &&
+        nextFiles.length === 0 &&
+        !filterAccountId
+      ) {
+        setLinkedFolders(connected.map(mapAccountAsFolder));
+        setLinkedFiles([]);
+        return;
+      }
+
+      setLinkedFolders(nextFolders);
+      setLinkedFiles(nextFiles);
+    } catch (error) {
+      console.warn("Failed to load linked storage browse:", error);
+      if (!filterAccountId) {
+        setLinkedFolders(connected.map(mapAccountAsFolder));
+        setLinkedFiles([]);
+      } else {
+        setLinkedFolders([]);
+        setLinkedFiles([]);
+      }
+    } finally {
+      setLinkedLoading(false);
+    }
   }
 
   async function handleDropItem(fileId: string, targetFolderId: string) {
@@ -481,6 +676,27 @@ export function AllFilesPage() {
     setSelectedFileIds(new Set());
   }, [activeFolderId, searchQuery, filterAccountId, activeSort]);
 
+  const connectedAccountKey = useMemo(
+    () =>
+      connectedAccounts
+        .filter((account) => account.status === "connected")
+        .map((account) => account.id)
+        .sort()
+        .join(","),
+    [connectedAccounts],
+  );
+
+  useEffect(() => {
+    if (!accountsLoaded) return;
+    void loadLinkedStorage(connectedAccounts);
+  }, [
+    accountsLoaded,
+    connectedAccountKey,
+    filterAccountId,
+    activeFolderId,
+    searchQuery,
+  ]);
+
   const selectedAccount = useMemo(
     () => connectedAccounts.find((account) => account.id === filterAccountId),
     [connectedAccounts, filterAccountId],
@@ -489,9 +705,33 @@ export function AllFilesPage() {
     FILE_SORT_OPTIONS.find((option) => option.value === activeSort)?.label ??
     "Created (Newest)";
 
+  const displayFolders = useMemo(() => {
+    if (activeFolderId || searchQuery) return folders;
+    const byId = new Map<string, FolderItem>();
+    for (const folder of folders) {
+      if (folder.id) byId.set(folder.id, folder);
+    }
+    for (const folder of linkedFolders) {
+      if (folder.id && !byId.has(folder.id)) byId.set(folder.id, folder);
+    }
+    return Array.from(byId.values());
+  }, [activeFolderId, searchQuery, folders, linkedFolders]);
+
+  const displayFiles = useMemo(() => {
+    if (activeFolderId || searchQuery) return files;
+    const byId = new Map<string, FileItem>();
+    for (const file of files) {
+      if (file.id) byId.set(file.id, file);
+    }
+    for (const file of linkedFiles) {
+      if (file.id && !byId.has(file.id)) byId.set(file.id, file);
+    }
+    return Array.from(byId.values());
+  }, [activeFolderId, searchQuery, files, linkedFiles]);
+
   const filesByDay = useMemo(() => {
     const groups = new Map<string, FileItem[]>();
-    for (const file of files) {
+    for (const file of displayFiles) {
       const key = formatDate(
         file.updatedAt ?? file.createdAt ?? new Date().toISOString(),
       );
@@ -500,7 +740,7 @@ export function AllFilesPage() {
       groups.set(key, list);
     }
     return Array.from(groups.entries());
-  }, [files]);
+  }, [displayFiles]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -728,7 +968,9 @@ export function AllFilesPage() {
   }
 
   function toggleAllVisibleFiles() {
-    const visibleIds = files.map((file) => file.id).filter(Boolean) as string[];
+    const visibleIds = displayFiles
+      .map((file) => file.id)
+      .filter(Boolean) as string[];
     const allSelected =
       visibleIds.length > 0 &&
       visibleIds.every((id) => selectedFileIds.has(id));
@@ -740,6 +982,12 @@ export function AllFilesPage() {
   }
 
   function openFolderMenu(event: MouseEvent<HTMLElement>, folder: FolderItem) {
+    if (isAccountFolderId(folder.id) || isLinkedFolderId(folder.id)) {
+      event.preventDefault();
+      event.stopPropagation();
+      openFolder(folder);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     setActiveFolderForMenu(folder);
@@ -748,6 +996,22 @@ export function AllFilesPage() {
 
   function openFolder(folder: FolderItem) {
     if (!folder.id) return;
+
+    if (isAccountFolderId(folder.id)) {
+      const accountId = folder.id.slice(ACCOUNT_FOLDER_PREFIX.length);
+      patchHomeParams({ accountId, folderId: null });
+      return;
+    }
+
+    if (isLinkedFolderId(folder.id)) {
+      const ref = parseLinkedRef(folder.id);
+      if (!ref) return;
+      router.push(
+        `/clouds?accountId=${encodeURIComponent(ref.accountId)}&parentId=${encodeURIComponent(ref.providerId)}`,
+      );
+      return;
+    }
+
     setFolderSearchParams(
       searchQuery
         ? { folderId: folder.id, q: searchQuery }
@@ -756,6 +1020,15 @@ export function AllFilesPage() {
   }
 
   function openFolderById(folderId: string) {
+    if (isAccountFolderId(folderId) || isLinkedFolderId(folderId)) {
+      openFolder({
+        id: folderId,
+        name: "",
+        color: defaultFolderColor,
+        updated: "",
+      });
+      return;
+    }
     setFolderSearchParams(
       searchQuery ? { folderId, q: searchQuery } : { folderId },
     );
@@ -784,6 +1057,18 @@ export function AllFilesPage() {
     setPreviewOpen(true);
     setContextMenu({ x: 0, y: 0, file: null });
     try {
+      if (isLinkedFileId(file.id)) {
+        const accountId = file.connectedAccountId;
+        const providerFileId = file.providerFileId;
+        if (!accountId || !providerFileId) {
+          throw new Error("Linked file is missing account details.");
+        }
+        setPreviewUrl(
+          `${API_URL}/connected-accounts/${accountId}/files/${encodeURIComponent(providerFileId)}/preview`,
+        );
+        return;
+      }
+
       const data = await apiFetch<{ path?: string; url: string }>(
         `/files/${file.id}/preview-token`,
         { method: "POST" },
@@ -1209,18 +1494,18 @@ export function AllFilesPage() {
     return path;
   })();
   const allVisibleSelected =
-    files.length > 0 &&
-    files.every((file) => file.id && selectedFileIds.has(file.id));
+    displayFiles.length > 0 &&
+    displayFiles.every((file) => file.id && selectedFileIds.has(file.id));
   const activePreviewKind = getPreviewKind(
     activeFile?.mimeType,
     activeFile?.name,
   );
   const previewImageFiles = useMemo(
     () =>
-      files.filter(
+      displayFiles.filter(
         (file) => getPreviewKind(file.mimeType, file.name) === "image",
       ),
-    [files],
+    [displayFiles],
   );
   const previewImageIndex = activeFile?.id
     ? previewImageFiles.findIndex((file) => file.id === activeFile.id)
@@ -1300,7 +1585,10 @@ export function AllFilesPage() {
               }
               actions={
                 <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-                  <Popover>
+                  <Popover
+                    isOpen={accountFilterOpen}
+                    onOpenChange={setAccountFilterOpen}
+                  >
                     <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
                       <span className="flex min-w-0 items-center gap-2">
                         {selectedAccount ? (
@@ -1326,9 +1614,13 @@ export function AllFilesPage() {
                               ? "bg-primary/10 font-semibold text-primary"
                               : "font-medium text-foreground hover:bg-black/5",
                           )}
-                          onClick={() =>
-                            patchHomeParams({ accountId: null, folderId: null })
-                          }
+                          onClick={() => {
+                            setAccountFilterOpen(false);
+                            patchHomeParams({
+                              accountId: null,
+                              folderId: null,
+                            });
+                          }}
                         >
                           All Accounts
                         </button>
@@ -1342,12 +1634,13 @@ export function AllFilesPage() {
                                 ? "bg-primary/10 font-semibold text-primary"
                                 : "font-medium text-foreground hover:bg-black/5",
                             )}
-                            onClick={() =>
+                            onClick={() => {
+                              setAccountFilterOpen(false);
                               patchHomeParams({
                                 accountId: account.id,
                                 folderId: null,
-                              })
-                            }
+                              });
+                            }}
                           >
                             <AccountProviderIcon provider={account.provider} />
                             <span className="min-w-0 flex-1 truncate">
@@ -1359,7 +1652,10 @@ export function AllFilesPage() {
                     </Popover.Content>
                   </Popover>
 
-                  <Popover>
+                  <Popover
+                    isOpen={sortFilterOpen}
+                    onOpenChange={setSortFilterOpen}
+                  >
                     <Popover.Trigger className="inline-flex h-10 min-w-[10rem] max-w-[13rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
                       <span className="flex min-w-0 items-center gap-2">
                         <Sliders className="h-4 w-4 shrink-0 text-muted" />
@@ -1379,14 +1675,15 @@ export function AllFilesPage() {
                                 ? "bg-primary/10 font-semibold text-primary"
                                 : "font-medium text-foreground hover:bg-black/5",
                             )}
-                            onClick={() =>
+                            onClick={() => {
+                              setSortFilterOpen(false);
                               patchHomeParams({
                                 sort:
                                   option.value === "created_desc"
                                     ? null
                                     : option.value,
-                              })
-                            }
+                              });
+                            }}
                           >
                             {option.label}
                           </button>
@@ -1424,9 +1721,9 @@ export function AllFilesPage() {
                 open={suggestedFoldersOpen}
                 onOpenChange={setSuggestedFoldersOpen}
               >
-                {folders.length > 0 ? (
+                {displayFolders.length > 0 ? (
                   <FolderGrid
-                    items={folders}
+                    items={displayFolders}
                     mobileTwoColumns
                     sizeScale="xs"
                     onFolderMenu={openFolderMenu}
@@ -1436,13 +1733,20 @@ export function AllFilesPage() {
                 ) : (
                   <div className="flex min-h-[160px] items-center justify-center py-6">
                     <p className="text-center text-sm text-muted">
-                      No folders yet. Use Add New in the sidebar or right-click
-                      to create one.
+                      {linkedLoading
+                        ? "Loading folders from linked storage..."
+                        : connectedAccounts.some(
+                              (account) => account.status === "connected",
+                            )
+                          ? filterAccountId
+                            ? "No folders in this cloud root yet."
+                            : "No folders yet. Use Add New in the sidebar or open a linked cloud from the account filter."
+                          : "No folders yet. Use Add New in the sidebar or right-click to create one."}
                     </p>
                   </div>
                 )}
               </SuggestedSection>
-            ) : folders.length > 0 ? (
+            ) : displayFolders.length > 0 ? (
               <SuggestedSection
                 title="Folders"
                 variant="plain"
@@ -1450,7 +1754,7 @@ export function AllFilesPage() {
                 onOpenChange={setSuggestedFoldersOpen}
               >
                 <FolderGrid
-                  items={folders}
+                  items={displayFolders}
                   sizeScale="xs"
                   onFolderMenu={openFolderMenu}
                   onFolderOpen={openFolder}
@@ -1483,7 +1787,9 @@ export function AllFilesPage() {
                           title="Share"
                           onClick={() => {
                             const id = [...selectedFileIds][0];
-                            const file = files.find((item) => item.id === id);
+                            const file = displayFiles.find(
+                              (item) => item.id === id,
+                            );
                             if (!file) return;
                             void shareFile(file);
                           }}
@@ -1497,7 +1803,9 @@ export function AllFilesPage() {
                           title="Copy link"
                           onClick={() => {
                             const id = [...selectedFileIds][0];
-                            const file = files.find((item) => item.id === id);
+                            const file = displayFiles.find(
+                              (item) => item.id === id,
+                            );
                             if (!file) return;
                             void copyShareLinkDirect(file);
                           }}
@@ -1541,7 +1849,9 @@ export function AllFilesPage() {
                         title="More"
                         onClick={(event) => {
                           const id = [...selectedFileIds][0];
-                          const file = files.find((item) => item.id === id);
+                          const file = displayFiles.find(
+                            (item) => item.id === id,
+                          );
                           if (!file) return;
                           openContext(event, file);
                         }}
@@ -1566,27 +1876,27 @@ export function AllFilesPage() {
               open={suggestedFilesOpen}
               onOpenChange={setSuggestedFilesOpen}
             >
-              {files.length === 0 ? (
+              {displayFiles.length === 0 ? (
                 <div className="flex min-h-[160px] items-center justify-center py-6">
                   <p className="text-center text-sm text-muted">
                     {searchQuery
                       ? `No files found for "${searchQuery}".`
                       : activeFolder
                         ? "No files in this folder yet."
-                        : connectedAccounts.some(
-                              (account) =>
-                                account.provider === "google_drive" &&
-                                account.status === "connected",
-                            )
-                          ? syncingDrive
-                            ? "Syncing files from your connected Google Drive..."
-                            : "No files in this view yet. Click Sync to refresh from connected Drive, or Upload a file."
-                          : "No uploaded files yet. Connect Google Drive, then Sync or upload a file."}
+                        : linkedLoading
+                          ? "Loading files from linked storage..."
+                          : filterAccountId
+                            ? "No files in this cloud root yet. Open a folder above or Upload a file."
+                            : connectedAccounts.some(
+                                  (account) => account.status === "connected",
+                                )
+                              ? "Open a linked cloud folder above to browse files, or Upload a file into Archive Cloud."
+                              : "No uploaded files yet. Connect a cloud account, then Sync or upload a file."}
                   </p>
                 </div>
               ) : fileViewMode === "grid" ? (
                 <FileGrid
-                  files={files}
+                  files={displayFiles}
                   selectedFileIds={selectedFileIds}
                   sizeScale="xs"
                   onToggleFile={toggleFileSelection}
@@ -1617,7 +1927,7 @@ export function AllFilesPage() {
                 </div>
               ) : (
                 <FileTable
-                  files={files}
+                  files={displayFiles}
                   selectedFileIds={selectedFileIds}
                   allSelected={allVisibleSelected}
                   onToggleFile={toggleFileSelection}

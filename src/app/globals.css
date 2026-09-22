@@ -239,6 +239,33 @@
   --default-foreground: var(--foreground);
 }
 
+/*
+ * HeroUI AlertDialog / Modal / Drawer portal outside .drive-app, so they keep
+ * shadcn --muted (surface) and --accent (soft tint). Remap the same brand
+ * tokens on overlay surfaces so body copy and accent icons stay readable.
+ */
+.alert-dialog__dialog,
+.modal__dialog,
+.drawer__dialog {
+  --muted: var(--muted-foreground);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --accent-hover: color-mix(
+    in oklab,
+    var(--primary) 90%,
+    var(--primary-foreground) 10%
+  );
+  --accent-soft: color-mix(in oklab, var(--primary) 15%, transparent);
+  --accent-soft-foreground: color-mix(
+    in oklab,
+    var(--primary) 40%,
+    var(--foreground) 60%
+  );
+  --accent-soft-hover: color-mix(in oklab, var(--primary) 20%, transparent);
+  --focus: var(--primary);
+  --default-foreground: var(--foreground);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -329,9 +356,60 @@ input {
   color: #e2e8f0;
 }
 
+/*
+ * Match primary CTA treatment for danger buttons:
+ * vertical danger→darker gradient + soft colored drop shadow.
+ */
+.button--danger {
+  --button-bg: var(--danger);
+  --button-bg-hover: var(--danger);
+  --button-bg-pressed: var(--danger);
+  --button-fg: var(--danger-foreground);
+  background-image: linear-gradient(
+    to bottom,
+    var(--danger),
+    color-mix(in srgb, var(--danger) 85%, black)
+  );
+  border-color: transparent;
+  box-shadow: 0 6px 14px -8px
+    color-mix(in oklch, var(--danger) 18%, transparent);
+  transition:
+    transform 250ms var(--ease-smooth),
+    background-color 100ms var(--ease-out),
+    box-shadow 100ms var(--ease-out),
+    opacity 100ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .button--danger:hover,
+  .button--danger[data-hovered="true"] {
+    opacity: 0.95;
+  }
+}
+
+.button--danger:active,
+.button--danger[data-pressed="true"] {
+  opacity: 0.9;
+}
+
+.button--danger:disabled,
+.button--danger[aria-disabled="true"] {
+  opacity: 1;
+  background-image: none;
+  background-color: color-mix(in srgb, var(--danger) 45%, #cbd5e1);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.dark .button--danger:disabled,
+.dark .button--danger[aria-disabled="true"] {
+  background-color: color-mix(in srgb, var(--danger) 40%, #334155);
+  color: #e2e8f0;
+}
+
 .file-selected {
-  background: #c2e7ff;
-  border-color: #0b57d0;
+  background: color-mix(in oklab, var(--primary) 22%, white);
+  border-color: var(--primary);
 }
 
 .dark .file-selected {

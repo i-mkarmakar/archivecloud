@@ -18,8 +18,39 @@ const pcloudEnv = env as PCloudEnv;
 
 const APP_FOLDER_NAME = "archivecloud";
 const PCLOUD_AUTH_URL = "https://my.pcloud.com/oauth2/authorize";
-const PCLOUD_TOKEN_URL = "https://api.pcloud.com/oauth2_token";
-const PCLOUD_API = "https://api.pcloud.com";
+const PCLOUD_API_US = "https://api.pcloud.com";
+const PCLOUD_API_EU = "https://eapi.pcloud.com";
+const PCLOUD_HOST_SCOPE_PREFIX = "pcloud_host:";
+
+function resolvePCloudApiBase(hostname?: string | null) {
+  const host = (hostname ?? "").trim().toLowerCase();
+  if (host === "eapi.pcloud.com") return PCLOUD_API_EU;
+  if (host === "api.pcloud.com") return PCLOUD_API_US;
+  return PCLOUD_API_US;
+}
+
+function pcloudHostScope(apiBase: string) {
+  const host = new URL(apiBase).hostname;
+  return `${PCLOUD_HOST_SCOPE_PREFIX}${host}`;
+}
+
+export function getPCloudApiBaseForAccount(account: {
+  scopes: unknown;
+}): string {
+  if (Array.isArray(account.scopes)) {
+    for (const scope of account.scopes) {
+      if (
+        typeof scope === "string" &&
+        scope.startsWith(PCLOUD_HOST_SCOPE_PREFIX)
+      ) {
+        return resolvePCloudApiBase(
+          scope.slice(PCLOUD_HOST_SCOPE_PREFIX.length),
+        );
+      }
+    }
+  }
+  return PCLOUD_API_US;
+}
 
 function isConfiguredEnvValue(
   value: string | undefined,
@@ -37,12 +68,6 @@ function pcloudRedirectUri() {
 }
 
 export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig | null> {
-  const existing = await prisma.providerConfig.findFirst({
-    where: { userId: null, provider: "pcloud", status: "active" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (existing) return existing;
-
   const clientId = pcloudEnv.PCLOUD_CLIENT_ID?.trim();
   const clientSecret = pcloudEnv.PCLOUD_CLIENT_SECRET?.trim();
   const redirectUri = pcloudRedirectUri();
@@ -58,6 +83,33 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     "build-pcloud-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+
+  const existing = await prisma.providerConfig.findFirst({
+    where: { userId: null, provider: "pcloud", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    const sameId = decryptText(existing.clientIdEncrypted) === clientId;
+    const sameSecret =
+      decryptText(existing.clientSecretEncrypted) === clientSecret;
+    const sameRedirect = existing.redirectUri === redirectUri;
+    if (sameId && sameSecret && sameRedirect) return existing;
+
+    // Env changed — rotate the stored global config so OAuth uses current secrets.
+    await prisma.providerConfig.update({
+      where: { id: existing.id },
+      data: {
+        clientIdEncrypted: encryptText(clientId!),
+        clientSecretEncrypted: encryptText(clientSecret!),
+        redirectUri,
+        status: "active",
+      },
+    });
+    return prisma.providerConfig.findUniqueOrThrow({
+      where: { id: existing.id },
+    });
+  }
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "pcloud", status: "active" },
@@ -96,7 +148,8 @@ type PCloudTokenResponse = {
   refresh_token?: string;
   expires_in?: number;
   token_type?: string;
-  uid?: number;
+  uid?: number | string;
+  userid?: number | string;
   error?: string;
 };
 
@@ -104,6 +157,15 @@ type PCloudApiResponse<T> = {
   result: number;
   error?: string;
 } & T;
+
+export function resolvePCloudUserId(tokens: {
+  uid?: number | string;
+  userid?: number | string;
+}) {
+  const raw = tokens.uid ?? tokens.userid;
+  if (raw === undefined || raw === null) return "";
+  return String(raw).trim();
+}
 
 async function parsePCloudTokenResponse(
   response: Response,
@@ -120,19 +182,45 @@ async function parsePCloudTokenResponse(
 export async function exchangePCloudCode(params: {
   config: ProviderConfig;
   code: string;
+  /** Ignored for token exchange — pCloud docs fix this endpoint to api.pcloud.com. */
+  apiBase?: string;
 }): Promise<PCloudTokenResponse> {
-  const body = new URLSearchParams({
-    client_id: decryptText(params.config.clientIdEncrypted),
-    client_secret: decryptText(params.config.clientSecretEncrypted),
-    code: params.code,
-    redirect_uri: params.config.redirectUri,
-  });
-  const response = await fetch(PCLOUD_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
-  return parsePCloudTokenResponse(response);
+  // Per https://docs.pcloud.com/methods/oauth_2.0/oauth2_token.html
+  // Required: client_id, client_secret, code. URL is always api.pcloud.com.
+  // Regional hostname from authorize applies to later API calls, not this step.
+  const url = new URL(`${PCLOUD_API_US}/oauth2_token`);
+  url.searchParams.set(
+    "client_id",
+    decryptText(params.config.clientIdEncrypted),
+  );
+  url.searchParams.set(
+    "client_secret",
+    decryptText(params.config.clientSecretEncrypted),
+  );
+  url.searchParams.set("code", params.code);
+
+  // pCloud HTTP JSON methods are typically GET + query params.
+  const getResponse = await fetch(url);
+  try {
+    return await parsePCloudTokenResponse(getResponse);
+  } catch (getError) {
+    // Fallback to POST form body for clients that expect classic OAuth.
+    const body = new URLSearchParams({
+      client_id: decryptText(params.config.clientIdEncrypted),
+      client_secret: decryptText(params.config.clientSecretEncrypted),
+      code: params.code,
+    });
+    const postResponse = await fetch(`${PCLOUD_API_US}/oauth2_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    try {
+      return await parsePCloudTokenResponse(postResponse);
+    } catch {
+      throw getError;
+    }
+  }
 }
 
 async function refreshPCloudAccessToken(account: ConnectedAccount) {
@@ -148,7 +236,8 @@ async function refreshPCloudAccessToken(account: ConnectedAccount) {
     refresh_token: decryptText(account.refreshTokenEncrypted),
     grant_type: "refresh_token",
   });
-  const response = await fetch(PCLOUD_TOKEN_URL, {
+  // Token endpoint is documented only on api.pcloud.com.
+  const response = await fetch(`${PCLOUD_API_US}/oauth2_token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -174,11 +263,21 @@ export async function getPCloudAccessToken(account: ConnectedAccount) {
   if (!account.accessTokenEncrypted) {
     throw new Error("pCloud access token missing.");
   }
+  // pCloud OAuth access tokens do not expire in the current API
+  // (https://docs.pcloud.com/methods/oauth_2.0/). Only refresh if we have a
+  // refresh token and an explicit expiry that is near.
   const expiresSoon =
     account.tokenExpiresAt != null &&
     account.tokenExpiresAt.getTime() < Date.now() + 60_000;
   if (expiresSoon && account.refreshTokenEncrypted) {
-    return refreshPCloudAccessToken(account);
+    try {
+      return await refreshPCloudAccessToken(account);
+    } catch (error) {
+      console.error(
+        "pCloud token refresh failed; using existing token:",
+        error,
+      );
+    }
   }
   return decryptText(account.accessTokenEncrypted);
 }
@@ -189,14 +288,17 @@ async function pcloudApi<T>(
   params: Record<string, string | number | boolean | undefined> = {},
 ): Promise<T> {
   const accessToken = await getPCloudAccessToken(account);
-  const url = new URL(`${PCLOUD_API}/${method}`);
+  const apiBase = getPCloudApiBaseForAccount(account);
+  const url = new URL(`${apiBase}/${method}`);
   url.searchParams.set("access_token", accessToken);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) {
       url.searchParams.set(key, String(value));
     }
   }
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   const data = (await response.json()) as PCloudApiResponse<T>;
   if (!response.ok || data.result !== 0) {
     throw new Error(
@@ -206,14 +308,66 @@ async function pcloudApi<T>(
   return data as T;
 }
 
+export async function getPCloudAccountInfoWithToken(params: {
+  accessToken: string;
+  apiBase: string;
+}) {
+  const bases = Array.from(
+    new Set([params.apiBase, PCLOUD_API_US, PCLOUD_API_EU]),
+  );
+
+  let lastError: Error | null = null;
+  for (const apiBase of bases) {
+    try {
+      const url = new URL(`${apiBase}/userinfo`);
+      url.searchParams.set("access_token", params.accessToken);
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${params.accessToken}` },
+      });
+      const data = (await response.json()) as PCloudApiResponse<{
+        email?: string;
+        userid?: number | string;
+        premium?: boolean;
+        quota?: number;
+        usedquota?: number;
+      }>;
+      if (!response.ok || data.result !== 0) {
+        throw new Error(
+          `pCloud API userinfo failed on ${apiBase}: ${data.error ?? JSON.stringify(data)}`,
+        );
+      }
+      return data;
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error : new Error("pCloud userinfo failed");
+    }
+  }
+
+  throw lastError ?? new Error("pCloud userinfo failed");
+}
+
 export async function getPCloudAccountInfo(account: ConnectedAccount) {
   return pcloudApi<{
-    email: string;
-    userid: number;
+    email?: string;
+    userid?: number | string;
     premium?: boolean;
     quota?: number;
     usedquota?: number;
   }>(account, "userinfo");
+}
+
+export function buildPCloudScopes(params: {
+  existingScopes: unknown;
+  apiBase: string;
+}): string[] {
+  const base = Array.isArray(params.existingScopes)
+    ? params.existingScopes.filter(
+        (scope): scope is string =>
+          typeof scope === "string" &&
+          !scope.startsWith(PCLOUD_HOST_SCOPE_PREFIX),
+      )
+    : [];
+  return [...base, pcloudHostScope(params.apiBase)];
 }
 
 export async function syncPCloudQuota(accountId: string) {
@@ -275,9 +429,30 @@ type PCloudEntry = {
   name: string;
   size?: number;
   contenttype?: string;
-  modified?: number;
-  created?: number;
+  modified?: number | string;
+  created?: number | string;
 };
+
+function pcloudTimestampToIso(value: number | string | undefined): string {
+  if (value == null || value === "") return new Date().toISOString();
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const ms = value < 1e12 ? value * 1000 : value;
+    const parsed = new Date(ms);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      return pcloudTimestampToIso(Number(trimmed));
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+
+  return new Date().toISOString();
+}
 
 export async function browsePCloudFolder(
   accountId: string,
@@ -315,9 +490,7 @@ export async function browsePCloudFolder(
     .map((entry) => ({
       id: String(entry.folderid ?? entry.name),
       name: entry.name,
-      modifiedTime: new Date(
-        (entry.modified ?? entry.created ?? Date.now() / 1000) * 1000,
-      ).toISOString(),
+      modifiedTime: pcloudTimestampToIso(entry.modified ?? entry.created),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -328,9 +501,7 @@ export async function browsePCloudFolder(
       name: entry.name,
       mimeType: entry.contenttype ?? guessMimeType(entry.name),
       sizeBytes: String(entry.size ?? 0),
-      modifiedTime: new Date(
-        (entry.modified ?? entry.created ?? Date.now() / 1000) * 1000,
-      ).toISOString(),
+      modifiedTime: pcloudTimestampToIso(entry.modified ?? entry.created),
       hasThumbnail: false as boolean,
       dbFileId: null as string | null,
     }))
@@ -423,7 +594,8 @@ export async function downloadPCloudFileStream(
   fileId: string,
 ) {
   const accessToken = await getPCloudAccessToken(account);
-  const url = new URL(`${PCLOUD_API}/downloadfile`);
+  const apiBase = getPCloudApiBaseForAccount(account);
+  const url = new URL(`${apiBase}/downloadfile`);
   url.searchParams.set("access_token", accessToken);
   url.searchParams.set("fileid", fileId);
   const response = await fetch(url);
@@ -446,13 +618,14 @@ export async function uploadPCloudFileFromStream(params: {
   sizeBytes?: bigint;
 }) {
   const accessToken = await getPCloudAccessToken(params.account);
+  const apiBase = getPCloudApiBaseForAccount(params.account);
   const chunks: Buffer[] = [];
   for await (const piece of params.body) {
     chunks.push(Buffer.isBuffer(piece) ? piece : Buffer.from(piece));
   }
   const buffer = Buffer.concat(chunks);
 
-  const url = new URL(`${PCLOUD_API}/uploadfile`);
+  const url = new URL(`${apiBase}/uploadfile`);
   url.searchParams.set("access_token", accessToken);
   url.searchParams.set("folderid", String(params.folderId));
   url.searchParams.set("filename", params.fileName);

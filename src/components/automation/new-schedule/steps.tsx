@@ -229,7 +229,7 @@ export function WhenToRunStep({
             className={cn(
               "flex-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors",
               scheduleKind === key
-                ? "bg-[#1e9df1] text-white shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-white hover:text-foreground",
             )}
           >

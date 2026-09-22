@@ -4,6 +4,15 @@ import { z } from "zod";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
+import {
+  clearConnectAliasCookie,
+  defaultProviderAlias,
+  normalizeConnectAlias,
+  oauthStateFromAuthUrl,
+  parseConnectAliasParam,
+  readConnectAliasFromRequest,
+  resolveConnectedAccountAlias,
+} from "@/server/http/connect-alias";
 import { oauthConnectStartResponse } from "@/server/http/oauth-connect-response";
 import { errorJson, json } from "@/server/http/responses";
 import { createOAuthClient } from "@/server/modules/google/google.service";
@@ -28,9 +37,11 @@ import {
 } from "@/server/modules/icloud/icloud.service";
 import {
   buildPCloudAuthUrl,
+  buildPCloudScopes,
   ensureGlobalPCloudProviderConfig,
   exchangePCloudCode,
-  getPCloudAccountInfo,
+  getPCloudAccountInfoWithToken,
+  resolvePCloudUserId,
   syncPCloudQuota,
 } from "@/server/modules/pcloud/pcloud.service";
 import { ensureGoogleDriveWatch } from "@/server/modules/webhooks/google-drive-watch";
@@ -119,9 +130,13 @@ export async function createPCloudConnectUrl(
 export async function pcloudConnectUrlHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
+  const alias = parseConnectAliasParam(request);
   const url = await createPCloudConnectUrl(user.id);
   if (url instanceof Response) return url;
-  return oauthConnectStartResponse(request, url);
+  return oauthConnectStartResponse(request, url, {
+    state: oauthStateFromAuthUrl(url),
+    alias,
+  });
 }
 
 export async function pcloudCallbackHandler(request: Request) {
@@ -129,7 +144,12 @@ export async function pcloudCallbackHandler(request: Request) {
   try {
     const url = new URL(request.url);
     const query = z
-      .object({ code: z.string(), state: z.string() })
+      .object({
+        code: z.string(),
+        state: z.string(),
+        hostname: z.string().optional(),
+        locationid: z.string().optional(),
+      })
       .parse(Object.fromEntries(url.searchParams));
     const oauthState = await prisma.oauthState.findUniqueOrThrow({
       where: { stateHash: hashToken(query.state) },
@@ -153,6 +173,14 @@ export async function pcloudCallbackHandler(request: Request) {
     );
     if (sessionCheck instanceof NextResponse) return sessionCheck;
 
+    const hostname =
+      query.hostname?.trim().toLowerCase() ||
+      (query.locationid === "2" ? "eapi.pcloud.com" : "api.pcloud.com");
+    const apiBase =
+      hostname === "eapi.pcloud.com"
+        ? "https://eapi.pcloud.com"
+        : "https://api.pcloud.com";
+
     const tokens = await exchangePCloudCode({
       config: oauthState.providerConfig,
       code: query.code,
@@ -163,12 +191,49 @@ export async function pcloudCallbackHandler(request: Request) {
       );
     }
 
-    const providerAccountId = String(tokens.uid ?? "");
+    // Subsequent calls must use hostname from authorize redirect
+    // (api.pcloud.com US / eapi.pcloud.com EU) per pCloud OAuth docs.
+    const info = await getPCloudAccountInfoWithToken({
+      accessToken: tokens.access_token,
+      apiBase,
+    });
+    const providerAccountId =
+      resolvePCloudUserId(tokens) ||
+      resolvePCloudUserId({ userid: info.userid });
     if (!providerAccountId) {
+      console.error("pCloud profile missing userid", {
+        tokenKeys: Object.keys(tokens),
+        infoKeys: Object.keys(info ?? {}),
+        hostname,
+      });
       return NextResponse.redirect(
         `${redirectBase}?status=error&reason=profile`,
       );
     }
+
+    const email =
+      info.email?.trim() || `pcloud-${providerAccountId}@users.pcloud`;
+    const scopes = buildPCloudScopes({
+      existingScopes: oauthState.providerConfig.scopes,
+      apiBase,
+    });
+
+    const existingAccount = await prisma.connectedAccount.findUnique({
+      where: {
+        userId_provider_providerAccountId: {
+          userId: oauthState.userId,
+          provider: "pcloud",
+          providerAccountId,
+        },
+      },
+      select: { displayName: true },
+    });
+    const displayName = resolveConnectedAccountAlias({
+      request,
+      state: query.state,
+      provider: "pcloud",
+      existingDisplayName: existingAccount?.displayName,
+    });
 
     const account = await prisma.connectedAccount.upsert({
       where: {
@@ -183,7 +248,8 @@ export async function pcloudCallbackHandler(request: Request) {
         providerConfigId: oauthState.providerConfigId,
         provider: "pcloud",
         providerAccountId,
-        email: "",
+        email,
+        displayName,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted: tokens.refresh_token
           ? encryptText(tokens.refresh_token)
@@ -191,11 +257,13 @@ export async function pcloudCallbackHandler(request: Request) {
         tokenExpiresAt: tokens.expires_in
           ? new Date(Date.now() + tokens.expires_in * 1000)
           : null,
-        scopes: oauthState.providerConfig.scopes as string[],
+        scopes,
         status: "connected",
       },
       update: {
         providerConfigId: oauthState.providerConfigId,
+        email,
+        displayName,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted: tokens.refresh_token
           ? encryptText(tokens.refresh_token)
@@ -203,30 +271,19 @@ export async function pcloudCallbackHandler(request: Request) {
         tokenExpiresAt: tokens.expires_in
           ? new Date(Date.now() + tokens.expires_in * 1000)
           : null,
-        scopes: oauthState.providerConfig.scopes as string[],
+        scopes,
         status: "connected",
       },
-    });
-
-    const info = await getPCloudAccountInfo(account);
-    const email = info.email;
-    if (!email) {
-      return NextResponse.redirect(
-        `${redirectBase}?status=error&reason=profile`,
-      );
-    }
-
-    const updatedAccount = await prisma.connectedAccount.update({
-      where: { id: account.id },
-      data: { email },
     });
 
     await prisma.oauthState.update({
       where: { id: oauthState.id },
       data: { usedAt: new Date() },
     });
-    await syncPCloudQuota(updatedAccount.id);
-    return NextResponse.redirect(`${redirectBase}?status=success`);
+    await syncPCloudQuota(account.id);
+    const success = NextResponse.redirect(`${redirectBase}?status=success`);
+    clearConnectAliasCookie(success);
+    return success;
   } catch (error) {
     console.error("pCloud OAuth callback failed:", error);
     return NextResponse.redirect(`${redirectBase}?status=error`);
@@ -262,9 +319,13 @@ export async function createGooglePhotosConnectUrl(
 export async function googlePhotosConnectUrlHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
+  const alias = parseConnectAliasParam(request);
   const url = await createGooglePhotosConnectUrl(user.id);
   if (url instanceof Response) return url;
-  return oauthConnectStartResponse(request, url);
+  return oauthConnectStartResponse(request, url, {
+    state: oauthStateFromAuthUrl(url),
+    alias,
+  });
 }
 
 export async function googlePhotosCallbackHandler(request: Request) {
@@ -336,6 +397,13 @@ export async function googlePhotosCallbackHandler(request: Request) {
       );
     }
 
+    const displayName = resolveConnectedAccountAlias({
+      request,
+      state: query.state,
+      provider: "google_photos",
+      existingDisplayName: existingAccount?.displayName,
+    });
+
     const account = await prisma.connectedAccount.upsert({
       where: {
         userId_provider_providerAccountId: {
@@ -350,7 +418,7 @@ export async function googlePhotosCallbackHandler(request: Request) {
         provider: "google_photos",
         providerAccountId,
         email,
-        displayName: profile.name ?? null,
+        displayName,
         avatarUrl: profile.picture ?? null,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted,
@@ -361,7 +429,7 @@ export async function googlePhotosCallbackHandler(request: Request) {
       update: {
         providerConfigId: oauthState.providerConfigId,
         email,
-        displayName: profile.name ?? null,
+        displayName,
         avatarUrl: profile.picture ?? null,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted,
@@ -376,7 +444,9 @@ export async function googlePhotosCallbackHandler(request: Request) {
       data: { usedAt: new Date() },
     });
     await syncGooglePhotosQuota(account.id);
-    return NextResponse.redirect(`${redirectBase}?status=success`);
+    const success = NextResponse.redirect(`${redirectBase}?status=success`);
+    clearConnectAliasCookie(success);
+    return success;
   } catch (error) {
     console.error("Google Photos OAuth callback failed:", error);
     return NextResponse.redirect(`${redirectBase}?status=error`);
@@ -412,9 +482,13 @@ export async function createGoogleSharedDriveConnectUrl(
 export async function googleSharedDriveConnectUrlHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
+  const alias = parseConnectAliasParam(request);
   const url = await createGoogleSharedDriveConnectUrl(user.id);
   if (url instanceof Response) return url;
-  return oauthConnectStartResponse(request, url);
+  return oauthConnectStartResponse(request, url, {
+    state: oauthStateFromAuthUrl(url),
+    alias,
+  });
 }
 
 async function listSharedDrivesWithTokens(
@@ -513,15 +587,22 @@ export async function googleSharedDriveCallbackHandler(request: Request) {
       tokens.expiry_date ?? Date.now() + 3600_000,
     );
     const scopes = oauthState.providerConfig.scopes as string[];
+    const baseAlias = readConnectAliasFromRequest(request, query.state);
 
     for (const sharedDrive of sharedDrives) {
+      const driveLabel = sharedDrive.name.trim() || "Shared Drive";
+      const displayName = baseAlias
+        ? sharedDrives.length === 1
+          ? baseAlias
+          : `${baseAlias} · ${driveLabel}`
+        : driveLabel;
       const account = await connectSharedDriveFromGoogleAccount({
         userId: oauthState.userId,
         providerConfigId: oauthState.providerConfigId,
         sharedDriveId: sharedDrive.id,
-        sharedDriveName: sharedDrive.name,
+        sharedDriveName: displayName,
         email: profile.email,
-        displayName: profile.name,
+        displayName,
         avatarUrl: profile.picture,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
@@ -540,7 +621,9 @@ export async function googleSharedDriveCallbackHandler(request: Request) {
       where: { id: oauthState.id },
       data: { usedAt: new Date() },
     });
-    return NextResponse.redirect(`${redirectBase}?status=success`);
+    const success = NextResponse.redirect(`${redirectBase}?status=success`);
+    clearConnectAliasCookie(success);
+    return success;
   } catch (error) {
     console.error("Google Shared Drive OAuth callback failed:", error);
     return NextResponse.redirect(`${redirectBase}?status=error`);
@@ -551,6 +634,7 @@ const icloudConnectSchema = z.object({
   appleId: z.string().email(),
   appSpecificPassword: z.string().min(1),
   provider: z.enum(["icloud_drive", "icloud_photos"]),
+  alias: z.string().trim().min(1).max(50).optional(),
 });
 
 export async function connectICloudHandler(request: Request) {
@@ -559,7 +643,14 @@ export async function connectICloudHandler(request: Request) {
     if (user instanceof Response) return user;
 
     const body = icloudConnectSchema.parse(await request.json());
-    const account = await connectICloudAccount(user.id, body);
+    const alias =
+      normalizeConnectAlias(body.alias) ?? defaultProviderAlias(body.provider);
+    const account = await connectICloudAccount(user.id, {
+      appleId: body.appleId,
+      appSpecificPassword: body.appSpecificPassword,
+      provider: body.provider,
+      displayName: alias,
+    });
     await syncICloudQuota(account.id);
     return credentialAccountResponse(account);
   } catch (error) {

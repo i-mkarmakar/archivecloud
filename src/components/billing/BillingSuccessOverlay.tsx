@@ -145,10 +145,7 @@ export function BillingSuccessOverlay() {
       <div className="relative z-10 w-full max-w-md">
         {phase === "confirming" ? <ConfirmingCard /> : null}
         {phase === "confirmed" ? (
-          <SuccessCard
-            checkoutId={checkoutId}
-            onGoHome={clearOverlayParams}
-          />
+          <SuccessCard checkoutId={checkoutId} onGoHome={clearOverlayParams} />
         ) : null}
         {phase === "timed_out" ? (
           <TimedOutCard
@@ -172,10 +169,7 @@ function ConfirmingCard() {
   return (
     <div className={cardClassName()}>
       <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted">
-        <Loader2
-          className="size-7 animate-spin text-primary"
-          aria-hidden
-        />
+        <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
       </div>
       <h1
         id="billing-success-title"

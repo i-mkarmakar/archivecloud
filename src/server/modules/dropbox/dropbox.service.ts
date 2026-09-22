@@ -30,12 +30,6 @@ function isConfiguredEnvValue(
 }
 
 export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfig | null> {
-  const existing = await prisma.providerConfig.findFirst({
-    where: { userId: null, provider: "dropbox", status: "active" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (existing) return existing;
-
   const clientId = env.DROPBOX_CLIENT_ID?.trim();
   const clientSecret = env.DROPBOX_CLIENT_SECRET?.trim();
   const redirectUri = env.DROPBOX_REDIRECT_URI;
@@ -51,6 +45,35 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     "build-dropbox-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+
+  const existing = await prisma.providerConfig.findFirst({
+    where: { userId: null, provider: "dropbox", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    const sameId = decryptText(existing.clientIdEncrypted) === clientId;
+    const sameSecret =
+      decryptText(existing.clientSecretEncrypted) === clientSecret;
+    const sameRedirect = existing.redirectUri === redirectUri;
+    const sameScopes =
+      JSON.stringify(existing.scopes) === JSON.stringify(dropboxOAuthScopes);
+    if (sameId && sameSecret && sameRedirect && sameScopes) return existing;
+
+    await prisma.providerConfig.update({
+      where: { id: existing.id },
+      data: {
+        clientIdEncrypted: encryptText(clientId!),
+        clientSecretEncrypted: encryptText(clientSecret!),
+        redirectUri,
+        scopes: dropboxOAuthScopes,
+        status: "active",
+      },
+    });
+    return prisma.providerConfig.findUniqueOrThrow({
+      where: { id: existing.id },
+    });
+  }
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "dropbox", status: "active" },
@@ -207,9 +230,15 @@ export async function getDropboxAccountProfile(account: ConnectedAccount) {
 }
 
 export async function getDropboxAccountProfileWithToken(accessToken: string) {
+  // Dropbox RPC endpoints with no args expect JSON body `null`.
+  // https://docs.dropboxapi.com/dropbox-api/api-reference/user-endpoints/users/get-current-account
   const response = await fetch(`${DROPBOX_API}/users/get_current_account`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: "null",
   });
   if (!response.ok) {
     throw new Error(`Dropbox profile fetch failed: ${await response.text()}`);

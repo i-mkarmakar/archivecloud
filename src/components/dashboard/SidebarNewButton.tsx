@@ -1,8 +1,9 @@
 "use client";
 
+import { CloudArrowUpIn, FolderPlus } from "@gravity-ui/icons";
 import { Popover } from "@heroui/react";
-import { ArrowUpFromLine, FolderPlus } from "@gravity-ui/icons";
 import type { ElementType } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -35,22 +36,29 @@ function PlusIcon({ className }: { className?: string }) {
 function MenuItem({
   icon: Icon,
   label,
+  description,
   onClick,
 }: {
   icon: ElementType;
   label: string;
+  description: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-surface-secondary"
+      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-border/80 bg-white px-3 py-3 text-left shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] transition-opacity hover:opacity-95"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-secondary text-muted transition-colors group-hover:bg-white group-hover:shadow-sm">
-        <Icon className="h-3.5 w-3.5" />
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]">
+        <Icon className="h-5 w-5" />
       </span>
-      <span className="flex-1 text-left">{label}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-foreground">{label}</span>
+        <span className="mt-0.5 block text-xs font-medium text-[#7b879c]">
+          {description}
+        </span>
+      </span>
     </button>
   );
 }
@@ -67,8 +75,10 @@ export function SidebarNewButton({
   iconOnly?: boolean;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
 
   function runAction(action: SidebarCreateAction) {
+    setOpen(false);
     onNavigate?.();
     if (safePathname !== "/home") {
       router.push(`/home?action=${action}`);
@@ -78,33 +88,40 @@ export function SidebarNewButton({
   }
 
   return (
-    <Popover>
+    <Popover isOpen={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={cn(
           iconOnly
-            ? "inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-[#1877f2] text-white shadow-sm transition-opacity hover:opacity-90"
-            : "inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-foreground shadow-sm transition-shadow hover:shadow-md",
+            ? "inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] transition-opacity hover:opacity-90"
+            : "inline-flex h-11 cursor-pointer items-center gap-2.5 rounded-full bg-white px-6 text-[15px] font-semibold text-foreground shadow-sm transition-shadow hover:shadow-md",
           className,
         )}
         aria-label="New"
       >
         <PlusIcon
-          className={cn("shrink-0", iconOnly ? "h-5 w-5" : "h-[18px] w-[18px]")}
+          className={cn("shrink-0", iconOnly ? "h-5 w-5" : "h-5 w-5")}
         />
         {iconOnly ? null : <span>New</span>}
       </Popover.Trigger>
-      <Popover.Content placement="bottom start" className="w-52 p-1.5">
+      <Popover.Content
+        placement="bottom start"
+        className="w-[21rem] rounded-2xl border border-[#e6ebf2] bg-white p-px shadow-lg"
+      >
         <Popover.Dialog>
-          <MenuItem
-            icon={ArrowUpFromLine}
-            label="File upload"
-            onClick={() => runAction("upload")}
-          />
-          <MenuItem
-            icon={FolderPlus}
-            label="New folder"
-            onClick={() => runAction("new-folder")}
-          />
+          <div className="grid gap-1.5">
+            <MenuItem
+              icon={FolderPlus}
+              label="Create folder"
+              description="Organize your files"
+              onClick={() => runAction("new-folder")}
+            />
+            <MenuItem
+              icon={CloudArrowUpIn}
+              label="Upload files"
+              description="Add documents, images & more"
+              onClick={() => runAction("upload")}
+            />
+          </div>
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

@@ -33,7 +33,11 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const {
+    data: session,
+    isPending: sessionPending,
+    isRefetching: sessionRefetching,
+  } = authClient.useSession();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -55,10 +59,17 @@ export function LoginForm({
   }
 
   useEffect(() => {
-    if (sessionPending || !session || enteringApp) return;
+    // Wait out pending/refetch so a just-signed-out stale session does not
+    // immediately bounce us into the app preloader → /home loop.
+    if (sessionPending || sessionRefetching) return;
+    if (!session) {
+      if (enteringApp) setEnteringApp(false);
+      return;
+    }
+    if (enteringApp) return;
     enterApp(redirectPath);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, sessionPending]);
+  }, [session, sessionPending, sessionRefetching]);
 
   useEffect(() => {
     if (!isSignIn) return;

@@ -82,9 +82,30 @@ export function withExtension(fileName: string, extension: string) {
     : `${fileName}${extension}`;
 }
 
-export function normalizeHeaders(headers: Headers | Record<string, string>) {
+export function normalizeHeaders(
+  headers: Headers | Record<string, string> | Array<[string, string]> | object,
+) {
   if (headers instanceof Headers) return Object.fromEntries(headers.entries());
-  return headers;
+  if (Array.isArray(headers)) return Object.fromEntries(headers);
+
+  const maybeMap = headers as {
+    forEach?: (cb: (value: string, key: string) => void) => void;
+    Authorization?: string;
+    authorization?: string;
+  };
+  if (
+    typeof maybeMap.forEach === "function" &&
+    maybeMap.Authorization == null &&
+    maybeMap.authorization == null
+  ) {
+    const out: Record<string, string> = {};
+    maybeMap.forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  }
+
+  return headers as Record<string, string>;
 }
 
 export async function streamGoogleFileResponse(

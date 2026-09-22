@@ -441,7 +441,7 @@ export function ScheduleTasksView() {
       />
 
       {!hasAutomation ? (
-        <Card className="mt-6 border-[#1877f2]/30 bg-[#1877f2]/5 p-5">
+        <Card className="mt-6 border-primary/30 bg-primary/5 p-5">
           <p className="font-extrabold text-foreground">
             Automation is a Thunder feature
           </p>
@@ -468,7 +468,7 @@ export function ScheduleTasksView() {
           value={String(stats.activeCount)}
           hint={stats.activeHint}
           icon={<Calendar className="h-4 w-4" />}
-          iconClassName="bg-[#e8f1ff] text-[#1877f2]"
+          iconClassName="bg-primary/10 text-primary"
         />
         <StatCard
           label="Next Run"
@@ -605,7 +605,7 @@ export function ScheduleTasksView() {
           </div>
         ) : showEmpty ? (
           <div className="flex min-h-[360px] flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e8f1ff] text-[#1877f2]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
               <ArrowRotateRight className="h-7 w-7" />
             </div>
             <h2 className="mt-5 text-xl font-extrabold tracking-tight text-foreground">

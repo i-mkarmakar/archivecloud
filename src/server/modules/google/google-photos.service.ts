@@ -11,6 +11,7 @@ import {
   createOAuthClient,
   getAuthedGoogleClient,
 } from "@/server/modules/google/google.service";
+import { normalizeHeaders } from "@/server/modules/files/stream-google-file";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
 const PHOTOS_API = "https://photoslibrary.googleapis.com/v1";
@@ -117,11 +118,11 @@ async function photosFetch(
   init?: RequestInit,
 ) {
   const auth = await getAuthedGoogleClient(account);
-  const headers = await auth.getRequestHeaders();
+  const authHeaders = normalizeHeaders(await auth.getRequestHeaders());
   const response = await fetch(`${PHOTOS_API}${path}`, {
     ...init,
     headers: {
-      ...headers,
+      ...authHeaders,
       ...(init?.headers ?? {}),
     },
   });
@@ -465,7 +466,7 @@ export async function downloadGooglePhotosFileStream(
     throw new Error("Google Photos media item is missing a download URL.");
   }
   const auth = await getAuthedGoogleClient(account);
-  const headers = await auth.getRequestHeaders();
+  const headers = normalizeHeaders(await auth.getRequestHeaders());
   const downloadUrl = `${item.baseUrl}=d`;
   const response = await fetch(downloadUrl, { headers });
   if (!response.ok || !response.body) {
@@ -493,7 +494,7 @@ export async function uploadGooglePhotosFileFromStream(params: {
   const buffer = Buffer.concat(chunks);
 
   const auth = await getAuthedGoogleClient(params.account);
-  const headers = await auth.getRequestHeaders();
+  const headers = normalizeHeaders(await auth.getRequestHeaders());
   const uploadResponse = await fetch(`${PHOTOS_API}/uploads`, {
     method: "POST",
     headers: {

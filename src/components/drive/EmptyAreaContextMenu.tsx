@@ -61,6 +61,10 @@ export function EmptyAreaContextMenu({
   if (!open) return null;
   const safeX = Math.max(12, Math.min(x, window.innerWidth - 228));
   const safeY = Math.max(12, Math.min(y, window.innerHeight - 160));
+  const run = (action: () => void) => {
+    onClose();
+    action();
+  };
 
   return (
     <>
@@ -82,13 +86,13 @@ export function EmptyAreaContextMenu({
           <MenuItem
             icon={ArrowUpFromLine}
             label="Upload File"
-            onClick={onUpload}
+            onClick={() => run(onUpload)}
             accent
           />
           <MenuItem
             icon={FolderPlus}
             label="New Folder"
-            onClick={onCreateFolder}
+            onClick={() => run(onCreateFolder)}
           />
           {canPasteFolder && onPasteFolder ? (
             <>
@@ -96,7 +100,7 @@ export function EmptyAreaContextMenu({
               <MenuItem
                 icon={CopyCheck}
                 label="Paste Folder Here"
-                onClick={onPasteFolder}
+                onClick={() => run(onPasteFolder)}
               />
             </>
           ) : null}

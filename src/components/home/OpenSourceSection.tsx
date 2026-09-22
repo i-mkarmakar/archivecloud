@@ -102,7 +102,7 @@ export function OpenSourceSection() {
                     "> git clone https://github.com/i-mkarmakar/archivecloud.git"
                   }
                 </TypingAnimation>
-                <AnimatedSpan className="text-[#1683F7]">
+                <AnimatedSpan className="text-primary">
                   Cloning into &apos;archivecloud&apos;...
                 </AnimatedSpan>
                 <TypingAnimation>{"> cd archivecloud"}</TypingAnimation>

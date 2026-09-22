@@ -11,6 +11,7 @@ import { UploadProgressPanel } from "@/components/dashboard/UploadProgressPanel"
 import { useUpload } from "@/context/UploadContext";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { clearAppBoot } from "@/lib/app-boot";
 import { authClient } from "@/lib/auth-client";
 import { type AuthUser, sessionUserToAuthUser } from "@/lib/auth-user";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
@@ -172,8 +173,11 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   }, [sp]);
 
   async function logout() {
+    clearAppBoot();
     await authClient.signOut();
-    router.replace("/auth/sign-in");
+    // Full navigation clears the client session atom so LoginForm does not
+    // treat a stale session as still signed-in and bounce back to /home.
+    window.location.assign("/auth/sign-in");
   }
 
   function applyFilters() {

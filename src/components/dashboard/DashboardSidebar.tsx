@@ -30,6 +30,11 @@ import { apiFetch } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth-user";
 import { getProfileImageUrl } from "@/lib/gravatar";
 import { getPlanById } from "@/lib/plans";
+import {
+  loadProviderOrder,
+  saveProviderOrder,
+  sortByProviderOrder,
+} from "@/lib/provider-order";
 import { providerLabel } from "@/lib/providers";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { cn } from "@/lib/utils";
@@ -37,41 +42,6 @@ import { ConnectCloudAccountModal } from "./ConnectCloudAccountModal";
 import { dashboardNavSections } from "./config";
 import { SidebarNewButton } from "./SidebarNewButton";
 import { SidebarPlanLimits } from "./SidebarPlanLimits";
-
-const PROVIDER_ORDER_KEY = "archivecloud.sidebar.providerOrder";
-
-function loadProviderOrder(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(PROVIDER_ORDER_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveProviderOrder(order: string[]) {
-  try {
-    window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(order));
-  } catch {}
-}
-
-function sortGroupsByOrder<T extends { provider: string }>(
-  groups: T[],
-  order: string[],
-): T[] {
-  if (order.length === 0) return groups;
-  const rank = new Map(order.map((provider, index) => [provider, index]));
-  return [...groups].sort((a, b) => {
-    const ai = rank.get(a.provider) ?? Number.MAX_SAFE_INTEGER;
-    const bi = rank.get(b.provider) ?? Number.MAX_SAFE_INTEGER;
-    return ai - bi;
-  });
-}
 
 type TransferUsage = {
   yearMonth: string;
@@ -210,6 +180,7 @@ export function DashboardSidebar({
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [avatarError, setAvatarError] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const { planId: currentPlanId, plan: currentPlan } = useUserPlan();
   const [transferUsage, setTransferUsage] = useState<TransferUsage | null>(
@@ -236,7 +207,7 @@ export function DashboardSidebar({
   const connectedAccounts = accounts.filter(
     (account) => account.status === "connected",
   );
-  const providerGroups = sortGroupsByOrder(
+  const providerGroups = sortByProviderOrder(
     groupAccountsByProvider(connectedAccounts),
     providerOrder,
   );
@@ -331,7 +302,7 @@ export function DashboardSidebar({
         type="button"
         onClick={onToggleCollapse}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute top-16 right-0 z-30 flex h-6 w-6 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-[#1877f2] text-white shadow-md transition-transform hover:scale-105"
+        className="absolute top-16 right-0 z-30 flex h-6 w-6 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] transition-transform hover:scale-105"
       >
         {collapsed ? (
           <ChevronRight className="h-3.5 w-3.5" />
@@ -410,7 +381,7 @@ export function DashboardSidebar({
                                     className={cn(
                                       "mx-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-transparent bg-white transition-colors",
                                       groupActive
-                                        ? "border-[#1877f2]/30 bg-[#e8f1fc]"
+                                        ? "border-primary/30 bg-primary/10"
                                         : "border-separator hover:bg-black/5",
                                     )}
                                   >
@@ -432,7 +403,7 @@ export function DashboardSidebar({
                                             className={cn(
                                               "mx-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-transparent transition-colors",
                                               isActive
-                                                ? "border-[#1877f2]/30 bg-[#e8f1fc]"
+                                                ? "border-primary/30 bg-primary/10"
                                                 : "hover:bg-black/5",
                                             )}
                                           >
@@ -440,7 +411,7 @@ export function DashboardSidebar({
                                               className={cn(
                                                 "h-1.5 w-1.5 rounded-full",
                                                 isActive
-                                                  ? "bg-[#1877f2]"
+                                                  ? "bg-primary"
                                                   : "bg-[#888ea8]",
                                               )}
                                             />
@@ -456,7 +427,7 @@ export function DashboardSidebar({
                               title="Link storage"
                               aria-label="Link storage"
                               onClick={openConnectModal}
-                              className="mx-auto mt-3 flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#1877f2]/50 text-[#1877f2] transition-colors hover:bg-[#e8f1fc]/50"
+                              className="mx-auto mt-5 flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-dashed border-primary/50 text-primary transition-colors hover:bg-primary/10"
                             >
                               <Plus className="h-5 w-5" />
                             </button>
@@ -478,7 +449,7 @@ export function DashboardSidebar({
                                 className={cn(
                                   "mx-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-colors",
                                   isActive
-                                    ? "bg-[#e8f1fc] text-[#1877f2]"
+                                    ? "bg-primary/10 text-primary"
                                     : "text-[#4a5568] hover:bg-black/5",
                                 )}
                               >
@@ -509,6 +480,7 @@ export function DashboardSidebar({
                   profileImageUrl && !avatarError ? profileImageUrl : null
                 }
                 size="md"
+                storyRing
                 onImageError={() => setAvatarError(true)}
               />
             </Link>
@@ -594,7 +566,7 @@ export function DashboardSidebar({
                                 key={group.provider}
                                 className={cn(
                                   "min-w-0 rounded-lg transition-colors",
-                                  isDragOver && "bg-[#e8f1fc]/70",
+                                  isDragOver && "bg-primary/10",
                                   isDragging && "opacity-50",
                                 )}
                                 onDragOver={(event) => {
@@ -643,9 +615,9 @@ export function DashboardSidebar({
                                     className={cn(
                                       "flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded-md text-[#64748b] transition-opacity active:cursor-grabbing",
                                       "opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100",
-                                      "focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877f2]/40",
+                                      "focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                       isDragging &&
-                                        "pointer-events-auto opacity-100 text-[#1877f2]",
+                                        "pointer-events-auto opacity-100 text-primary",
                                     )}
                                   >
                                     <Grip className="h-4 w-4" aria-hidden />
@@ -660,12 +632,12 @@ export function DashboardSidebar({
                                     className={cn(
                                       "relative flex min-h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-lg px-1.5 py-1 text-sm transition-colors",
                                       groupActive
-                                        ? "bg-[#e8f1fc] font-semibold text-[#1877f2]"
+                                        ? "bg-primary/10 font-semibold text-primary"
                                         : "font-medium text-[#4a5568] hover:bg-black/5",
                                     )}
                                   >
                                     {groupActive ? (
-                                      <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-[#1877f2]" />
+                                      <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-primary" />
                                     ) : null}
                                     <ProviderMark
                                       provider={group.provider}
@@ -676,7 +648,7 @@ export function DashboardSidebar({
                                         className={cn(
                                           "block truncate text-sm leading-tight",
                                           groupActive
-                                            ? "font-semibold text-[#1877f2]"
+                                            ? "font-semibold text-primary"
                                             : "font-semibold text-[#4a5568]",
                                         )}
                                       >
@@ -686,7 +658,7 @@ export function DashboardSidebar({
                                         className={cn(
                                           "block truncate text-[11px] font-normal leading-tight",
                                           groupActive
-                                            ? "text-[#1877f2]/80"
+                                            ? "text-primary/80"
                                             : "text-[#888ea8]",
                                         )}
                                       >
@@ -696,7 +668,7 @@ export function DashboardSidebar({
                                           : "accounts"}
                                       </span>
                                     </span>
-                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e8f1fc] text-[#1877f2]">
+                                    <span className="mr-5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                       {groupOpen ? (
                                         <ChevronUp className="h-3.5 w-3.5" />
                                       ) : (
@@ -725,18 +697,18 @@ export function DashboardSidebar({
                                           className={cn(
                                             "group relative flex min-h-8 min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-lg px-2.5 py-1 text-sm transition-colors",
                                             isActive
-                                              ? "bg-[#e8f1fc] font-semibold text-[#1877f2]"
+                                              ? "bg-primary/10 font-semibold text-primary"
                                               : "font-medium text-[#4a5568] hover:bg-black/5",
                                           )}
                                         >
                                           {isActive ? (
-                                            <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-[#1877f2]" />
+                                            <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-primary" />
                                           ) : null}
                                           <span
                                             className={cn(
                                               "w-4 shrink-0 self-start pt-0.5 text-right text-[11px] tabular-nums",
                                               isActive
-                                                ? "text-[#1877f2]/80"
+                                                ? "text-primary/80"
                                                 : "text-[#888ea8]",
                                             )}
                                           >
@@ -747,7 +719,7 @@ export function DashboardSidebar({
                                               className={cn(
                                                 "block truncate text-xs",
                                                 isActive
-                                                  ? "font-semibold text-[#1877f2]"
+                                                  ? "font-semibold text-primary"
                                                   : "font-semibold text-[#4a5568]",
                                               )}
                                             >
@@ -758,7 +730,7 @@ export function DashboardSidebar({
                                                 className={cn(
                                                   "mt-0.5 block truncate text-[11px] font-normal",
                                                   isActive
-                                                    ? "text-[#1877f2]/80"
+                                                    ? "text-primary/80"
                                                     : "text-[#888ea8]",
                                                 )}
                                               >
@@ -777,7 +749,7 @@ export function DashboardSidebar({
                           <button
                             type="button"
                             onClick={openConnectModal}
-                            className="mt-1 flex min-h-8 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1 text-sm font-semibold text-[#1877f2] transition-colors hover:bg-[#e8f1fc]/50"
+                            className="mt-5 flex min-h-8 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
                           >
                             <Plus className="h-5 w-5 shrink-0" />
                             Link storage
@@ -811,19 +783,17 @@ export function DashboardSidebar({
                               className={cn(
                                 "relative flex min-h-8 min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-lg px-2.5 py-1 text-sm transition-colors",
                                 isActive
-                                  ? "bg-[#e8f1fc] font-semibold text-[#1877f2]"
+                                  ? "bg-primary/10 font-semibold text-primary"
                                   : "font-medium text-[#4a5568] hover:bg-black/5",
                               )}
                             >
                               {isActive ? (
-                                <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-[#1877f2]" />
+                                <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-primary" />
                               ) : null}
                               <item.icon
                                 className={cn(
                                   "h-4 w-4 shrink-0",
-                                  isActive
-                                    ? "text-[#1877f2]"
-                                    : "text-[#4a5568]",
+                                  isActive ? "text-primary" : "text-[#4a5568]",
                                 )}
                               />
                               <span className="flex min-w-0 items-center gap-2">
@@ -878,6 +848,7 @@ export function DashboardSidebar({
                   profileImageUrl && !avatarError ? profileImageUrl : null
                 }
                 size="md"
+                storyRing
                 className="shrink-0"
                 onImageError={() => setAvatarError(true)}
               />
@@ -890,7 +861,7 @@ export function DashboardSidebar({
                 </p>
               </div>
             </Link>
-            <Popover>
+            <Popover isOpen={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
               <Popover.Trigger
                 className={buttonVariants({
                   variant: "ghost",
@@ -908,7 +879,10 @@ export function DashboardSidebar({
                   <div className="grid gap-0.5">
                     <Link
                       href="/settings"
-                      onClick={onNavigate}
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        onNavigate?.();
+                      }}
                       className={buttonVariants({
                         variant: "ghost",
                         size: "sm",
@@ -924,7 +898,10 @@ export function DashboardSidebar({
                       size="sm"
                       fullWidth
                       className="justify-start gap-2 font-semibold text-danger cursor-pointer"
-                      onPress={() => setLogoutOpen(true)}
+                      onPress={() => {
+                        setAccountMenuOpen(false);
+                        setLogoutOpen(true);
+                      }}
                     >
                       <ArrowRightFromSquare className="h-4 w-4 shrink-0" />
                       Log Out
@@ -941,28 +918,28 @@ export function DashboardSidebar({
           <AlertDialog.Dialog className="sm:max-w-[400px]">
             <AlertDialog.CloseTrigger />
             <AlertDialog.Header>
-              <AlertDialog.Icon status="accent" />
+              <AlertDialog.Icon status="danger">
+                <ArrowRightFromSquare className="size-5" />
+              </AlertDialog.Icon>
               <AlertDialog.Heading>
                 Sign out of your account?
               </AlertDialog.Heading>
             </AlertDialog.Header>
             <AlertDialog.Body>
-              <p>
-                You&apos;ll need to sign in again to access Archive Cloud. Any
-                unsaved changes may be lost.
-              </p>
+              <p>You&apos;ll need to sign in again to continue.</p>
             </AlertDialog.Body>
             <AlertDialog.Footer>
-              <Button slot="close" variant="tertiary">
-                Stay signed in
-              </Button>
               <Button
+                variant="danger"
                 onPress={() => {
                   setLogoutOpen(false);
                   onLogout();
                 }}
               >
                 Sign out
+              </Button>
+              <Button slot="close" variant="tertiary">
+                Stay signed in
               </Button>
             </AlertDialog.Footer>
           </AlertDialog.Dialog>

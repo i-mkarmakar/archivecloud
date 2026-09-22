@@ -27,7 +27,7 @@ export function SystemInfoPopover() {
             <Button
               variant="ghost"
               size="sm"
-              className="shrink-0 text-sm font-semibold text-[#1877f2]"
+              className="shrink-0 text-sm font-semibold text-primary"
               onPress={() => toast.success("All notifications marked as read.")}
             >
               Mark all as read

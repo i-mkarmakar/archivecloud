@@ -25,4 +25,10 @@ export function consumeAppBoot() {
   }
 }
 
+export function clearAppBoot() {
+  try {
+    sessionStorage.removeItem(APP_BOOT_KEY);
+  } catch {}
+}
+
 export const APP_BOOT_MIN_MS = 1400;

@@ -1,6 +1,6 @@
 import { FolderOpen, EllipsisVertical, Star } from "@gravity-ui/icons";
 import { type MouseEvent, useState } from "react";
-import { AvatarStack } from "@/components/drive/AvatarStack";
+import { AccountAccessBadge } from "@/components/drive/AccountAccessBadge";
 import { FileIcon } from "@/components/drive/FileIcon";
 import type { FileItem } from "@/data/drive-data";
 import { apiFetch } from "@/lib/api";
@@ -237,10 +237,7 @@ export function FileTable({
                 </td>
                 <td className="py-2.5 text-muted">{file.size}</td>
                 <td className="py-2.5 text-muted">
-                  <span className="flex items-center gap-2">
-                    <AvatarStack count={file.shared} />
-                    {file.access}
-                  </span>
+                  <AccountAccessBadge file={file} showLabel />
                 </td>
                 <td className="py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">

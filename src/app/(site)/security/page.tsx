@@ -43,7 +43,7 @@ const SECURITY_POINTS = [
 export default function SecurityPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-10 pb-24 sm:px-6">
-      <p className="text-sm font-semibold text-[#1683F7]">Security</p>
+      <p className="text-sm font-semibold text-primary">Security</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#0F172A] md:text-4xl">
         Built to connect clouds without becoming another vault of your files
       </h1>
@@ -87,7 +87,7 @@ export default function SecurityPage() {
       </p>
       <Link
         href="/settings"
-        className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#1683F7]"
+        className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary"
       >
         Open Settings
       </Link>

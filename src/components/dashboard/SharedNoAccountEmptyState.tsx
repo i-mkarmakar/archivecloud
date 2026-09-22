@@ -33,7 +33,7 @@ export function SharedNoAccountEmptyState({
         >
           <Folder className="absolute left-1 top-2 h-14 w-14 text-[#c9d2df]/70" />
           <Cloud className="absolute bottom-0 right-1 h-14 w-14 text-[#c9d2df]/70" />
-          <div className="relative z-10 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-[#1877f2] shadow-[0_10px_28px_rgba(24,119,242,0.28)]">
+          <div className="relative z-10 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]">
             <span className="relative flex items-center justify-center">
               <Person className="h-8 w-8 text-white" />
               <ArrowUpRight className="absolute -right-1 -top-0.5 h-3.5 w-3.5 text-white" />
@@ -51,14 +51,14 @@ export function SharedNoAccountEmptyState({
         <ul className="mt-6 w-full max-w-sm space-y-3 text-left">
           {FEATURES.map((feature) => (
             <li key={feature} className="flex items-start gap-2.5 text-sm">
-              <CircleCheckFill className="mt-0.5 h-4 w-4 shrink-0 text-[#5b9dff]" />
+              <CircleCheckFill className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <span className="text-foreground/90">{feature}</span>
             </li>
           ))}
         </ul>
 
         <Button
-          className="mt-8 h-11 min-w-[10.5rem] cursor-pointer rounded-xl bg-[#1877f2] px-6 text-sm font-semibold text-white"
+          className="mt-8 h-11 min-w-[10.5rem] cursor-pointer rounded-xl border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] px-6 text-sm font-semibold"
           onPress={() => setModalOpen(true)}
         >
           Connect Account

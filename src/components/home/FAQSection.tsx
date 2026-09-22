@@ -83,9 +83,7 @@ export function FAQSection() {
   }, []);
 
   const visibleItems =
-    isMobile && !showAll
-      ? FAQ_ITEMS.slice(0, MOBILE_PREVIEW_COUNT)
-      : FAQ_ITEMS;
+    isMobile && !showAll ? FAQ_ITEMS.slice(0, MOBILE_PREVIEW_COUNT) : FAQ_ITEMS;
   const canToggleMore = isMobile && FAQ_ITEMS.length > MOBILE_PREVIEW_COUNT;
 
   return (
@@ -124,7 +122,7 @@ export function FAQSection() {
                     {item.question}
                   </span>
                   {open ? (
-                    <Minus className="size-3.5 shrink-0 text-[#1683F7] sm:size-4" />
+                    <Minus className="size-3.5 shrink-0 text-primary sm:size-4" />
                   ) : (
                     <Plus className="size-3.5 shrink-0 text-[#64748B] sm:size-4" />
                   )}
