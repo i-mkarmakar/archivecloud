@@ -17,7 +17,7 @@ export function ScheduleStep({
   return (
     <section className="space-y-2">
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1e9df1] text-[10px] font-bold text-white">
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
           {n}
         </span>
         <div className="min-w-0 flex-1">

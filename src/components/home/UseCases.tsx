@@ -52,7 +52,7 @@ function CaseCard({
         className={
           index === 0
             ? "flex size-9 items-center justify-center rounded-lg bg-white/20 text-white sm:size-11 sm:rounded-xl"
-            : "flex size-9 items-center justify-center rounded-lg bg-[#EAF4FF] text-primary sm:size-11 sm:rounded-xl"
+            : "flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-11 sm:rounded-xl"
         }
       >
         <item.icon className="size-4 sm:size-5" strokeWidth={1.75} />

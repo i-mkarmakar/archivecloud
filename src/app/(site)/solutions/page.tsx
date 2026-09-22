@@ -60,7 +60,7 @@ const SOLUTIONS = [
 export default function SolutionsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-10 pb-24 sm:px-6">
-      <p className="text-sm font-semibold text-[#1683F7]">Solutions</p>
+      <p className="text-sm font-semibold text-primary">Solutions</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#0F172A] md:text-4xl">
         One hub for how you actually use multiple clouds
       </h1>

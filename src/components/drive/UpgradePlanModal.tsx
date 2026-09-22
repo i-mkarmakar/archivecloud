@@ -41,12 +41,12 @@ function PlanCard({
       className={cn(
         "relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm",
         recommended
-          ? "border-[#1877f2] shadow-[0_8px_24px_rgba(24,119,242,0.12)] ring-1 ring-[#1877f2]/30"
+          ? "border-primary shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] ring-1 ring-primary/30"
           : "border-border",
       )}
     >
       {recommended ? (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-[#1877f2] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] px-3 py-0.5 text-[10px] font-bold uppercase tracking-wide">
           Recommended
         </span>
       ) : null}
@@ -78,7 +78,7 @@ function PlanCard({
       <ul className="mt-6 space-y-2.5">
         {plan.features.map((feature) => (
           <li key={feature.text} className="flex items-start gap-2.5 text-sm">
-            <CircleCheckFill className="mt-0.5 h-4 w-4 shrink-0 text-[#5b9dff]" />
+            <CircleCheckFill className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span
               className={cn(
                 "text-foreground",

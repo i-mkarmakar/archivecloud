@@ -66,6 +66,10 @@ type UserAvatarProps = {
   className?: string;
   fallbackClassName?: string;
   alt?: string;
+  /** Instagram-style blue outline ring around the avatar. */
+  storyRing?: boolean;
+  /** Thicker ring — use on large profile photos, not compact sidebar avatars. */
+  storyRingThick?: boolean;
   onImageError?: () => void;
 };
 
@@ -78,6 +82,8 @@ export function UserAvatar({
   className,
   fallbackClassName,
   alt,
+  storyRing = false,
+  storyRingThick = false,
   onImageError,
 }: UserAvatarProps) {
   const custom = imageUrl?.trim() ?? "";
@@ -85,7 +91,7 @@ export function UserAvatar({
   const initials = getUserInitials(name, email);
   const label = alt ?? name ?? email ?? "User";
 
-  return (
+  const avatar = (
     <Avatar size={size} color={color} className={className}>
       <Avatar.Image
         src={src}
@@ -99,5 +105,25 @@ export function UserAvatar({
         {initials}
       </Avatar.Fallback>
     </Avatar>
+  );
+
+  if (!storyRing) return avatar;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 rounded-full bg-gradient-to-tr from-primary via-primary to-[color-mix(in_srgb,var(--primary)_70%,white)]",
+        storyRingThick ? "p-[3.5px]" : "p-[2.5px]",
+      )}
+    >
+      <span
+        className={cn(
+          "inline-flex rounded-full bg-[#f4f7fa]",
+          storyRingThick ? "p-[2.5px]" : "p-[2px]",
+        )}
+      >
+        {avatar}
+      </span>
+    </span>
   );
 }

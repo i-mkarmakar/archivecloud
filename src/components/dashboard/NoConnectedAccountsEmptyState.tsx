@@ -38,7 +38,7 @@ const FEATURES = [
     description:
       "Stop juggling different apps. Manage all your cloud drives from a single place.",
     icon: Layers,
-    iconClass: "text-sky-600",
+    iconClass: "text-primary",
   },
   {
     title: "Secure by Design",
@@ -71,8 +71,7 @@ export function NoConnectedAccountsEmptyState({
     <div className="mx-auto w-full max-w-5xl px-1 pb-10 pt-2 sm:pt-4">
       <div className="max-w-2xl">
         <h1 className="text-2xl font-extrabold tracking-tight text-[#1e3a5f] sm:text-3xl lg:text-[2rem]">
-          {getTimeGreeting()},{" "}
-          <span className="text-[#1877f2]">{firstName}</span>
+          {getTimeGreeting()}, <span className="text-primary">{firstName}</span>
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#6b7280] sm:text-[15px]">
           Your cloud accounts are more powerful with us. Connect your cloud
@@ -113,7 +112,7 @@ export function NoConnectedAccountsEmptyState({
                 name={provider.id}
                 className="h-8 w-8"
                 fallback={
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8f1fc] text-xs font-bold text-[#1877f2]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
                     {provider.label.charAt(0)}
                   </span>
                 }
@@ -124,7 +123,7 @@ export function NoConnectedAccountsEmptyState({
             </p>
             <Button
               size="sm"
-              className="h-7 w-auto cursor-pointer bg-[#1877f2] px-3 text-[11px] text-white"
+              className="h-7 w-auto cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] px-3 text-[11px]"
               onPress={() => quickConnect(provider)}
             >
               Quick connect

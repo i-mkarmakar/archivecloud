@@ -87,7 +87,7 @@ const CONNECT_PROVIDERS: ConnectProvider[] = [
 ];
 
 const inputClassName =
-  "h-10 w-full rounded-lg border border-[#d5dae6] bg-white px-3 text-sm text-foreground placeholder:text-[#9aa3b5] focus:border-[#1877f2] focus:outline-none focus:ring-2 focus:ring-[#1877f2]/20";
+  "h-10 w-full rounded-lg border border-[#d5dae6] bg-white px-3 text-sm text-foreground placeholder:text-[#9aa3b5] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 function defaultAliasForProvider(label: string) {
   return `My ${label}`;
@@ -110,7 +110,7 @@ function ProviderIcon({
           isGoogleMark ? "h-5 w-5" : "h-7 w-7",
         )}
         fallback={
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#e8f1fc] text-xs font-bold text-[#1877f2]">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
             {label.charAt(0)}
           </span>
         }
@@ -211,8 +211,9 @@ export function ConnectCloudAccountModal({
     if (!provider.connectUrlPath || !provider.popupName) return;
     setConnecting(true);
     try {
+      const aliasQuery = encodeURIComponent(alias.trim());
       await connectOAuthPopup({
-        connectUrlPath: provider.connectUrlPath,
+        connectUrlPath: `${provider.connectUrlPath}?alias=${aliasQuery}`,
         popupName: provider.popupName,
         popupTitle: `Connecting to ${provider.label}...`,
       });
@@ -238,6 +239,7 @@ export function ConnectCloudAccountModal({
             appleId: appleId.trim(),
             appSpecificPassword: appPassword,
             provider: selected.id,
+            alias: alias.trim(),
           }),
         });
         toast.success(`${PROVIDER_LABELS[selected.id]} connected.`);
@@ -310,10 +312,15 @@ export function ConnectCloudAccountModal({
                       className={inputClassName}
                       placeholder="Enter account name"
                       value={alias}
-                      onChange={(event) => setAlias(event.target.value)}
+                      onChange={(event) =>
+                        setAlias(event.target.value.slice(0, 50))
+                      }
                       autoComplete="off"
-                      maxLength={80}
+                      maxLength={50}
                     />
+                    <p className="text-xs text-[#888ea8]">
+                      {alias.length}/50 characters
+                    </p>
                   </div>
 
                   <div className="grid gap-2.5">
@@ -334,8 +341,8 @@ export function ConnectCloudAccountModal({
                             className={cn(
                               "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left text-sm font-medium text-[#2d3748] transition-colors",
                               isSelected
-                                ? "border-[#1877f2] bg-[#e8f1fc] ring-1 ring-[#1877f2]"
-                                : "border-[#d5dae6] hover:border-[#1877f2]/60 hover:bg-[#f8fafc]",
+                                ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                : "border-[#d5dae6] hover:border-primary/60 hover:bg-[#f8fafc]",
                             )}
                           >
                             <ProviderIcon
@@ -366,8 +373,8 @@ export function ConnectCloudAccountModal({
                             className={cn(
                               "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left text-sm font-medium text-[#2d3748] transition-colors",
                               isSelected
-                                ? "border-[#1877f2] bg-[#e8f1fc] ring-1 ring-[#1877f2]"
-                                : "border-[#d5dae6] hover:border-[#1877f2]/60 hover:bg-[#f8fafc]",
+                                ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                : "border-[#d5dae6] hover:border-primary/60 hover:bg-[#f8fafc]",
                             )}
                           >
                             <ProviderIcon
@@ -424,7 +431,7 @@ export function ConnectCloudAccountModal({
                 <Button
                   onPress={handleConnect}
                   isDisabled={!canConnect}
-                  className="min-w-[140px] cursor-pointer bg-[#1877f2] text-white data-[disabled=true]:bg-[#c5cdd8] data-[disabled=true]:text-white"
+                  className="min-w-[140px] cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] data-[disabled=true]:bg-[#c5cdd8] data-[disabled=true]:text-white"
                 >
                   {connecting ? "Connecting..." : "Connect Account"}
                 </Button>
@@ -440,7 +447,7 @@ export function ConnectCloudAccountModal({
                   <Button
                     onPress={() => void submitCredentials()}
                     isDisabled={!credentialsReady || connecting}
-                    className="bg-[#1877f2] text-white"
+                    className="border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]"
                   >
                     {connecting ? "Connecting..." : "Connect Account"}
                   </Button>

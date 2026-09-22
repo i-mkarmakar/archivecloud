@@ -12,13 +12,15 @@ export function DummyModal({
   children,
   onClose,
   className,
+  size = "md",
 }: {
   open: boolean;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
   onClose: () => void;
   className?: string;
+  size?: "xs" | "sm" | "md" | "lg" | "cover" | "full";
 }) {
   const state = useOverlayState({
     isOpen: open,
@@ -37,14 +39,16 @@ export function DummyModal({
   return (
     <Modal state={state}>
       <Modal.Backdrop isDismissable>
-        <Modal.Container placement="center" scroll="inside" size="md">
+        <Modal.Container placement="center" scroll="inside" size={size}>
           <Modal.Dialog className={cn("max-h-[calc(100dvh-2rem)]", className)}>
             <Modal.CloseTrigger className="text-[#4b5563] hover:bg-black/5 hover:text-[#111827]" />
             <Modal.Header className="pr-10">
               <Modal.Heading className="text-xl font-extrabold tracking-tight">
                 {title}
               </Modal.Heading>
-              <p className="mt-1 text-sm text-muted">{description}</p>
+              {description ? (
+                <p className="mt-1 text-sm text-muted">{description}</p>
+              ) : null}
             </Modal.Header>
             <Modal.Body>{children}</Modal.Body>
           </Modal.Dialog>

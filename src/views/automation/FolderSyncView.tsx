@@ -398,7 +398,7 @@ export function FolderSyncView() {
               value="0"
               hint="0 of 0 pairs syncing right now"
               icon={<Thunderbolt className="h-4 w-4" />}
-              iconClassName="bg-[#e8f1ff] text-[#1877f2]"
+              iconClassName="bg-primary/10 text-primary"
             />
             <StatCard
               label="Sync Status"
@@ -420,7 +420,7 @@ export function FolderSyncView() {
 
           <Card className="mt-5 flex min-h-[280px] items-center justify-center border border-border bg-white p-10 shadow-none sm:min-h-[340px]">
             <div className="mx-auto max-w-md text-center">
-              <Thunderbolt className="mx-auto h-10 w-10 text-[#1877f2]" />
+              <Thunderbolt className="mx-auto h-10 w-10 text-primary" />
               <p className="mt-4 text-lg font-extrabold text-foreground">
                 No Active Auto-Sync Pairs
               </p>

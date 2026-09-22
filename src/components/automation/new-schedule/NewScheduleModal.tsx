@@ -204,7 +204,7 @@ export function NewScheduleModal({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between bg-[#1e9df1] px-4 py-2.5 text-white">
+        <header className="flex shrink-0 items-center justify-between bg-primary px-4 py-2.5 text-primary-foreground">
           <h2 id="new-schedule-title" className="text-base font-extrabold">
             New schedule
           </h2>
