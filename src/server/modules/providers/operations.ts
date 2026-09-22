@@ -59,6 +59,7 @@ import {
   downloadPCloudFileStream,
   ensurePCloudAppFolder,
   getPCloudAccessToken,
+  getPCloudApiBaseForAccount,
   getPCloudFileMetadata,
   syncPCloudQuota,
   uploadPCloudFileFromStream,
@@ -543,7 +544,8 @@ export async function renameProviderFile(params: {
     }
     case "pcloud": {
       const accessToken = await getPCloudAccessToken(account);
-      const url = new URL("https://api.pcloud.com/renamefile");
+      const apiBase = getPCloudApiBaseForAccount(account);
+      const url = new URL(`${apiBase}/renamefile`);
       url.searchParams.set("access_token", accessToken);
       url.searchParams.set("fileid", providerFileId);
       url.searchParams.set("toname", name);
@@ -554,7 +556,7 @@ export async function renameProviderFile(params: {
         metadata?: { fileid: number; name: string };
       };
       if (!response.ok || data.result !== 0) {
-        const folderUrl = new URL("https://api.pcloud.com/renamefolder");
+        const folderUrl = new URL(`${apiBase}/renamefolder`);
         folderUrl.searchParams.set("access_token", accessToken);
         folderUrl.searchParams.set("folderid", providerFileId);
         folderUrl.searchParams.set("toname", name);
@@ -778,7 +780,8 @@ export async function ensureProviderChildFolder(
           ? await ensurePCloudAppFolder(account)
           : parentId;
       const accessToken = await getPCloudAccessToken(account);
-      const url = new URL("https://api.pcloud.com/createfolderifnotexists");
+      const apiBase = getPCloudApiBaseForAccount(account);
+      const url = new URL(`${apiBase}/createfolderifnotexists`);
       url.searchParams.set("access_token", accessToken);
       url.searchParams.set("folderid", String(folderId));
       url.searchParams.set("name", name);

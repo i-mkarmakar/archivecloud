@@ -17,7 +17,9 @@ export function PCloudConnectedPage() {
       ? "Sign in to Archive Cloud, then connect pCloud again."
       : reason === "session_mismatch"
         ? "This connect link belongs to a different account. Start connect from Settings while signed in."
-        : "Close this window and try again.";
+        : reason === "profile"
+          ? "pCloud signed in, but we could not read the account profile. Try again, or check PCLOUD_CLIENT_ID / PCLOUD_CLIENT_SECRET."
+          : "Close this window and try again.";
 
   useEffect(() => {
     window.opener?.postMessage(

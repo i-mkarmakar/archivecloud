@@ -4,7 +4,10 @@ import { prisma } from "@/server/config/prisma";
 import { getDropboxAccessToken } from "@/server/modules/dropbox/dropbox.service";
 import { getAuthedGoogleClient } from "@/server/modules/google/google.service";
 import { getOneDriveAccessToken } from "@/server/modules/onedrive/onedrive.service";
-import { getPCloudAccessToken } from "@/server/modules/pcloud/pcloud.service";
+import {
+  getPCloudAccessToken,
+  getPCloudApiBaseForAccount,
+} from "@/server/modules/pcloud/pcloud.service";
 import { browseProviderFolder } from "@/server/modules/providers/operations";
 import type {
   ProviderBrowseFile,
@@ -270,7 +273,8 @@ async function searchPCloud(
   limit: number,
 ): Promise<{ files: CloudSearchHit[]; folders: CloudSearchHit[] }> {
   const accessToken = await getPCloudAccessToken(account);
-  const url = new URL("https://api.pcloud.com/listfolder");
+  const apiBase = getPCloudApiBaseForAccount(account);
+  const url = new URL(`${apiBase}/listfolder`);
   url.searchParams.set("access_token", accessToken);
   url.searchParams.set("folderid", "0");
   url.searchParams.set("recursive", "1");

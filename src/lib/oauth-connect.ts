@@ -34,10 +34,11 @@ export async function connectOAuthPopup(options: {
 
   popupTitle?: string;
 }): Promise<void> {
-  const path =
-    options.connectUrlPath === "/connected-accounts/google/connect-url"
-      ? "/connected-accounts/google/connect"
-      : options.connectUrlPath;
+  const url = new URL(options.connectUrlPath, window.location.origin);
+  if (url.pathname === "/connected-accounts/google/connect-url") {
+    url.pathname = "/connected-accounts/google/connect";
+  }
+  const path = `${url.pathname}${url.search}`;
 
   const popup = window.open(path, options.popupName, "width=540,height=720");
   if (!popup) {

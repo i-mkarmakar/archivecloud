@@ -10,6 +10,8 @@ import {
   ensureNewsletterPreference,
   setNewsletterPreference,
 } from "@/server/modules/newsletter/subscribe";
+import { stopGoogleDriveWatches } from "@/server/modules/webhooks/google-drive-watch";
+import { createAuditLog } from "@/server/utils/audit";
 
 const setPasswordBodySchema = z.object({
   newPassword: z.string().min(1),
@@ -210,12 +212,31 @@ export async function deleteAccountHandler(request: Request) {
     );
   }
 
-  console.info("[account-delete]", {
-    userId: user.id,
-    reasonChars: body.reason.length,
+  const connectedAccounts = await prisma.connectedAccount.findMany({
+    where: { userId: user.id },
+    select: { id: true },
   });
 
+  for (const account of connectedAccounts) {
+    try {
+      await stopGoogleDriveWatches(account.id);
+    } catch (error) {
+      console.error("Failed to stop Google Drive watches:", error);
+    }
+    try {
+      const { stopOneDriveSubscriptions } = await import(
+        "@/server/modules/webhooks/onedrive-subscription"
+      );
+      await stopOneDriveSubscriptions(account.id);
+    } catch (error) {
+      console.error("Failed to stop OneDrive subscriptions:", error);
+    }
+  }
+
   try {
+    await createAuditLog(user.id, "account.delete", "user", user.id, {
+      reason: body.reason,
+    });
     await prisma.user.delete({ where: { id: user.id } });
   } catch (error) {
     console.error("Failed to delete account:", error);

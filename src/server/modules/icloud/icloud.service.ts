@@ -53,9 +53,11 @@ export async function connectICloudAccount(
     appleId: string;
     appSpecificPassword: string;
     provider: ICloudProvider;
+    displayName?: string | null;
   },
 ) {
   const { appleId, appSpecificPassword, provider } = params;
+  const displayName = params.displayName?.trim() || appleId;
 
   const creds: ICloudCreds = { appleId, appSpecificPassword };
 
@@ -72,7 +74,7 @@ export async function connectICloudAccount(
       provider,
       providerAccountId: appleId,
       email: appleId,
-      displayName: appleId,
+      displayName,
       accessTokenEncrypted: encryptText(JSON.stringify(creds)),
       scopes: [],
       status: "connected",
@@ -81,7 +83,7 @@ export async function connectICloudAccount(
     },
     update: {
       email: appleId,
-      displayName: appleId,
+      displayName,
       accessTokenEncrypted: encryptText(JSON.stringify(creds)),
       status: "connected",
       lastError:

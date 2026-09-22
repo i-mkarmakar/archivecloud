@@ -7,6 +7,13 @@ import type { ProviderConfig } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { type AuthUser, requireAuthUser } from "@/server/http/auth";
+import {
+  clearConnectAliasCookie,
+  oauthStateFromAuthUrl,
+  parseConnectAliasParam,
+  resolveConnectedAccountAlias,
+  setConnectAliasCookie,
+} from "@/server/http/connect-alias";
 import { oauthConnectStartResponse } from "@/server/http/oauth-connect-response";
 import { errorJson, json } from "@/server/http/responses";
 import { serializeStorageAccount } from "@/server/lib/storage-serialize";
@@ -194,9 +201,13 @@ export async function createOneDriveConnectUrl(
 export async function onedriveConnectUrlHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
+  const alias = parseConnectAliasParam(request);
   const url = await createOneDriveConnectUrl(user.id);
   if (url instanceof Response) return url;
-  return oauthConnectStartResponse(request, url);
+  return oauthConnectStartResponse(request, url, {
+    state: oauthStateFromAuthUrl(url),
+    alias,
+  });
 }
 
 export async function onedriveCallbackHandler(request: Request) {
@@ -259,6 +270,23 @@ export async function onedriveCallbackHandler(request: Request) {
       );
     }
 
+    const existingAccount = await prisma.connectedAccount.findUnique({
+      where: {
+        userId_provider_providerAccountId: {
+          userId: oauthState.userId,
+          provider: "onedrive",
+          providerAccountId,
+        },
+      },
+      select: { displayName: true },
+    });
+    const displayName = resolveConnectedAccountAlias({
+      request,
+      state: query.state,
+      provider: "onedrive",
+      existingDisplayName: existingAccount?.displayName,
+    });
+
     const account = await prisma.connectedAccount.upsert({
       where: {
         userId_provider_providerAccountId: {
@@ -273,7 +301,7 @@ export async function onedriveCallbackHandler(request: Request) {
         provider: "onedrive",
         providerAccountId,
         email,
-        displayName: profile.displayName ?? null,
+        displayName,
         avatarUrl: null,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted: encryptText(tokens.refresh_token),
@@ -286,7 +314,7 @@ export async function onedriveCallbackHandler(request: Request) {
       update: {
         providerConfigId: oauthState.providerConfigId,
         email,
-        displayName: profile.displayName ?? null,
+        displayName,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted: encryptText(tokens.refresh_token),
         tokenExpiresAt: new Date(
@@ -310,9 +338,11 @@ export async function onedriveCallbackHandler(request: Request) {
     } catch (error) {
       console.error("OneDrive subscription registration failed:", error);
     }
-    return NextResponse.redirect(
+    const success = NextResponse.redirect(
       `${env.APP_URL}/onedrive-connected?status=success`,
     );
+    clearConnectAliasCookie(success);
+    return success;
   } catch (error) {
     console.error("OneDrive OAuth callback failed:", error);
     return NextResponse.redirect(
@@ -355,9 +385,13 @@ export async function createDropboxConnectUrl(
 export async function dropboxConnectUrlHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
+  const alias = parseConnectAliasParam(request);
   const url = await createDropboxConnectUrl(user.id);
   if (url instanceof Response) return url;
-  return oauthConnectStartResponse(request, url);
+  return oauthConnectStartResponse(request, url, {
+    state: oauthStateFromAuthUrl(url),
+    alias,
+  });
 }
 
 export async function dropboxCallbackHandler(request: Request) {
@@ -415,13 +449,36 @@ export async function dropboxCallbackHandler(request: Request) {
       tokens.access_token,
     );
     const providerAccountId =
-      profile.account_id || tokens.account_id || tokens.uid;
-    const email = profile.email;
+      profile.account_id || tokens.account_id || tokens.uid || "";
+    const email = profile.email?.trim() || "";
     if (!providerAccountId || !email) {
+      console.error("Dropbox profile incomplete", {
+        hasProfileAccountId: Boolean(profile.account_id),
+        hasTokenAccountId: Boolean(tokens.account_id),
+        hasUid: Boolean(tokens.uid),
+        hasEmail: Boolean(email),
+      });
       return NextResponse.redirect(
         `${env.APP_URL}/dropbox-connected?status=error&reason=profile`,
       );
     }
+
+    const existingAccount = await prisma.connectedAccount.findUnique({
+      where: {
+        userId_provider_providerAccountId: {
+          userId: oauthState.userId,
+          provider: "dropbox",
+          providerAccountId,
+        },
+      },
+      select: { displayName: true },
+    });
+    const displayName = resolveConnectedAccountAlias({
+      request,
+      state: query.state,
+      provider: "dropbox",
+      existingDisplayName: existingAccount?.displayName,
+    });
 
     const account = await prisma.connectedAccount.upsert({
       where: {
@@ -437,7 +494,7 @@ export async function dropboxCallbackHandler(request: Request) {
         provider: "dropbox",
         providerAccountId,
         email,
-        displayName: profile.name?.display_name ?? null,
+        displayName,
         avatarUrl: profile.profile_photo_url ?? null,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted: encryptText(tokens.refresh_token),
@@ -450,7 +507,7 @@ export async function dropboxCallbackHandler(request: Request) {
       update: {
         providerConfigId: oauthState.providerConfigId,
         email,
-        displayName: profile.name?.display_name ?? null,
+        displayName,
         avatarUrl: profile.profile_photo_url ?? null,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted: encryptText(tokens.refresh_token),
@@ -476,9 +533,11 @@ export async function dropboxCallbackHandler(request: Request) {
     } catch (error) {
       console.error("Dropbox webhook cursor setup failed:", error);
     }
-    return NextResponse.redirect(
+    const success = NextResponse.redirect(
       `${env.APP_URL}/dropbox-connected?status=success`,
     );
+    clearConnectAliasCookie(success);
+    return success;
   } catch (error) {
     console.error("Dropbox OAuth callback failed:", error);
     return NextResponse.redirect(
@@ -490,9 +549,13 @@ export async function dropboxCallbackHandler(request: Request) {
 export async function googleConnectUrlHandler(request: Request) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
+  const alias = parseConnectAliasParam(request);
   const url = await createGoogleConnectUrl(user.id, request);
   if (url instanceof Response) return url;
-  return oauthConnectStartResponse(request, url);
+  return oauthConnectStartResponse(request, url, {
+    state: oauthStateFromAuthUrl(url),
+    alias,
+  });
 }
 
 export async function googleConnectHandler(request: Request) {
@@ -502,6 +565,7 @@ export async function googleConnectHandler(request: Request) {
   const requestUrl = new URL(request.url);
   const returnTo = safeAppPath(requestUrl.searchParams.get("returnTo"));
   const loginHintParam = requestUrl.searchParams.get("login_hint")?.trim();
+  const alias = parseConnectAliasParam(request);
   const userRow = await prisma.user.findUnique({
     where: { id: user.id },
     select: { email: true },
@@ -512,6 +576,8 @@ export async function googleConnectHandler(request: Request) {
   if (url instanceof Response) return url;
 
   const response = NextResponse.redirect(url);
+  const state = oauthStateFromAuthUrl(url);
+  if (state) setConnectAliasCookie(response, state, alias);
   if (returnTo) {
     response.cookies.set(GOOGLE_CONNECT_RETURN_COOKIE, returnTo, {
       httpOnly: true,
@@ -608,6 +674,13 @@ export async function googleCallbackHandler(request: Request) {
         400,
       );
 
+    const displayName = resolveConnectedAccountAlias({
+      request,
+      state: query.state,
+      provider: "google_drive",
+      existingDisplayName: existingAccount?.displayName,
+    });
+
     const account = await prisma.connectedAccount.upsert({
       where: {
         userId_provider_providerAccountId: {
@@ -622,7 +695,7 @@ export async function googleCallbackHandler(request: Request) {
         provider: "google_drive",
         providerAccountId,
         email,
-        displayName: profile.data.name,
+        displayName,
         avatarUrl: profile.data.picture,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted,
@@ -633,7 +706,7 @@ export async function googleCallbackHandler(request: Request) {
       update: {
         providerConfigId: oauthState.providerConfigId,
         email,
-        displayName: profile.data.name,
+        displayName,
         avatarUrl: profile.data.picture,
         accessTokenEncrypted: encryptText(tokens.access_token),
         refreshTokenEncrypted,
@@ -662,12 +735,16 @@ export async function googleCallbackHandler(request: Request) {
     if (returnTo) {
       const dest = new URL(returnTo, env.APP_URL);
       dest.searchParams.set("googleDrive", "connected");
-      return NextResponse.redirect(dest.toString());
+      const response = NextResponse.redirect(dest.toString());
+      clearConnectAliasCookie(response);
+      return response;
     }
 
-    return NextResponse.redirect(
+    const success = NextResponse.redirect(
       `${env.APP_URL}/google-connected?status=success`,
     );
+    clearConnectAliasCookie(success);
+    return success;
   } catch (error) {
     console.error("Google OAuth callback failed:", error);
     try {
@@ -715,6 +792,55 @@ export async function syncQuotaHandler(
   }
 }
 
+export async function updateConnectedAccountHandler(
+  request: Request,
+  _user?: AuthUser,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const accountId = params?.id;
+  if (!accountId) {
+    return errorJson("VALIDATION_ERROR", "Account id required.", 400);
+  }
+
+  const body = z
+    .object({
+      alias: z.string().trim().min(1).max(50),
+    })
+    .parse(await request.json());
+
+  const existing = await prisma.connectedAccount.findFirst({
+    where: { id: accountId, userId: user.id, status: "connected" },
+    select: { id: true },
+  });
+  if (!existing) {
+    return errorJson("NOT_FOUND", "Connected account not found.", 404);
+  }
+
+  const account = await prisma.connectedAccount.update({
+    where: { id: accountId },
+    data: { displayName: body.alias },
+    include: { storageAccount: true },
+  });
+
+  const {
+    accessTokenEncrypted: _a,
+    refreshTokenEncrypted: _r,
+    storageAccount,
+    ...safe
+  } = account;
+
+  return json({
+    account: {
+      ...safe,
+      storageAccount: storageAccount
+        ? serializeStorageAccount(storageAccount)
+        : null,
+    },
+  });
+}
+
 export async function disconnectAccountHandler(
   request: Request,
   _user?: AuthUser,
@@ -723,11 +849,19 @@ export async function disconnectAccountHandler(
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
   const accountId = params?.id;
-  if (!accountId) return json({ status: "ok" });
-  await prisma.connectedAccount.updateMany({
-    where: { id: accountId, userId: user.id },
-    data: { status: "disconnected" },
+  if (!accountId) {
+    return errorJson("VALIDATION_ERROR", "Account id required.", 400);
+  }
+
+  const owned = await prisma.connectedAccount.findFirst({
+    where: { id: accountId, userId: user.id, status: "connected" },
+    select: { id: true },
   });
+  if (!owned) {
+    return errorJson("NOT_FOUND", "Connected account not found.", 404);
+  }
+
+  // Stop provider webhooks while tokens are still valid.
   try {
     await stopGoogleDriveWatches(accountId);
   } catch (error) {
@@ -741,6 +875,68 @@ export async function disconnectAccountHandler(
   } catch (error) {
     console.error("Failed to stop OneDrive subscriptions:", error);
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.scheduledTransfer.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [{ sourceAccountId: accountId }, { destAccountId: accountId }],
+      },
+    });
+    await tx.folderSync.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [{ sourceAccountId: accountId }, { destAccountId: accountId }],
+      },
+    });
+    await tx.transferJob.updateMany({
+      where: {
+        userId: user.id,
+        status: { in: ["queued", "running"] },
+        OR: [{ sourceAccountId: accountId }, { destAccountId: accountId }],
+      },
+      data: {
+        status: "failed",
+        errorMessage: "Connected account was disconnected.",
+        completedAt: new Date(),
+      },
+    });
+    await tx.providerWebhookChannel.updateMany({
+      where: { connectedAccountId: accountId, status: "active" },
+      data: { status: "stopped" },
+    });
+    await tx.connectedAccount.update({
+      where: { id: accountId },
+      data: {
+        status: "disconnected",
+        accessTokenEncrypted: null,
+        refreshTokenEncrypted: null,
+        tokenExpiresAt: null,
+        lastError: null,
+      },
+    });
+
+    const policy = await tx.uploadRoutingPolicy.findUnique({
+      where: { userId: user.id },
+      select: { priorityAccountIds: true },
+    });
+    if (policy) {
+      const current = Array.isArray(policy.priorityAccountIds)
+        ? policy.priorityAccountIds.filter(
+            (item): item is string => typeof item === "string",
+          )
+        : [];
+      if (current.includes(accountId)) {
+        await tx.uploadRoutingPolicy.update({
+          where: { userId: user.id },
+          data: {
+            priorityAccountIds: current.filter((id) => id !== accountId),
+          },
+        });
+      }
+    }
+  });
+
   return json({ status: "ok" });
 }
 
@@ -782,12 +978,16 @@ export async function browseConnectedAccountHandler(
     );
     return json(result);
   } catch (error) {
-    return errorJson(
-      "UNSUPPORTED_PROVIDER",
+    const message =
       error instanceof Error
         ? error.message
-        : "Browsing is not supported for this provider.",
-      400,
+        : "Browsing is not supported for this provider.";
+    const isAuthFailure =
+      /UNAUTHENTICATED|CREDENTIALS_MISSING|invalid_grant|token/i.test(message);
+    return errorJson(
+      isAuthFailure ? "PROVIDER_AUTH_ERROR" : "PROVIDER_BROWSE_FAILED",
+      message,
+      isAuthFailure ? 401 : 400,
     );
   }
 }
