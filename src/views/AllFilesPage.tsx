@@ -29,10 +29,6 @@ import {
   NoConnectedAccountsEmptyStateSkeleton,
 } from "@/components/dashboard/NoConnectedAccountsEmptyState";
 import {
-  SIDEBAR_CREATE_EVENT,
-  type SidebarCreateAction,
-} from "@/components/dashboard/SidebarNewButton";
-import {
   AddToVirtualFolderModal,
   type AddToVirtualFolderTarget,
 } from "@/components/drive/AddToVirtualFolderModal";
@@ -106,6 +102,7 @@ import {
 } from "@/views/all-files/types";
 import { useAllFilesContextMenus } from "@/views/all-files/useAllFilesContextMenus";
 import { useAllFilesShortcuts } from "@/views/all-files/useAllFilesShortcuts";
+import { useAllFilesSidebarActions } from "@/views/all-files/useAllFilesSidebarActions";
 import { useFileSelection } from "@/views/all-files/useFileSelection";
 
 export function AllFilesPage() {
@@ -760,41 +757,15 @@ export function AllFilesPage() {
     setFolderOpen(true);
   }
 
-  function runSidebarCreateAction(action: SidebarCreateAction) {
-    if (action === "upload") {
-      setUploadOpen(true);
-      return;
-    }
-    openNewFolderModal();
-  }
-
-  useEffect(() => {
-    const action = sp.get("action");
-    if (action === "upload" || action === "new-folder") {
-      const params = new URLSearchParams(sp.toString());
-      params.delete("action");
-      const qs = params.toString();
-      router.replace(qs ? `/home?${qs}` : "/home");
-      runSidebarCreateAction(action);
-    }
-  }, [sp, router]);
-
-  useEffect(() => {
-    function onSidebarCreate(event: Event) {
-      const action = (event as CustomEvent<{ action: SidebarCreateAction }>)
-        .detail?.action;
-      if (action === "upload") {
-        setUploadOpen(true);
-      } else if (action === "new-folder") {
-        setFolderName("New Folder");
-        setFolderColor(defaultFolderColor);
-        setFolderOpen(true);
-      }
-    }
-    window.addEventListener(SIDEBAR_CREATE_EVENT, onSidebarCreate);
-    return () =>
-      window.removeEventListener(SIDEBAR_CREATE_EVENT, onSidebarCreate);
-  }, []);
+  useAllFilesSidebarActions({
+    sp,
+    router,
+    setUploadOpen,
+    openNewFolderModal,
+    setFolderName,
+    setFolderColor,
+    setFolderOpen,
+  });
 
   async function uploadFile(event: FormEvent) {
     event.preventDefault();
