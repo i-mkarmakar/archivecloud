@@ -71,7 +71,6 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { mapApiFileToItem } from "@/lib/files";
 import { getFirstName, getTimeGreeting } from "@/lib/greeting";
-import { createPlyr, ensurePlyr } from "@/lib/plyr";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
 import { providerLabel } from "@/lib/providers";
 import { cn } from "@/lib/utils";
@@ -103,6 +102,7 @@ import {
 import { useAllFilesContextMenus } from "@/views/all-files/useAllFilesContextMenus";
 import { useAllFilesShortcuts } from "@/views/all-files/useAllFilesShortcuts";
 import { useAllFilesSidebarActions } from "@/views/all-files/useAllFilesSidebarActions";
+import { useFilePreview } from "@/views/all-files/useFilePreview";
 import { useFileSelection } from "@/views/all-files/useFileSelection";
 
 export function AllFilesPage() {
@@ -705,28 +705,18 @@ export function AllFilesPage() {
     setActiveFile,
   });
 
-  useEffect(() => {
-    if (
-      !previewOpen ||
-      !activeFile?.mimeType?.startsWith("video/") ||
-      !previewVideoRef.current
-    )
-      return undefined;
-    let disposed = false;
-    let player: { destroy: () => void } | null = null;
-
-    ensurePlyr()
-      .then(() => {
-        if (disposed || !previewVideoRef.current) return;
-        player = createPlyr(previewVideoRef.current);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      disposed = true;
-      player?.destroy();
-    };
-  }, [previewOpen, activeFile?.mimeType, previewUrl]);
+  const { openFilePreview, closePreview } = useFilePreview({
+    previewOpen,
+    activeFile,
+    previewUrl,
+    previewVideoRef,
+    setActiveFile,
+    setPreviewUrl,
+    setPreviewError,
+    setPreviewLoading,
+    setPreviewOpen,
+    setContextMenu,
+  });
 
   async function createFolder(event: FormEvent) {
     event.preventDefault();
@@ -1003,42 +993,6 @@ export function AllFilesPage() {
   async function _viewFile() {
     if (!activeFile?.id) return;
     await openFilePreview(activeFile);
-  }
-
-  async function openFilePreview(file: FileItem) {
-    if (!file.id) return;
-    setActiveFile(file);
-    setPreviewUrl("");
-    setPreviewError("");
-    setPreviewLoading(true);
-    setPreviewOpen(true);
-    setContextMenu({ x: 0, y: 0, file: null });
-    try {
-      if (isLinkedFileId(file.id)) {
-        const accountId = file.connectedAccountId;
-        const providerFileId = file.providerFileId;
-        if (!accountId || !providerFileId) {
-          throw new Error("Linked file is missing account details.");
-        }
-        setPreviewUrl(
-          `${API_URL}/connected-accounts/${accountId}/files/${encodeURIComponent(providerFileId)}/preview`,
-        );
-        return;
-      }
-
-      const data = await apiFetch<{ path?: string; url: string }>(
-        `/files/${file.id}/preview-token`,
-        { method: "POST" },
-      );
-      const previewPath = data.path ?? new URL(data.url).pathname;
-      setPreviewUrl(`${API_URL}${previewPath}`);
-    } catch (error) {
-      setPreviewError(
-        error instanceof Error ? error.message : "Failed to load preview",
-      );
-    } finally {
-      setPreviewLoading(false);
-    }
   }
 
   async function downloadFile() {
@@ -1568,13 +1522,6 @@ export function AllFilesPage() {
     toast.success(`Folder "${cutFolder.name}" moved.`);
     setCutFolder(null);
     await loadFolders();
-  }
-
-  function closePreview() {
-    setPreviewUrl("");
-    setPreviewError("");
-    setPreviewLoading(false);
-    setPreviewOpen(false);
   }
 
   useEffect(() => {
