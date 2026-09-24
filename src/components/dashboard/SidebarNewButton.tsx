@@ -68,16 +68,19 @@ export function SidebarNewButton({
   onNavigate,
   className,
   iconOnly = false,
+  disabled = false,
 }: {
   safePathname: string;
   onNavigate?: () => void;
   className?: string;
   iconOnly?: boolean;
+  disabled?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   function runAction(action: SidebarCreateAction) {
+    if (disabled) return;
     setOpen(false);
     onNavigate?.();
     if (safePathname !== "/home") {
@@ -87,20 +90,42 @@ export function SidebarNewButton({
     dispatchSidebarCreateAction(action);
   }
 
+  const triggerClassName = cn(
+    iconOnly
+      ? "inline-flex h-12 w-12 items-center justify-center rounded-xl border-transparent transition-opacity"
+      : "inline-flex h-11 items-center gap-2.5 rounded-full px-6 text-[15px] font-semibold transition-shadow",
+    disabled
+      ? iconOnly
+        ? "cursor-not-allowed bg-[#dbe3ee] text-[#6b768a]"
+        : "cursor-not-allowed border border-[#e2e8f0] bg-[#f1f4f8] text-[#6b768a] shadow-none"
+      : iconOnly
+        ? "cursor-pointer bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] hover:opacity-90"
+        : "cursor-pointer bg-white text-foreground shadow-sm hover:shadow-md",
+    className,
+  );
+
+  const disabledTitle = "Connect a cloud account to create folders or upload files";
+
+  if (disabled) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-disabled="true"
+        aria-label="New"
+        title={disabledTitle}
+        className={triggerClassName}
+      >
+        <PlusIcon className="h-5 w-5 shrink-0" />
+        {iconOnly ? null : <span>New</span>}
+      </button>
+    );
+  }
+
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Popover.Trigger
-        className={cn(
-          iconOnly
-            ? "inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] transition-opacity hover:opacity-90"
-            : "inline-flex h-11 cursor-pointer items-center gap-2.5 rounded-full bg-white px-6 text-[15px] font-semibold text-foreground shadow-sm transition-shadow hover:shadow-md",
-          className,
-        )}
-        aria-label="New"
-      >
-        <PlusIcon
-          className={cn("shrink-0", iconOnly ? "h-5 w-5" : "h-5 w-5")}
-        />
+      <Popover.Trigger className={triggerClassName} aria-label="New">
+        <PlusIcon className="h-5 w-5 shrink-0" />
         {iconOnly ? null : <span>New</span>}
       </Popover.Trigger>
       <Popover.Content

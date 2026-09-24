@@ -3,7 +3,7 @@ import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata: Metadata = createPageMetadata(
   "Clouds",
-  "Browse connected cloud drives and copy files between accounts.",
+  "Browse connected cloud drives from your Archive Cloud home.",
 );
 
 export default function CloudsLayout({

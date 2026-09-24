@@ -1,15 +1,19 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import {
-  CloudsPageFallback,
-  DashboardSuspense,
-} from "@/components/drive/DashboardSuspense";
-import { CloudsPage } from "@/views/CloudsPage";
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function Page() {
-  return (
-    <DashboardSuspense fallback={<CloudsPageFallback />}>
-      <CloudsPage />
-    </DashboardSuspense>
-  );
+export default async function CloudsRedirect({ searchParams }: Props) {
+  const sp = await searchParams;
+  const accountId =
+    typeof sp.accountId === "string"
+      ? sp.accountId
+      : Array.isArray(sp.accountId)
+        ? sp.accountId[0]
+        : undefined;
+  if (accountId) {
+    redirect(`/home?accountId=${encodeURIComponent(accountId)}`);
+  }
+  redirect("/home");
 }

@@ -9,12 +9,14 @@ import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { UploadProgressPanel } from "@/components/dashboard/UploadProgressPanel";
 import { useUpload } from "@/context/UploadContext";
+import { resetUserPlanStore } from "@/hooks/useUserPlan";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { clearAppBoot } from "@/lib/app-boot";
 import { authClient } from "@/lib/auth-client";
 import { type AuthUser, sessionUserToAuthUser } from "@/lib/auth-user";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
+import { clearUserPlanCache } from "@/lib/user-plan-cache";
 import { cn } from "@/lib/utils";
 
 type StorageSummary = {
@@ -174,6 +176,8 @@ export function DriveLayout({ children }: { children: ReactNode }) {
 
   async function logout() {
     clearAppBoot();
+    clearUserPlanCache();
+    resetUserPlanStore();
     await authClient.signOut();
     // Full navigation clears the client session atom so LoginForm does not
     // treat a stale session as still signed-in and bounce back to /home.

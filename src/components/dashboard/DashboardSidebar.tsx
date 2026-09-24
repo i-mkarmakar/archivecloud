@@ -182,7 +182,8 @@ export function DashboardSidebar({
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
-  const { planId: currentPlanId, plan: currentPlan } = useUserPlan();
+  const { planId: currentPlanId, plan: currentPlan, hasThunder, loaded: planLoaded } =
+    useUserPlan();
   const [transferUsage, setTransferUsage] = useState<TransferUsage | null>(
     null,
   );
@@ -242,10 +243,8 @@ export function DashboardSidebar({
 
   function isAccountActive(accountId: string) {
     return (
-      safePathname === "/clouds" &&
-      (searchParams.get("accountId") === accountId ||
-        (!searchParams.get("accountId") &&
-          connectedAccounts[0]?.id === accountId))
+      safePathname === "/home" &&
+      searchParams.get("accountId") === accountId
     );
   }
 
@@ -333,7 +332,11 @@ export function DashboardSidebar({
           {edgeToggle}
 
           <div className="flex h-14 items-center justify-center px-2 pb-2 pt-4">
-            <BrandLogo className="h-10 w-10 shrink-0" />
+            {planLoaded ? (
+              <BrandLogo className="h-10 w-10 shrink-0" thunder={hasThunder} />
+            ) : (
+              <span className="inline-block h-10 w-10 shrink-0" aria-hidden />
+            )}
           </div>
 
           <div className="mt-5 flex justify-center px-2 pb-2">
@@ -341,6 +344,7 @@ export function DashboardSidebar({
               safePathname={safePathname}
               onNavigate={onNavigate}
               iconOnly
+              disabled={connectedAccounts.length === 0}
             />
           </div>
 
@@ -389,7 +393,7 @@ export function DashboardSidebar({
                                   </button>
                                   {groupOpen
                                     ? group.accounts.map((account) => {
-                                        const href = `/clouds?accountId=${account.id}`;
+                                        const href = `/home?accountId=${account.id}`;
                                         const isActive = isAccountActive(
                                           account.id,
                                         );
@@ -503,7 +507,11 @@ export function DashboardSidebar({
         {edgeToggle}
 
         <div className="flex h-14 min-w-0 items-center gap-2 px-3 pb-2 pt-4">
-          <BrandLogo className="h-10 w-10 shrink-0" />
+          {planLoaded ? (
+            <BrandLogo className="h-10 w-10 shrink-0" thunder={hasThunder} />
+          ) : (
+            <span className="inline-block h-10 w-10 shrink-0" aria-hidden />
+          )}
           <span className="truncate text-xl font-extrabold leading-none tracking-tight text-foreground">
             Archive Cloud
           </span>
@@ -513,6 +521,7 @@ export function DashboardSidebar({
           <SidebarNewButton
             safePathname={safePathname}
             onNavigate={onNavigate}
+            disabled={connectedAccounts.length === 0}
           />
         </div>
 
@@ -668,7 +677,7 @@ export function DashboardSidebar({
                                           : "accounts"}
                                       </span>
                                     </span>
-                                    <span className="mr-5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                       {groupOpen ? (
                                         <ChevronUp className="h-3.5 w-3.5" />
                                       ) : (
@@ -680,8 +689,8 @@ export function DashboardSidebar({
 
                                 {groupOpen ? (
                                   <div className="mt-0.5 grid min-w-0 gap-0.5 pl-5">
-                                    {group.accounts.map((account, index) => {
-                                      const href = `/clouds?accountId=${account.id}`;
+                                    {group.accounts.map((account) => {
+                                      const href = `/home?accountId=${account.id}`;
                                       const isActive = isAccountActive(
                                         account.id,
                                       );
@@ -704,16 +713,6 @@ export function DashboardSidebar({
                                           {isActive ? (
                                             <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-primary" />
                                           ) : null}
-                                          <span
-                                            className={cn(
-                                              "w-4 shrink-0 self-start pt-0.5 text-right text-[11px] tabular-nums",
-                                              isActive
-                                                ? "text-primary/80"
-                                                : "text-[#888ea8]",
-                                            )}
-                                          >
-                                            {index + 1}.
-                                          </span>
                                           <span className="min-w-0 flex-1 overflow-hidden">
                                             <span
                                               className={cn(
@@ -800,7 +799,9 @@ export function DashboardSidebar({
                                 <span className="truncate leading-none">
                                   {item.label}
                                 </span>
-                                {item.badge && currentPlanId !== "thunder" ? (
+                                {item.badge &&
+                                planLoaded &&
+                                currentPlanId !== "thunder" ? (
                                   <span className="inline-flex h-4 shrink-0 items-center justify-center rounded-full bg-[#f97316] px-1.5 text-[9px] font-bold leading-none tracking-wide text-white">
                                     {item.badge}
                                   </span>
@@ -818,21 +819,23 @@ export function DashboardSidebar({
           </nav>
         </ScrollShadow>
 
-        <div className="min-w-0 overflow-hidden border-t border-separator px-3 pb-3 pt-3">
-          <SidebarPlanLimits
-            plan={currentPlan}
-            transferUsedBytes={transferUsage?.transferredBytes ?? "0"}
-            transferLimitBytes={
-              transferUsage?.limitBytes ??
-              (currentPlan.limits.monthlyTransferBytes === null
-                ? null
-                : currentPlan.limits.monthlyTransferBytes.toString())
-            }
-            storageUsedBytes={storage?.usedBytes ?? 0}
-            storageAvailableBytes={storage?.availableBytes ?? null}
-            connectedAccounts={connectedAccounts.length}
-          />
-        </div>
+        {planLoaded && connectedAccounts.length > 0 ? (
+          <div className="min-w-0 overflow-hidden border-t border-separator px-3 pb-3 pt-3">
+            <SidebarPlanLimits
+              plan={currentPlan}
+              transferUsedBytes={transferUsage?.transferredBytes ?? "0"}
+              transferLimitBytes={
+                transferUsage?.limitBytes ??
+                (currentPlan.limits.monthlyTransferBytes === null
+                  ? null
+                  : currentPlan.limits.monthlyTransferBytes.toString())
+              }
+              storageUsedBytes={storage?.usedBytes ?? 0}
+              storageAvailableBytes={storage?.availableBytes ?? null}
+              connectedAccounts={connectedAccounts.length}
+            />
+          </div>
+        ) : null}
 
         <div className="min-w-0 overflow-hidden border-t border-separator px-3 py-3">
           <div className="flex min-w-0 items-center gap-2">
