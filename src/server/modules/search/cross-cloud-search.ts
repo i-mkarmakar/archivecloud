@@ -1,6 +1,5 @@
 import "server-only";
 
-import { google } from "googleapis";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { getDropboxAccessToken } from "@/server/modules/dropbox/dropbox.service";
@@ -9,7 +8,10 @@ import {
   getPCloudAccessToken,
   getPCloudApiBaseForAccount,
 } from "@/server/modules/pcloud/pcloud.service";
-import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
+import {
+  searchGoogleDrive,
+  searchGoogleSharedDrive,
+} from "@/server/modules/providers/google/google-search";
 import { browseProviderFolder } from "@/server/modules/providers/operations";
 import type {
   ProviderBrowseFile,
@@ -36,10 +38,6 @@ export type CloudSearchAccountResult = {
   error?: string;
 };
 
-function escapeDriveQueryValue(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
 function guessMimeFromName(name: string) {
   const lower = name.toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
@@ -51,94 +49,6 @@ function guessMimeFromName(name: string) {
   if (lower.endsWith(".txt")) return "text/plain";
   if (lower.endsWith(".zip")) return "application/zip";
   return "application/octet-stream";
-}
-
-async function searchGoogleDrive(
-  account: ConnectedAccount,
-  query: string,
-  limit: number,
-): Promise<{ files: CloudSearchHit[]; folders: CloudSearchHit[] }> {
-  const auth = await getAuthedGoogleClient(account);
-  const drive = google.drive({ version: "v3", auth });
-  const q = `trashed = false and name contains '${escapeDriveQueryValue(query)}'`;
-  const response = await drive.files.list({
-    q,
-    spaces: "drive",
-    fields: "files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,parents)",
-    pageSize: Math.min(limit, 100),
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-    orderBy: "modifiedTime desc",
-  });
-
-  const files: CloudSearchHit[] = [];
-  const folders: CloudSearchHit[] = [];
-  for (const item of response.data.files ?? []) {
-    if (!item.id || !item.name) continue;
-    if (item.mimeType === "application/vnd.google-apps.folder") {
-      folders.push({
-        id: item.id,
-        name: item.name,
-        kind: "folder",
-        modifiedTime: item.modifiedTime ?? undefined,
-      });
-    } else {
-      files.push({
-        id: item.id,
-        name: item.name,
-        kind: "file",
-        mimeType: item.mimeType ?? "application/octet-stream",
-        sizeBytes: String(item.size ?? item.quotaBytesUsed ?? 0),
-        modifiedTime: item.modifiedTime ?? undefined,
-      });
-    }
-  }
-  return { files, folders };
-}
-
-async function searchGoogleSharedDrive(
-  account: ConnectedAccount,
-  query: string,
-  limit: number,
-): Promise<{ files: CloudSearchHit[]; folders: CloudSearchHit[] }> {
-  const auth = await getAuthedGoogleClient(account);
-  const drive = google.drive({ version: "v3", auth });
-  const driveId = account.providerAccountId;
-  const q = `trashed = false and name contains '${escapeDriveQueryValue(query)}'`;
-  const response = await drive.files.list({
-    q,
-    corpora: "drive",
-    driveId,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-    fields: "files(id,name,mimeType,size,modifiedTime,quotaBytesUsed)",
-    pageSize: Math.min(limit, 100),
-    orderBy: "modifiedTime desc",
-  });
-
-  const files: CloudSearchHit[] = [];
-  const folders: CloudSearchHit[] = [];
-  for (const item of response.data.files ?? []) {
-    if (!item.id || !item.name) continue;
-    if (item.mimeType === "application/vnd.google-apps.folder") {
-      folders.push({
-        id: item.id,
-        name: item.name,
-        kind: "folder",
-        modifiedTime: item.modifiedTime ?? undefined,
-      });
-    } else {
-      files.push({
-        id: item.id,
-        name: item.name,
-        kind: "file",
-        mimeType: item.mimeType ?? "application/octet-stream",
-        sizeBytes: String(item.size ?? item.quotaBytesUsed ?? 0),
-        modifiedTime: item.modifiedTime ?? undefined,
-      });
-    }
-  }
-  return { files, folders };
 }
 
 async function searchDropbox(

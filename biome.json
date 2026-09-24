@@ -60,10 +60,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "src/server/modules/providers/**",
-        "src/server/modules/search/cross-cloud-search.ts"
-      ],
+      "includes": ["src/server/modules/providers/**"],
       "linter": {
         "rules": {
           "style": {
