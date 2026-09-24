@@ -31,7 +31,7 @@
           "level": "error",
           "options": {
             "paths": {
-              "googleapis": "Use Google Drive via src/server/modules/providers (or google modules under providers allowlist)."
+              "googleapis": "Import googleapis only from src/server/modules/providers/**."
             }
           }
         }
@@ -61,7 +61,6 @@
   "overrides": [
     {
       "includes": [
-        "src/server/modules/providers/google/**",
         "src/server/modules/providers/**",
         "src/server/modules/search/cross-cloud-search.ts"
       ],
