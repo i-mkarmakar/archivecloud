@@ -31,7 +31,7 @@
           "level": "error",
           "options": {
             "paths": {
-              "googleapis": "Use Google Drive via src/server/modules/google or providers/operations (uploads handler is a temporary exception)."
+              "googleapis": "Use Google Drive via src/server/modules/providers (or google modules under providers allowlist)."
             }
           }
         }
@@ -65,8 +65,7 @@
         "src/server/modules/providers/**",
         "src/server/modules/files/stream-google-file.ts",
         "src/server/modules/webhooks/google-drive-watch.ts",
-        "src/server/modules/search/cross-cloud-search.ts",
-        "src/server/handlers/uploads.ts"
+        "src/server/modules/search/cross-cloud-search.ts"
       ],
       "linter": {
         "rules": {
