@@ -16,7 +16,3 @@ export async function requireAuthUser(
 
   return { id: session.user.id };
 }
-
-export function isAuthUser(value: AuthUser | Response): value is AuthUser {
-  return !(value instanceof Response);
-}
