@@ -105,6 +105,7 @@ import {
   type ProviderBrowseFolder,
   type ProviderBrowseResult,
 } from "@/views/all-files/types";
+import { useFileSelection } from "@/views/all-files/useFileSelection";
 
 export function AllFilesPage() {
   const sp = useSearchParams() ?? new URLSearchParams();
@@ -179,9 +180,6 @@ export function AllFilesPage() {
   const [activeFile, setActiveFile] = useState<FileItem | null>(null);
   const [activeFolderForMenu, setActiveFolderForMenu] =
     useState<FolderItem | null>(null);
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(
-    new Set(),
-  );
   const [suggestedFoldersOpen, setSuggestedFoldersOpen] = useState(true);
   const [suggestedFilesOpen, setSuggestedFilesOpen] = useState(true);
   const [cutFolder, setCutFolder] = useState<FolderItem | null>(null);
@@ -232,6 +230,54 @@ export function AllFilesPage() {
   const [linkedLoading, setLinkedLoading] = useState(false);
   const [accountFilterOpen, setAccountFilterOpen] = useState(false);
   const [sortFilterOpen, setSortFilterOpen] = useState(false);
+
+  const displayFolders = useMemo(() => {
+    if (activeFolderId || searchQuery) return folders;
+    // Nested cloud folder view: show only that folder's children.
+    if (cloudFolderId) return linkedFolders;
+    const byId = new Map<string, FolderItem>();
+    for (const folder of folders) {
+      if (folder.id) byId.set(folder.id, folder);
+    }
+    for (const folder of linkedFolders) {
+      if (folder.id && !byId.has(folder.id)) byId.set(folder.id, folder);
+    }
+    return Array.from(byId.values());
+  }, [activeFolderId, searchQuery, cloudFolderId, folders, linkedFolders]);
+
+  const displayFiles = useMemo(() => {
+    if (activeFolderId || searchQuery) return files;
+    if (cloudFolderId) return linkedFiles;
+    const byId = new Map<string, FileItem>();
+    for (const file of files) {
+      if (file.id) byId.set(file.id, file);
+    }
+    for (const file of linkedFiles) {
+      if (file.id && !byId.has(file.id)) byId.set(file.id, file);
+    }
+    return Array.from(byId.values());
+  }, [activeFolderId, searchQuery, cloudFolderId, files, linkedFiles]);
+
+  const filesByDay = useMemo(() => {
+    const groups = new Map<string, FileItem[]>();
+    for (const file of displayFiles) {
+      const key = formatDate(
+        file.updatedAt ?? file.createdAt ?? new Date().toISOString(),
+      );
+      const list = groups.get(key) ?? [];
+      list.push(file);
+      groups.set(key, list);
+    }
+    return Array.from(groups.entries());
+  }, [displayFiles]);
+
+  const {
+    selectedFileIds,
+    setSelectedFileIds,
+    toggleFileSelection,
+    toggleAllVisibleFiles,
+    clearSelection,
+  } = useFileSelection(displayFiles);
 
   async function loadFiles(cursor?: string | null) {
     const isMore = Boolean(cursor);
@@ -651,46 +697,6 @@ export function AllFilesPage() {
     FILE_SORT_OPTIONS.find((option) => option.value === activeSort)?.label ??
     "Created (Newest)";
 
-  const displayFolders = useMemo(() => {
-    if (activeFolderId || searchQuery) return folders;
-    // Nested cloud folder view: show only that folder's children.
-    if (cloudFolderId) return linkedFolders;
-    const byId = new Map<string, FolderItem>();
-    for (const folder of folders) {
-      if (folder.id) byId.set(folder.id, folder);
-    }
-    for (const folder of linkedFolders) {
-      if (folder.id && !byId.has(folder.id)) byId.set(folder.id, folder);
-    }
-    return Array.from(byId.values());
-  }, [activeFolderId, searchQuery, cloudFolderId, folders, linkedFolders]);
-
-  const displayFiles = useMemo(() => {
-    if (activeFolderId || searchQuery) return files;
-    if (cloudFolderId) return linkedFiles;
-    const byId = new Map<string, FileItem>();
-    for (const file of files) {
-      if (file.id) byId.set(file.id, file);
-    }
-    for (const file of linkedFiles) {
-      if (file.id && !byId.has(file.id)) byId.set(file.id, file);
-    }
-    return Array.from(byId.values());
-  }, [activeFolderId, searchQuery, cloudFolderId, files, linkedFiles]);
-
-  const filesByDay = useMemo(() => {
-    const groups = new Map<string, FileItem[]>();
-    for (const file of displayFiles) {
-      const key = formatDate(
-        file.updatedAt ?? file.createdAt ?? new Date().toISOString(),
-      );
-      const list = groups.get(key) ?? [];
-      list.push(file);
-      groups.set(key, list);
-    }
-    return Array.from(groups.entries());
-  }, [displayFiles]);
-
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setContextMenu({ x: 0, y: 0, file: null });
@@ -904,30 +910,6 @@ export function AllFilesPage() {
     event.stopPropagation();
     setActiveFile(file);
     setContextMenu({ x: event.clientX, y: event.clientY, file });
-  }
-
-  function toggleFileSelection(file: FileItem) {
-    if (!file.id) return;
-    setSelectedFileIds((current) => {
-      const next = new Set(current);
-      if (next.has(file.id!)) next.delete(file.id!);
-      else next.add(file.id!);
-      return next;
-    });
-  }
-
-  function toggleAllVisibleFiles() {
-    const visibleIds = displayFiles
-      .map((file) => file.id)
-      .filter(Boolean) as string[];
-    const allSelected =
-      visibleIds.length > 0 &&
-      visibleIds.every((id) => selectedFileIds.has(id));
-    setSelectedFileIds(allSelected ? new Set() : new Set(visibleIds));
-  }
-
-  function clearSelection() {
-    setSelectedFileIds(new Set());
   }
 
   function openFolderMenu(event: MouseEvent<HTMLElement>, folder: FolderItem) {
