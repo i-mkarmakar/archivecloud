@@ -191,7 +191,7 @@ export function ScheduleTasksView() {
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("created_desc");
 
-  const { planId, hasFeature, canUpgrade } = useUserPlan();
+  const { planId, hasFeature, canUpgrade, loaded: planLoaded } = useUserPlan();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const hasAutomation = hasFeature("automation");
 
@@ -440,7 +440,7 @@ export function ScheduleTasksView() {
         }
       />
 
-      {!hasAutomation ? (
+      {planLoaded && !hasAutomation ? (
         <Card className="mt-6 border-primary/30 bg-primary/5 p-5">
           <p className="font-extrabold text-foreground">
             Automation is a Thunder feature
@@ -706,7 +706,7 @@ export function ScheduleTasksView() {
         onCreate={createTask}
       />
 
-      {canUpgrade ? (
+      {planLoaded && canUpgrade ? (
         <UpgradePlanModal
           open={upgradeOpen}
           onClose={() => setUpgradeOpen(false)}

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { Loader2, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { applyUserPlan } from "@/hooks/useUserPlan";
 import { normalizePlanId } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +69,16 @@ async function fetchPlanUnlocked(): Promise<boolean> {
   try {
     const billing = await apiFetch<BillingStatus>("/billing");
     const planId = normalizePlanId(billing.planId);
-    return Boolean(billing.isAdmin) || planId === "thunder";
+    const isAdmin = Boolean(billing.isAdmin);
+    const unlocked = isAdmin || planId === "thunder";
+    if (unlocked) {
+      applyUserPlan({
+        planId: isAdmin ? "thunder" : planId,
+        isAdmin,
+        billingEnabled: true,
+      });
+    }
+    return unlocked;
   } catch {
     return false;
   }

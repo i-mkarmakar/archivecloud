@@ -304,6 +304,19 @@ input {
   font: inherit;
 }
 
+button:not(:disabled):not([aria-disabled="true"]),
+[role="button"]:not(:disabled):not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+button[aria-disabled="true"],
+[role="button"][aria-disabled="true"],
+[role="menuitem"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /*
  * Opal primary CTA look: vertical primary→darker gradient + soft colored drop shadow.
  * Applied to HeroUI primary buttons site-wide.

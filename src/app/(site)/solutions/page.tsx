@@ -19,15 +19,15 @@ const SOLUTIONS = [
     title: "Multi-account storage hub",
     description:
       "Connect several Google Drive, OneDrive, Dropbox, and other accounts in one place. Browse, search, and upload with routing to accounts that still have free space.",
-    href: "/clouds",
-    linkLabel: "Open Clouds",
+    href: "/home",
+    linkLabel: "Open home",
     icon: LayersIcon,
   },
   {
     title: "Migrate between clouds",
     description:
       "Copy or move files from one provider to another without downloading everything to your laptop first. Track jobs in Run History.",
-    href: "/clouds",
+    href: "/home",
     linkLabel: "Start a transfer",
     icon: MoveRightIcon,
   },
