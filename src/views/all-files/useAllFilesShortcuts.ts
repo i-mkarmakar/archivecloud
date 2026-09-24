@@ -88,5 +88,12 @@ export function useAllFilesShortcuts(args: {
         onOpenMoveShortcut,
       );
     };
-  }, [activeFolderForMenu, cutFolder, activeFolderId]);
+  }, [
+    activeFolderForMenu,
+    cutFolder,
+    activeFolderId,
+    cutSelectedFolder,
+    pasteFolder,
+    openMoveForFiles,
+  ]);
 }
