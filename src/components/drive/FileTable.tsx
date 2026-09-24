@@ -248,14 +248,16 @@ export function FileTable({
                         title="Copy Link"
                         onClick={async (event) => {
                           event.stopPropagation();
+                          const fileId = file.id;
+                          if (!fileId) return;
                           try {
-                            const encodedId = encodeURIComponent(file.id);
+                            const encodedId = encodeURIComponent(fileId);
                             const data = await apiFetch<{ url: string | null }>(
                               `/files/${encodedId}/view-url`,
                             );
                             if (data.url) {
                               await navigator.clipboard.writeText(data.url);
-                              setCopiedFileId(file.id ?? null);
+                              setCopiedFileId(fileId);
                               setTimeout(() => setCopiedFileId(null), 2000);
                             } else {
                               const shareData = await apiFetch<{ url: string }>(
@@ -276,7 +278,7 @@ export function FileTable({
                               await navigator.clipboard.writeText(
                                 shareData.url,
                               );
-                              setCopiedFileId(file.id ?? null);
+                              setCopiedFileId(fileId);
                               setTimeout(() => setCopiedFileId(null), 2000);
                             }
                           } catch {}
