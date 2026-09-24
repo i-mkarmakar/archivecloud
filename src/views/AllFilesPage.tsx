@@ -105,6 +105,7 @@ import {
   type ProviderBrowseFolder,
   type ProviderBrowseResult,
 } from "@/views/all-files/types";
+import { useAllFilesShortcuts } from "@/views/all-files/useAllFilesShortcuts";
 import { useFileSelection } from "@/views/all-files/useFileSelection";
 
 export function AllFilesPage() {
@@ -697,48 +698,19 @@ export function AllFilesPage() {
     FILE_SORT_OPTIONS.find((option) => option.value === activeSort)?.label ??
     "Created (Newest)";
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setContextMenu({ x: 0, y: 0, file: null });
-      if (event.key === "Escape")
-        setFolderContextMenu({ x: 0, y: 0, folder: null });
-      if (event.key === "Escape") setFolderDetailOpen(false);
-      if (event.key === "Escape")
-        setEmptyContextMenu({ x: 0, y: 0, open: false });
-      if (
-        event.ctrlKey &&
-        event.key.toLowerCase() === "x" &&
-        activeFolderForMenu
-      ) {
-        event.preventDefault();
-        cutSelectedFolder(activeFolderForMenu);
-      }
-      if (event.ctrlKey && event.key.toLowerCase() === "v" && cutFolder) {
-        event.preventDefault();
-        pasteFolder().catch((error) =>
-          toast.danger(
-            error instanceof Error ? error.message : "Failed to paste folder",
-          ),
-        );
-      }
-    }
-
-    function onOpenMoveShortcut(e: Event) {
-      const file = (e as CustomEvent).detail as FileItem;
-      setActiveFile(file);
-      openMoveForFiles([file]);
-    }
-
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("archivecloud:open-move-modal", onOpenMoveShortcut);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener(
-        "archivecloud:open-move-modal",
-        onOpenMoveShortcut,
-      );
-    };
-  }, [activeFolderForMenu, cutFolder, activeFolderId]);
+  useAllFilesShortcuts({
+    activeFolderForMenu,
+    cutFolder,
+    activeFolderId,
+    cutSelectedFolder,
+    pasteFolder,
+    openMoveForFiles,
+    setContextMenu,
+    setFolderContextMenu,
+    setFolderDetailOpen,
+    setEmptyContextMenu,
+    setActiveFile,
+  });
 
   useEffect(() => {
     if (
