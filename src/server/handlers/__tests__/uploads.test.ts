@@ -340,11 +340,14 @@ describe("resumableInitHandler", () => {
     expect(body.code).toBe("NO_ACCOUNT_WITH_ENOUGH_SPACE");
   });
 
-  it("surfaces provider init errors as INTERNAL_SERVER_ERROR", async () => {
+  it("returns UPLOAD_FAILED when provider init fails", async () => {
     mockEligibleAccounts();
     initGoogleDriveResumableUpload.mockRejectedValue(
       new Error("Google API Init Error: boom"),
     );
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     const response = await resumableInit(
       jsonRequest("http://localhost/uploads/resumable/init", {
@@ -355,13 +358,16 @@ describe("resumableInitHandler", () => {
     );
     const body = await readJson(response);
 
-    // Characterization: resumableInitHandler does not catch seam errors;
-    // handleRoute maps them to INTERNAL_SERVER_ERROR (500).
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
     expect(body).toMatchObject({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Google API Init Error: boom",
+      code: "UPLOAD_FAILED",
+      message: "Could not start the upload. Please try again.",
     });
+    expect(consoleError).toHaveBeenCalled();
+    const logged = consoleError.mock.calls[0]?.[0];
+    expect(logged).toBeInstanceOf(Error);
+    expect((logged as Error).message).toBe("Google API Init Error: boom");
+    consoleError.mockRestore();
   });
 });
 

@@ -586,13 +586,23 @@ export async function resumableInitHandler(request: Request) {
     }
   }
 
-  const sessionUri = await initGoogleDriveResumableUpload({
-    account,
-    fileName: body.fileName,
-    mimeType: body.mimeType,
-    sizeBytes,
-    parentId: targetParentId,
-  });
+  let sessionUri: string;
+  try {
+    sessionUri = await initGoogleDriveResumableUpload({
+      account,
+      fileName: body.fileName,
+      mimeType: body.mimeType,
+      sizeBytes,
+      parentId: targetParentId,
+    });
+  } catch (error) {
+    console.error(error);
+    return errorJson(
+      "UPLOAD_FAILED",
+      "Could not start the upload. Please try again.",
+      400,
+    );
+  }
 
   const session = await prisma.uploadSession.create({
     data: {
