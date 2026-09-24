@@ -459,6 +459,7 @@ export async function browsePCloudFolder(
   userId: string,
   parentId: string,
   searchQuery?: string,
+  options?: { limit?: number },
 ): Promise<ProviderBrowseResult> {
   const account = await prisma.connectedAccount.findFirstOrThrow({
     where: {
@@ -479,6 +480,9 @@ export async function browsePCloudFolder(
   let entries = (listed.metadata?.contents ?? []).filter(
     (entry) => !entry.isdeleted,
   );
+  if (options?.limit) {
+    entries = entries.slice(0, options.limit);
+  }
 
   const q = searchQuery?.trim().toLowerCase();
   if (q) {

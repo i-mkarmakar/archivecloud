@@ -332,6 +332,7 @@ export async function browseGoogleDriveFolder(
   userId: string,
   parentId: string,
   searchQuery?: string,
+  options?: { limit?: number },
 ): Promise<DriveBrowseResult> {
   const account = await prisma.connectedAccount.findFirstOrThrow({
     where: {
@@ -344,6 +345,7 @@ export async function browseGoogleDriveFolder(
   const auth = await getAuthedGoogleClient(account);
   const drive = google.drive({ version: "v3", auth });
   const googleParentId = parentId === "root" ? "root" : parentId;
+  const maxItems = options?.limit;
 
   const queryParts = [
     `'${googleParentId}' in parents`,
@@ -372,12 +374,17 @@ export async function browseGoogleDriveFolder(
   async function listWithQuery(q: string, collectFolders: boolean) {
     let pageToken: string | undefined;
     do {
+      const pageSize = maxItems
+        ? Math.min(100, Math.max(1, maxItems - (collectFolders ? folders.length : files.length)))
+        : 100;
+      if (pageSize <= 0) return;
+
       const response = await drive.files.list({
         q,
         spaces: "drive",
         fields:
           "nextPageToken,files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,thumbnailLink,hasThumbnail)",
-        pageSize: 1000,
+        pageSize,
         pageToken,
         includeItemsFromAllDrives: true,
         supportsAllDrives: true,
@@ -393,6 +400,7 @@ export async function browseGoogleDriveFolder(
               name: file.name,
               modifiedTime: file.modifiedTime ?? new Date().toISOString(),
             });
+            if (maxItems && folders.length >= maxItems) return;
           }
           continue;
         }
@@ -406,9 +414,10 @@ export async function browseGoogleDriveFolder(
           modifiedTime: file.modifiedTime ?? new Date().toISOString(),
           hasThumbnail: Boolean(file.hasThumbnail || file.thumbnailLink),
         });
+        if (maxItems && files.length >= maxItems) return;
       }
 
-      pageToken = response.data.nextPageToken ?? undefined;
+      pageToken = maxItems ? undefined : (response.data.nextPageToken ?? undefined);
     } while (pageToken);
   }
 

@@ -35,16 +35,16 @@ export async function googleDriveWebhookHandler(request: Request) {
     return json({ ok: true, ignored: true });
   }
 
-  if (channelToken && channelToken !== channelAlt.channelToken) {
+  // Fail closed: channel token is required proof (registered with Google watches).
+  if (!channelToken || channelToken !== channelAlt.channelToken) {
     return json({ ok: false, reason: "invalid_token" }, 403);
   }
 
-  if (
-    resourceId &&
-    channelAlt.resourceId &&
-    resourceId !== channelAlt.resourceId
-  ) {
-    return json({ ok: false, reason: "resource_mismatch" }, 403);
+  // When a resourceId was stored at watch create, require a matching header.
+  if (channelAlt.resourceId) {
+    if (!resourceId || resourceId !== channelAlt.resourceId) {
+      return json({ ok: false, reason: "resource_mismatch" }, 403);
+    }
   }
 
   await prisma.providerWebhookChannel.update({

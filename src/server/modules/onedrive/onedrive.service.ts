@@ -262,6 +262,7 @@ export async function browseOneDriveFolder(
   userId: string,
   parentId: string,
   searchQuery?: string,
+  options?: { limit?: number },
 ): Promise<ProviderBrowseResult> {
   const account = await prisma.connectedAccount.findFirstOrThrow({
     where: {
@@ -277,6 +278,7 @@ export async function browseOneDriveFolder(
       ? "/me/drive/root/children"
       : `/me/drive/items/${encodeURIComponent(parentId)}/children`;
 
+  const maxItems = options?.limit;
   let items: DriveItem[] = [];
   let next: string | null = path;
   while (next) {
@@ -288,9 +290,15 @@ export async function browseOneDriveFolder(
       "@odata.nextLink"?: string;
     } = await graphJson(account, requestPath);
     items = items.concat(page.value ?? []);
-    next = page["@odata.nextLink"]
-      ? page["@odata.nextLink"].replace(GRAPH, "")
-      : null;
+    if (maxItems && items.length >= maxItems) {
+      items = items.slice(0, maxItems);
+      break;
+    }
+    next = maxItems
+      ? null
+      : page["@odata.nextLink"]
+        ? page["@odata.nextLink"].replace(GRAPH, "")
+        : null;
   }
 
   const q = searchQuery?.trim().toLowerCase();

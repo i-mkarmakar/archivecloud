@@ -45,7 +45,8 @@ export async function oneDriveWebhookHandler(request: Request) {
       },
     });
     if (channel?.status !== "active") continue;
-    if (note.clientState && note.clientState !== channel.channelToken) {
+    // Fail closed: clientState must match the secret registered with Graph.
+    if (!note.clientState || note.clientState !== channel.channelToken) {
       continue;
     }
 
