@@ -3,8 +3,16 @@
 import { toast } from "@heroui/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { OtpInput } from "@/components/auth/otp-input";
+import {
+  CAPTCHA_ERROR_MESSAGE,
+  captchaFetchOptions,
+  isCaptchaAuthError,
+  TURNSTILE_ENABLED,
+  TurnstileField,
+  type TurnstileFieldHandle,
+} from "@/components/auth/turnstile-field";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -27,9 +35,17 @@ export function VerifyEmailForm({ className }: { className?: string }) {
   const [resending, setResending] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileFieldHandle>(null);
 
   const redirectPath = safeCallbackUrl(searchParams.get("callbackUrl"));
   const busy = verifying || resending;
+  const captchaReady = !TURNSTILE_ENABLED || Boolean(captchaToken);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }
 
   useEffect(() => {
     const emailParam = searchParams.get("email")?.trim();
@@ -45,7 +61,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
   }, [resendSeconds]);
 
   async function resendCode() {
-    if (busy) return;
+    if (busy || !captchaReady) return;
     if (!email.trim()) {
       toast.danger("Enter your email address.");
       return;
@@ -57,14 +73,17 @@ export function VerifyEmailForm({ className }: { className?: string }) {
       await authClient.emailOtp.sendVerificationOtp({
         email: email.trim(),
         type: "email-verification",
+        fetchOptions: captchaFetchOptions(captchaToken),
       });
     setResending(false);
+    resetCaptcha();
 
     if (resendError) {
-      setError(resendError.message ?? "Failed to resend verification code.");
-      toast.danger(
-        resendError.message ?? "Failed to resend verification code.",
-      );
+      const message = isCaptchaAuthError(resendError)
+        ? CAPTCHA_ERROR_MESSAGE
+        : (resendError.message ?? "Failed to resend verification code.");
+      setError(message);
+      toast.danger(message);
       return;
     }
 
@@ -165,12 +184,16 @@ export function VerifyEmailForm({ className }: { className?: string }) {
           </Button>
         </Field>
 
+        <TurnstileField ref={turnstileRef} onTokenChange={setCaptchaToken} />
+
         <FieldDescription className="flex flex-wrap items-center justify-center gap-1 text-center">
           <span>Didn&apos;t receive a code?</span>
           <button
             type="button"
             className="font-medium text-foreground underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={busy || resendSeconds > 0 || !email.trim()}
+            disabled={
+              busy || resendSeconds > 0 || !email.trim() || !captchaReady
+            }
             aria-busy={resending}
             onClick={resendCode}
           >

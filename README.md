@@ -471,6 +471,29 @@ Auth is handled by Better Auth at `/api/auth/*` (custom sign-in/sign-up UI).
 - Do not expose `TOKEN_ENCRYPTION_KEY`, `BETTER_AUTH_SECRET`, OAuth client secrets, or raw share/preview tokens.
 - Put the app behind HTTPS in production.
 
+### Bot protection (Cloudflare Turnstile, optional)
+
+Archive Cloud can optionally protect public auth endpoints (email sign-up, sign-in, send verification OTP, forgot-password OTP request) with [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) via Better Auth’s captcha plugin.
+
+1. In the Cloudflare dashboard, create a Turnstile widget for your **production hostname only**, mode **Managed**.
+2. Set both env vars (leave unset to disable captcha entirely — forms work as before):
+
+| Variable | Scope | Notes |
+|----------|--------|--------|
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Public (build-time) | Widget sitekey. Inlined at `next build`. |
+| `TURNSTILE_SECRET_KEY` | Server (runtime) | Siteverify secret. Never expose to the client. |
+
+3. **Docker:** pass the site key as a **build arg** so it is available during `next build`:
+
+```bash
+docker compose -f docker-compose.prod.yml build \
+  --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-site-key
+```
+
+Or set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in `.env` — `docker-compose.prod.yml` forwards it as a build arg. `TURNSTILE_SECRET_KEY` is runtime-only via `env_file`.
+
+For local development, Cloudflare’s always-pass dummy pair works on localhost (see comments in `.env.example`). Use matching site/secret from the same dummy set; production secrets reject dummy tokens and vice versa.
+
 ## Self-hosting
 
 Interested in self-hosting Archive Cloud on your server? See [Production Deployment](#6-production-deployment-vps) (Docker Compose recommended).

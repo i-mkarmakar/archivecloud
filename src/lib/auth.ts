@@ -2,7 +2,7 @@ import "server-only";
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP } from "better-auth/plugins";
+import { captcha, emailOTP } from "better-auth/plugins";
 import { upgradeProfileImageUrl } from "@/lib/gravatar";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
@@ -13,6 +13,14 @@ import {
 } from "@/server/modules/billing/admin";
 import { sendVerificationOtpEmail } from "@/server/modules/email/send-verification-otp";
 import { subscribeUserToNewsletter } from "@/server/modules/newsletter/subscribe";
+
+/** Paths relative to Better Auth basePath (`/api/auth`). `endpoints` replaces defaults. */
+const TURNSTILE_PROTECTED_ENDPOINTS = [
+  "/sign-up/email",
+  "/sign-in/email",
+  "/email-otp/send-verification-otp",
+  "/email-otp/request-password-reset",
+] as const;
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -37,17 +45,23 @@ export const auth = betterAuth({
     env.BETTER_AUTH_URL,
     "http://localhost:9050",
     "http://127.0.0.1:9050",
-    // ngrok (static free domain + legacy hosts) for local webhook testing
-    "*.ngrok-free.app",
-    "https://*.ngrok-free.app",
-    "*.ngrok.app",
-    "https://*.ngrok.app",
-    "*.ngrok.io",
-    "https://*.ngrok.io",
+    // Ngrok wildcards only for local/dev or when the auth URL itself is ngrok.
+    ...(process.env.NODE_ENV !== "production" ||
+    /ngrok/i.test(env.BETTER_AUTH_URL)
+      ? ([
+          "*.ngrok-free.app",
+          "https://*.ngrok-free.app",
+          "*.ngrok.app",
+          "https://*.ngrok.app",
+          "*.ngrok.io",
+          "https://*.ngrok.io",
+        ] as const)
+      : []),
   ],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    revokeSessionsOnPasswordReset: true,
   },
   databaseHooks: {
     user: {
@@ -91,6 +105,15 @@ export const auth = betterAuth({
         });
       },
     }),
+    ...(env.TURNSTILE_SECRET_KEY
+      ? [
+          captcha({
+            provider: "cloudflare-turnstile",
+            secretKey: env.TURNSTILE_SECRET_KEY,
+            endpoints: [...TURNSTILE_PROTECTED_ENDPOINTS],
+          }),
+        ]
+      : []),
   ],
   user: {
     additionalFields: {

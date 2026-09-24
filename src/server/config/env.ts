@@ -105,6 +105,9 @@ const envSchema = z.object({
     }
     return value;
   }, z.boolean().optional()),
+
+  /** Cloudflare Turnstile secret (server-only). When unset, captcha is disabled. */
+  TURNSTILE_SECRET_KEY: optionalNonEmptyString,
 });
 
 const isNextBuild =

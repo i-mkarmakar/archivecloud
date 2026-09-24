@@ -1,11 +1,19 @@
 "use client";
 
-import { toast } from "@heroui/react";
 import { Eye, EyeSlash } from "@gravity-ui/icons";
+import { toast } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { OtpInput } from "@/components/auth/otp-input";
+import {
+  CAPTCHA_ERROR_MESSAGE,
+  captchaFetchOptions,
+  isCaptchaAuthError,
+  TURNSTILE_ENABLED,
+  TurnstileField,
+  type TurnstileFieldHandle,
+} from "@/components/auth/turnstile-field";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -39,6 +47,15 @@ export function ForgotPasswordForm({
   const [sendingCode, setSendingCode] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileFieldHandle>(null);
+
+  const captchaReady = !TURNSTILE_ENABLED || Boolean(captchaToken);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }
 
   useEffect(() => {
     setEmail(initialEmail);
@@ -54,7 +71,7 @@ export function ForgotPasswordForm({
 
   async function sendResetCode(event?: FormEvent) {
     event?.preventDefault();
-    if (sendingCode || resetting) return;
+    if (sendingCode || resetting || !captchaReady) return;
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       toast.danger("Enter your email address.");
@@ -64,11 +81,17 @@ export function ForgotPasswordForm({
     setSendingCode(true);
     const { error } = await authClient.emailOtp.requestPasswordReset({
       email: trimmedEmail,
+      fetchOptions: captchaFetchOptions(captchaToken),
     });
     setSendingCode(false);
+    resetCaptcha();
 
     if (error) {
-      toast.danger(error.message ?? "Failed to send reset code.");
+      toast.danger(
+        isCaptchaAuthError(error)
+          ? CAPTCHA_ERROR_MESSAGE
+          : (error.message ?? "Failed to send reset code."),
+      );
       return;
     }
 
@@ -141,9 +164,14 @@ export function ForgotPasswordForm({
                 required
               />
             </Field>
+            <TurnstileField
+              ref={turnstileRef}
+              onTokenChange={setCaptchaToken}
+            />
             <Field>
               <Button
                 type="submit"
+                disabled={!captchaReady}
                 isPending={sendingCode}
                 size="lg"
                 className="w-full"
@@ -176,7 +204,12 @@ export function ForgotPasswordForm({
                 <button
                   type="button"
                   className="shrink-0 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={sendingCode || resetting || resendSeconds > 0}
+                  disabled={
+                    sendingCode ||
+                    resetting ||
+                    resendSeconds > 0 ||
+                    !captchaReady
+                  }
                   aria-busy={sendingCode}
                   onClick={() => sendResetCode()}
                 >
@@ -188,6 +221,11 @@ export function ForgotPasswordForm({
                 </button>
               </FieldDescription>
             </Field>
+
+            <TurnstileField
+              ref={turnstileRef}
+              onTokenChange={setCaptchaToken}
+            />
 
             <Field>
               <FieldLabel htmlFor="reset-password">New password</FieldLabel>
