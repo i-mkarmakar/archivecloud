@@ -1,13 +1,20 @@
 "use client";
 
-import { toast } from "@heroui/react";
 import { Eye, EyeSlash } from "@gravity-ui/icons";
+import { toast } from "@heroui/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { AppPreloader } from "@/components/AppPreloader";
 import { GoogleLogo } from "@/components/auth/GoogleLogo";
+import {
+  CAPTCHA_ERROR_MESSAGE,
+  captchaFetchOptions,
+  isCaptchaAuthError,
+  TURNSTILE_ENABLED,
+  TurnstileField,
+  type TurnstileFieldHandle,
+} from "@/components/auth/turnstile-field";
 import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,8 +24,8 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client";
 import { markAppBoot } from "@/lib/app-boot";
+import { authClient } from "@/lib/auth-client";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
 import { cn } from "@/lib/utils";
 
@@ -47,9 +54,17 @@ export function LoginForm({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [enteringApp, setEnteringApp] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileFieldHandle>(null);
 
   const isSignIn = mode === "signin";
   const redirectPath = safeCallbackUrl(searchParams.get("callbackUrl"));
+  const captchaReady = !TURNSTILE_ENABLED || Boolean(captchaToken);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }
 
   function enterApp(path: string = redirectPath) {
     markAppBoot();
@@ -96,15 +111,19 @@ export function LoginForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (loading || googleLoading || enteringApp) return;
+    if (loading || googleLoading || enteringApp || !captchaReady) return;
     setLoading(true);
+
+    const fetchOptions = captchaFetchOptions(captchaToken);
 
     if (isSignIn) {
       const { data, error } = await authClient.signIn.email({
         email,
         password,
+        fetchOptions,
       });
       setLoading(false);
+      resetCaptcha();
       if (error) {
         if (error.code === "EMAIL_NOT_VERIFIED") {
           toast.danger("Verify your email before signing in.");
@@ -113,7 +132,11 @@ export function LoginForm({
           );
           return;
         }
-        toast.danger(error.message ?? "Sign-in failed");
+        toast.danger(
+          isCaptchaAuthError(error)
+            ? CAPTCHA_ERROR_MESSAGE
+            : (error.message ?? "Sign-in failed"),
+        );
         return;
       }
       if (data) {
@@ -128,10 +151,16 @@ export function LoginForm({
       password,
       name: `${firstName.trim()} ${lastName.trim()}`.trim(),
       callbackURL: verifyUrl,
+      fetchOptions,
     });
     setLoading(false);
+    resetCaptcha();
     if (error) {
-      toast.danger(error.message ?? "Sign-up failed");
+      toast.danger(
+        isCaptchaAuthError(error)
+          ? CAPTCHA_ERROR_MESSAGE
+          : (error.message ?? "Sign-up failed"),
+      );
       return;
     }
     toast.success("Check your email for a 6-digit verification code.");
@@ -263,7 +292,7 @@ export function LoginForm({
           <Field>
             <Button
               type="submit"
-              disabled={googleLoading}
+              disabled={googleLoading || !captchaReady}
               isPending={loading}
               size="lg"
               className="w-full"
@@ -277,6 +306,8 @@ export function LoginForm({
                   : "Get Started"}
             </Button>
           </Field>
+
+          <TurnstileField ref={turnstileRef} onTokenChange={setCaptchaToken} />
 
           <FieldSeparator className="my-0">or</FieldSeparator>
 

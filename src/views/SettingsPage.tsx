@@ -896,21 +896,26 @@ export function SettingsPage() {
                   <span
                     className={cn(
                       "inline-flex h-4 shrink-0 items-center justify-center rounded-full px-1.5 text-[9px] font-bold leading-none tracking-wide text-white",
-                      hasThunder ? "bg-[#f97316] uppercase" : "bg-[#22c55e]",
+                      !planLoaded
+                        ? "invisible"
+                        : hasThunder
+                          ? "bg-[#f97316] uppercase"
+                          : "bg-[#22c55e]",
                     )}
                   >
-                    {hasThunder ? "Thunder" : "Free"}
+                    {planLoaded ? (hasThunder ? "Thunder" : "Free") : "Free"}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-muted">
-                  You are on the {currentPlan.name} plan · {bandwidthLabel}{" "}
-                  transfers
+                  {planLoaded
+                    ? `You are on the ${currentPlan.name} plan · ${bandwidthLabel} transfers`
+                    : "Loading plan details…"}
                 </p>
               </div>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {hasThunder ? (
+              {!planLoaded ? null : hasThunder ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-secondary/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -1011,7 +1016,7 @@ export function SettingsPage() {
                 OneDrive, and other connected clouds based on available space
                 and your routing policy.
               </p>
-              {hasSmartDistribution ? (
+              {!planLoaded ? null : hasSmartDistribution ? (
                 <div className="mt-4 grid gap-3 sm:max-w-md">
                   <label className="grid gap-2 text-sm font-semibold text-foreground">
                     Routing mode
@@ -1264,7 +1269,7 @@ export function SettingsPage() {
         onConnected={reloadAfterConnect}
       />
 
-      {canUpgrade ? (
+      {planLoaded && canUpgrade ? (
         <UpgradePlanModal
           open={upgradeOpen}
           onClose={() => setUpgradeOpen(false)}

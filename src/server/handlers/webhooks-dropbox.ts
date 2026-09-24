@@ -1,5 +1,6 @@
 import {
   handleDropboxAccountNotifications,
+  isDropboxWebhookConfigured,
   verifyDropboxSignature,
 } from "@/server/modules/webhooks/dropbox-notify";
 import { errorJson, json } from "@/server/http/responses";
@@ -20,6 +21,14 @@ export async function dropboxWebhookGetHandler(request: Request) {
 }
 
 export async function dropboxWebhookPostHandler(request: Request) {
+  if (!isDropboxWebhookConfigured()) {
+    return errorJson(
+      "WEBHOOK_NOT_CONFIGURED",
+      "Set DROPBOX_CLIENT_SECRET to enable Dropbox webhooks.",
+      503,
+    );
+  }
+
   const rawBody = await request.text();
   const signature = request.headers.get("x-dropbox-signature");
 

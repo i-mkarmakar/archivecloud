@@ -199,7 +199,9 @@ export function SearchPage() {
                           size="sm"
                           variant="outline"
                           onPress={() =>
-                            router.push(`/clouds?accountId=${cloud.accountId}`)
+                            router.push(
+                              `/home?accountId=${encodeURIComponent(cloud.accountId)}`,
+                            )
                           }
                         >
                           <Cloud className="h-4 w-4" />
@@ -241,7 +243,7 @@ export function SearchPage() {
                               variant="ghost"
                               onPress={() =>
                                 router.push(
-                                  `/clouds?accountId=${cloud.accountId}&parentId=${encodeURIComponent(hit.kind === "folder" ? hit.id : "root")}`,
+                                  `/home?accountId=${encodeURIComponent(cloud.accountId)}`,
                                 )
                               }
                             >

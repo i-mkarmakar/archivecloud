@@ -249,8 +249,9 @@ export function FileTable({
                         onClick={async (event) => {
                           event.stopPropagation();
                           try {
+                            const encodedId = encodeURIComponent(file.id);
                             const data = await apiFetch<{ url: string | null }>(
-                              `/files/${file.id}/view-url`,
+                              `/files/${encodedId}/view-url`,
                             );
                             if (data.url) {
                               await navigator.clipboard.writeText(data.url);
@@ -258,13 +259,18 @@ export function FileTable({
                               setTimeout(() => setCopiedFileId(null), 2000);
                             } else {
                               const shareData = await apiFetch<{ url: string }>(
-                                `/files/${file.id}/share`,
+                                `/files/${encodedId}/share`,
                                 {
                                   method: "POST",
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
-                                  body: JSON.stringify({ rotate: true }),
+                                  body: JSON.stringify({
+                                    rotate: true,
+                                    name: file.name,
+                                    mimeType: file.mimeType,
+                                    sizeBytes: file.sizeBytes,
+                                  }),
                                 },
                               );
                               await navigator.clipboard.writeText(

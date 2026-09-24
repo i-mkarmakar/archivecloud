@@ -3,13 +3,20 @@ import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { scheduleFolderSyncsForAccount } from "@/server/modules/webhooks/trigger-account-syncs";
 
+/** True when Dropbox webhooks can be verified (real secret configured). */
+export function isDropboxWebhookConfigured(): boolean {
+  const secret = env.DROPBOX_CLIENT_SECRET?.trim();
+  return Boolean(secret && !secret.startsWith("build-"));
+}
+
 export function verifyDropboxSignature(
   rawBody: string,
   signatureHeader: string | null,
 ): boolean {
   const secret = env.DROPBOX_CLIENT_SECRET?.trim();
+  // Fail closed: never accept unsigned webhooks when secret is missing/placeholder.
   if (!secret || secret.startsWith("build-")) {
-    return true;
+    return false;
   }
   if (!signatureHeader) return false;
 

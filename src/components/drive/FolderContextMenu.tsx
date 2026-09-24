@@ -1,9 +1,12 @@
 import {
-  Copy,
+  ArrowDownToLine,
+  ArrowUpRightFromSquare,
+  CircleInfo,
+  FolderArrowRight,
   FolderOpen,
+  FolderPlus,
   Pencil,
-  PersonPlus,
-  Scissors,
+  Tag,
   TrashBin,
 } from "@gravity-ui/icons";
 import type { FolderItem } from "@/data/drive-data";
@@ -12,12 +15,17 @@ type Props = {
   x: number;
   y: number;
   folder: FolderItem | null;
+  goToDriveLabel?: string;
   onClose: () => void;
-  onCut: () => void;
+  onDetails: () => void;
+  onOpen: () => void;
+  onGoToDrive: () => void;
   onRename: () => void;
-  onInvite: () => void;
-  onCopyLink: () => void;
-  onDelete: () => void;
+  onDownload: () => void;
+  onMove: () => void;
+  onRemove: () => void;
+  onManageTags: () => void;
+  onAddToVirtualFolder: () => void;
 };
 
 function MenuItem({
@@ -25,41 +33,25 @@ function MenuItem({
   label,
   onClick,
   danger = false,
-  kbd,
 }: {
   icon: React.ElementType;
   label: string;
   onClick: () => void;
   danger?: boolean;
-  kbd?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
-        "group relative flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all duration-150",
+        "flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
         danger
-          ? "text-danger hover:bg-danger-soft dark:text-red-400 dark:hover:bg-red-950/40"
-          : "text-foreground hover:bg-surface-secondary dark:text-foreground dark:hover:bg-accent/70",
+          ? "text-danger hover:bg-danger-soft"
+          : "text-foreground hover:bg-black/5",
       ].join(" ")}
     >
-      <span
-        className={[
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-150",
-          danger
-            ? "bg-danger-soft text-danger group-hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400"
-            : "bg-surface-secondary text-muted group-hover:bg-white group-hover:shadow-sm dark:bg-accent dark:text-muted",
-        ].join(" ")}
-      >
-        <Icon className="h-3.5 w-3.5" />
-      </span>
+      <Icon className="h-4 w-4 shrink-0" />
       <span className="flex-1 text-left">{label}</span>
-      {kbd && (
-        <kbd className="hidden rounded-md border border-border bg-background-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted group-hover:border-border dark:border-border dark:bg-accent dark:text-muted sm:inline">
-          {kbd}
-        </kbd>
-      )}
     </button>
   );
 }
@@ -68,16 +60,22 @@ export function FolderContextMenu({
   x,
   y,
   folder,
+  goToDriveLabel = "Go to Drive",
   onClose,
-  onCut,
+  onDetails,
+  onOpen,
+  onGoToDrive,
   onRename,
-  onInvite,
-  onCopyLink,
-  onDelete,
+  onDownload,
+  onMove,
+  onRemove,
+  onManageTags,
+  onAddToVirtualFolder,
 }: Props) {
   if (!folder) return null;
-  const safeX = Math.max(12, Math.min(x, window.innerWidth - 228));
-  const safeY = Math.max(12, Math.min(y, window.innerHeight - 280));
+
+  const safeX = Math.max(12, Math.min(x, window.innerWidth - 240));
+  const safeY = Math.max(12, Math.min(y, window.innerHeight - 400));
   const run = (action: () => void) => {
     onClose();
     action();
@@ -92,61 +90,55 @@ export function FolderContextMenu({
         onClick={onClose}
       />
       <div
-        className="fixed z-50 w-56 overflow-hidden rounded-2xl border border-border/70 bg-overlay/95 shadow-2xl shadow-overlay backdrop-blur-2xl dark:border-border/70 dark:bg-overlay/95"
+        className="fixed z-50 flex w-56 flex-col overflow-hidden rounded-xl border border-border/70 bg-white p-1.5 shadow-xl"
         style={
           window.innerWidth >= 640
             ? { left: safeX, top: safeY }
             : { insetInline: "0.75rem", bottom: "0.75rem", position: "fixed" }
         }
       >
-        {}
-        <div className="border-b border-separator bg-background-secondary/80 px-3.5 py-3 dark:border-border dark:bg-accent/50">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-secondary dark:bg-accent/40">
-              <FolderOpen className="h-3.5 w-3.5 text-muted" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-bold leading-tight text-foreground dark:text-foreground">
-                {folder.name}
-              </p>
-              <p className="text-[10px] font-medium text-muted dark:text-muted">
-                Virtual folder
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {}
-        <div className="p-1.5">
-          <MenuItem
-            icon={Copy}
-            label="Copy Link"
-            onClick={() => run(onCopyLink)}
-          />
-          <MenuItem
-            icon={Scissors}
-            label="Cut"
-            onClick={() => run(onCut)}
-            kbd="⌘X"
-          />
-          <MenuItem
-            icon={Pencil}
-            label="Rename"
-            onClick={() => run(onRename)}
-          />
-          <MenuItem
-            icon={PersonPlus}
-            label="Invite Member"
-            onClick={() => run(onInvite)}
-          />
-          <div className="my-1 h-px bg-surface-secondary dark:bg-accent" />
-          <MenuItem
-            icon={TrashBin}
-            label="Delete Folder"
-            onClick={() => run(onDelete)}
-            danger
-          />
-        </div>
+        <MenuItem
+          icon={CircleInfo}
+          label="Details"
+          onClick={() => run(onDetails)}
+        />
+        <MenuItem
+          icon={FolderOpen}
+          label="Open"
+          onClick={() => run(onOpen)}
+        />
+        <MenuItem
+          icon={ArrowUpRightFromSquare}
+          label={goToDriveLabel}
+          onClick={() => run(onGoToDrive)}
+        />
+        <MenuItem icon={Pencil} label="Rename" onClick={() => run(onRename)} />
+        <MenuItem
+          icon={ArrowDownToLine}
+          label="Download"
+          onClick={() => run(onDownload)}
+        />
+        <MenuItem
+          icon={FolderArrowRight}
+          label="Move"
+          onClick={() => run(onMove)}
+        />
+        <MenuItem
+          icon={TrashBin}
+          label="Remove"
+          onClick={() => run(onRemove)}
+          danger
+        />
+        <MenuItem
+          icon={Tag}
+          label="Manage Tags"
+          onClick={() => run(onManageTags)}
+        />
+        <MenuItem
+          icon={FolderPlus}
+          label="Add to Virtual Folder"
+          onClick={() => run(onAddToVirtualFolder)}
+        />
       </div>
     </>
   );

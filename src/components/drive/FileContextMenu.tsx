@@ -1,10 +1,10 @@
 import {
   ArrowDownToLine,
   ArrowUpRightFromSquare,
+  ArrowsExpand,
   CircleInfo,
-  FolderArrowRight,
   FolderPlus,
-  NodesRight,
+  Link,
   Pencil,
   Tag,
   TrashBin,
@@ -15,6 +15,7 @@ type Props = {
   x: number;
   y: number;
   file: FileItem | null;
+  goToDriveLabel?: string;
   onClose: () => void;
   onDetails: () => void;
   onGoToDrive: () => void;
@@ -43,7 +44,7 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className={[
-        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
+        "flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
         danger
           ? "text-danger hover:bg-danger-soft"
           : "text-foreground hover:bg-black/5",
@@ -59,6 +60,7 @@ export function FileContextMenu({
   x,
   y,
   file,
+  goToDriveLabel = "Go to Drive",
   onClose,
   onDetails,
   onGoToDrive,
@@ -88,7 +90,7 @@ export function FileContextMenu({
         onClick={onClose}
       />
       <div
-        className="fixed z-50 w-56 overflow-hidden rounded-xl border border-border/70 bg-white p-1.5 shadow-xl"
+        className="fixed z-50 flex w-56 flex-col overflow-hidden rounded-xl border border-border/70 bg-white p-1.5 shadow-xl"
         style={
           window.innerWidth >= 640
             ? { left: safeX, top: safeY }
@@ -102,7 +104,7 @@ export function FileContextMenu({
         />
         <MenuItem
           icon={ArrowUpRightFromSquare}
-          label="Go to Google Drive"
+          label={goToDriveLabel}
           onClick={() => run(onGoToDrive)}
         />
         <MenuItem icon={Pencil} label="Rename" onClick={() => run(onRename)} />
@@ -112,7 +114,7 @@ export function FileContextMenu({
           onClick={() => run(onDownload)}
         />
         <MenuItem
-          icon={FolderArrowRight}
+          icon={ArrowsExpand}
           label="Move"
           onClick={() => run(onMove)}
         />
@@ -128,7 +130,7 @@ export function FileContextMenu({
           onClick={() => run(onManageTags)}
         />
         <MenuItem
-          icon={NodesRight}
+          icon={Link}
           label="Public Link"
           onClick={() => run(onPublicLink)}
         />

@@ -39,6 +39,9 @@ export function polarWebhookHeaders(headers: Headers): Record<string, string> {
   };
 }
 
+/** Standard Webhooks default tolerance (±5 minutes). */
+const WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300;
+
 function assertRequiredHeaders(headers: Record<string, string>) {
   if (
     !headers["webhook-id"] ||
@@ -46,6 +49,19 @@ function assertRequiredHeaders(headers: Record<string, string>) {
     !headers["webhook-signature"]
   ) {
     throw new WebhookVerificationError("Missing required headers");
+  }
+}
+
+function assertWebhookTimestampFresh(timestampHeader: string): void {
+  const ts = Number.parseInt(timestampHeader, 10);
+  if (!Number.isFinite(ts)) {
+    throw new WebhookVerificationError("Invalid webhook timestamp");
+  }
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS) {
+    throw new WebhookVerificationError(
+      now > ts ? "Message timestamp too old" : "Message timestamp too new",
+    );
   }
 }
 
@@ -86,6 +102,7 @@ function verifyStandardWebhooksSignature(
   secret: string,
 ): void {
   assertRequiredHeaders(headers);
+  assertWebhookTimestampFresh(headers["webhook-timestamp"]);
   const expected = signWithKey(
     standardWebhooksKey(secret),
     headers["webhook-id"],
@@ -163,7 +180,6 @@ export function verifyAndParsePolarWebhook(
         hasSignature: Boolean(headers["webhook-signature"]),
         bodyBytes: body.length,
         secretLen: secret.length,
-        secretPrefix: secret.slice(0, 6),
       });
       throw sdkError;
     }
@@ -176,7 +192,12 @@ export function verifyAndParsePolarWebhook(
         secret,
       ) as { type: string; data: unknown };
     } catch (parseError) {
-      // Spec signature verified. Use raw JSON if schemas disagree.
+      // Spec HMAC + timestamp already verified above. Only fall back to raw
+      // JSON on schema/parse drift — never on WebhookVerificationError
+      // (e.g. timestamp reject from the SDK path after resign).
+      if (parseError instanceof WebhookVerificationError) {
+        throw parseError;
+      }
       console.warn(
         "Polar webhook Spec signature OK; SDK schema parse failed — using raw JSON",
         parseError instanceof Error

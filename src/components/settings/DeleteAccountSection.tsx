@@ -5,6 +5,8 @@ import { Button, toast } from "@heroui/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+import { clearUserPlanCache } from "@/lib/user-plan-cache";
+import { resetUserPlanStore } from "@/hooks/useUserPlan";
 import { cn } from "@/lib/utils";
 
 const DELETE_REMOVALS = [
@@ -63,6 +65,8 @@ export function DeleteAccountSection({
       } catch {
         // Session row may already be gone after account delete.
       }
+      clearUserPlanCache();
+      resetUserPlanStore();
       window.location.assign("/auth/sign-in");
     } catch (error) {
       toast.danger(

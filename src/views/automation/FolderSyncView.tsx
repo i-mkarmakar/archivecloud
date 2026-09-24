@@ -761,7 +761,7 @@ export function FolderSyncView() {
         }}
       />
 
-      {canUpgrade ? (
+      {planLoaded && canUpgrade ? (
         <UpgradePlanModal
           open={upgradeOpen}
           onClose={() => setUpgradeOpen(false)}

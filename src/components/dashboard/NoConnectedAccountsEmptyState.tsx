@@ -4,7 +4,6 @@ import { Layers, Magnifier, ShieldCheck } from "@gravity-ui/icons";
 import { Button, Skeleton } from "@heroui/react";
 import { useState } from "react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
-import { getFirstName, getTimeGreeting } from "@/lib/greeting";
 import type { SupportedProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 import { ConnectCloudAccountModal } from "./ConnectCloudAccountModal";
@@ -49,11 +48,12 @@ const FEATURES = [
   },
 ] as const;
 
+export const CONNECT_ONBOARDING_DESCRIPTION =
+  "Your cloud accounts are more powerful with us. Connect your cloud accounts and reclaim your productive flow.";
+
 export function NoConnectedAccountsEmptyState({
-  userName,
   onConnected,
 }: {
-  userName?: string | null;
   onConnected?: () => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,21 +65,9 @@ export function NoConnectedAccountsEmptyState({
     setModalOpen(true);
   }
 
-  const firstName = getFirstName(userName);
-
   return (
-    <div className="mx-auto w-full max-w-5xl px-1 pb-10 pt-2 sm:pt-4">
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-extrabold tracking-tight text-[#1e3a5f] sm:text-3xl lg:text-[2rem]">
-          {getTimeGreeting()}, <span className="text-primary">{firstName}</span>
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#6b7280] sm:text-[15px]">
-          Your cloud accounts are more powerful with us. Connect your cloud
-          accounts and reclaim your productive flow.
-        </p>
-      </div>
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+    <div className="w-full min-w-0 pb-10 pt-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         {FEATURES.map((feature) => {
           const Icon = feature.icon;
           return (
@@ -152,27 +140,12 @@ export function NoConnectedAccountsEmptyState({
 export function NoConnectedAccountsEmptyStateSkeleton() {
   return (
     <div
-      className="skeleton--shimmer relative mx-auto w-full max-w-5xl overflow-hidden px-1 pb-10 pt-2 sm:pt-4"
+      className="skeleton--shimmer relative w-full min-w-0 overflow-hidden pb-10 pt-4"
       role="status"
       aria-busy="true"
       aria-label="Loading"
     >
-      <div className="max-w-2xl space-y-3">
-        <Skeleton
-          animationType="none"
-          className="h-9 w-72 max-w-full rounded-lg sm:h-10 sm:w-80"
-        />
-        <Skeleton
-          animationType="none"
-          className="h-4 w-full max-w-xl rounded-lg"
-        />
-        <Skeleton
-          animationType="none"
-          className="h-4 w-4/5 max-w-lg rounded-lg"
-        />
-      </div>
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         {["feature-a", "feature-b", "feature-c"].map((id) => (
           <div
             key={id}

@@ -21,9 +21,143 @@ import {
   syncGoogleQuota,
 } from "@/server/modules/google/google.service";
 import { createAuditLog } from "@/server/utils/audit";
-import { hashToken, randomToken } from "@/server/utils/crypto";
+import {
+  decryptText,
+  encryptText,
+  hashToken,
+  randomToken,
+} from "@/server/utils/crypto";
 
 const SHARE_LINK_TTL_MS = 30 * 24 * 60 * 60_000;
+
+function sharePublicUrl(token: string) {
+  return `${env.APP_URL}/public/files/${token}`;
+}
+
+function decryptShareToken(encrypted: string | null | undefined) {
+  if (!encrypted) return null;
+  try {
+    return decryptText(encrypted);
+  } catch {
+    return null;
+  }
+}
+
+function parseLinkedFileId(fileId: string) {
+  let decoded = fileId;
+  try {
+    decoded = decodeURIComponent(fileId);
+  } catch {
+    decoded = fileId;
+  }
+  if (!decoded.startsWith("linked:")) return null;
+  const rest = decoded.slice("linked:".length);
+  const colon = rest.indexOf(":");
+  if (colon <= 0) return null;
+  const accountId = rest.slice(0, colon).trim();
+  const providerFileId = rest.slice(colon + 1).trim();
+  if (!accountId || !providerFileId) return null;
+  return { accountId, providerFileId };
+}
+
+function parseSizeBytes(
+  value: string | number | bigint | null | undefined,
+): bigint {
+  if (value === undefined || value === null || value === "") return BigInt(0);
+  if (typeof value === "bigint") return value < BigInt(0) ? BigInt(0) : value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return BigInt(Math.max(0, Math.trunc(value)));
+  }
+  const cleaned = String(value).trim();
+  if (/^\d+$/.test(cleaned)) return BigInt(cleaned);
+  return BigInt(0);
+}
+
+async function resolveShareableFile(
+  userId: string,
+  fileIdParam: string,
+  meta?: {
+    name?: string;
+    mimeType?: string;
+    sizeBytes?: string | number | null;
+  },
+  options?: { createIfMissing?: boolean },
+) {
+  let decoded = fileIdParam;
+  try {
+    decoded = decodeURIComponent(fileIdParam);
+  } catch {
+    decoded = fileIdParam;
+  }
+  const linked = parseLinkedFileId(decoded);
+  const createIfMissing = options?.createIfMissing ?? false;
+
+  if (linked) {
+    const account = await prisma.connectedAccount.findFirst({
+      where: {
+        id: linked.accountId,
+        userId,
+        status: "connected",
+      },
+    });
+    if (!account) return null;
+
+    const existing = await prisma.file.findFirst({
+      where: {
+        userId,
+        connectedAccountId: linked.accountId,
+        providerFileId: linked.providerFileId,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existing) {
+      if (existing.status !== "active" || existing.deletedAt) {
+        return prisma.file.update({
+          where: { id: existing.id },
+          data: {
+            status: "active",
+            deletedAt: null,
+            ...(meta?.name ? { name: meta.name.trim().slice(0, 255) } : {}),
+            ...(meta?.mimeType
+              ? { mimeType: meta.mimeType.slice(0, 191) }
+              : {}),
+          },
+        });
+      }
+      return existing;
+    }
+
+    if (!createIfMissing) {
+      return {
+        id: decoded,
+        name: meta?.name?.trim() || "Shared file",
+        virtual: true as const,
+      };
+    }
+
+    return prisma.file.create({
+      data: {
+        userId,
+        connectedAccountId: linked.accountId,
+        provider: account.provider,
+        providerFileId: linked.providerFileId.slice(0, 191),
+        name: (meta?.name?.trim() || "Shared file").slice(0, 255),
+        mimeType: (meta?.mimeType || "application/octet-stream").slice(0, 191),
+        sizeBytes: parseSizeBytes(meta?.sizeBytes),
+        status: "active",
+      },
+    });
+  }
+
+  return prisma.file.findFirst({
+    where: {
+      id: decoded,
+      userId,
+      status: "active",
+      deletedAt: null,
+    },
+  });
+}
 
 const batchFileSchema = z.object({
   fileIds: z.array(z.string().min(1)).min(1).max(100),
@@ -105,7 +239,8 @@ export async function listFilesHandler(request: Request) {
           "updated_desc",
         ])
         .optional(),
-      limit: z.coerce.number().int().min(1).max(100).optional(),
+      limit: z.coerce.number().int().min(1).max(200).optional(),
+      cursor: z.string().min(1).optional(),
     })
     .parse(Object.fromEntries(url.searchParams));
 
@@ -153,33 +288,37 @@ export async function listFilesHandler(request: Request) {
 
   const orderBy =
     query.sort === "created_asc"
-      ? [{ createdAt: "asc" as const }]
+      ? [{ createdAt: "asc" as const }, { id: "asc" as const }]
       : query.sort === "name_asc"
-        ? [{ name: "asc" as const }]
+        ? [{ name: "asc" as const }, { id: "asc" as const }]
         : query.sort === "name_desc"
-          ? [{ name: "desc" as const }]
+          ? [{ name: "desc" as const }, { id: "desc" as const }]
           : query.sort === "size_desc"
-            ? [{ sizeBytes: "desc" as const }]
+            ? [{ sizeBytes: "desc" as const }, { id: "desc" as const }]
             : query.sort === "updated_desc"
-              ? [{ updatedAt: "desc" as const }]
+              ? [{ updatedAt: "desc" as const }, { id: "desc" as const }]
               : query.view === "starred"
                 ? [
                     { starredAt: "desc" as const },
                     { updatedAt: "desc" as const },
+                    { id: "desc" as const },
                   ]
                 : query.view === "archived"
                   ? [
                       { archivedAt: "desc" as const },
                       { updatedAt: "desc" as const },
+                      { id: "desc" as const },
                     ]
                   : query.view === "recent"
                     ? [
                         { lastAccessedAt: "desc" as const },
                         { updatedAt: "desc" as const },
+                        { id: "desc" as const },
                       ]
-                    : query.sort === "created_desc" || !query.sort
-                      ? [{ createdAt: "desc" as const }]
-                      : [{ createdAt: "desc" as const }];
+                    : [{ createdAt: "desc" as const }, { id: "desc" as const }];
+
+  const limit =
+    query.limit ?? 40;
 
   const files = await prisma.file.findMany({
     where,
@@ -197,19 +336,27 @@ export async function listFilesHandler(request: Request) {
       fileTags: { include: { tag: true } },
     },
     orderBy,
-    ...(query.limit
-      ? { take: query.limit }
-      : query.view === "recent"
-        ? { take: 40 }
-        : {}),
+    take: limit + 1,
+    ...(query.cursor
+      ? {
+          cursor: { id: query.cursor },
+          skip: 1,
+        }
+      : {}),
   });
+
+  const hasMore = files.length > limit;
+  const page = hasMore ? files.slice(0, limit) : files;
+  const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
+
   return json({
-    files: files.map((file) =>
+    files: page.map((file) =>
       serializeFile({
         ...file,
         tags: file.fileTags.map((ft) => ft.tag),
       }),
     ),
+    nextCursor,
   });
 }
 
@@ -303,7 +450,11 @@ export async function listTrashFilesHandler(request: Request) {
   if (user instanceof Response) return user;
   const url = new URL(request.url);
   const query = z
-    .object({ q: z.string().trim().max(255).optional() })
+    .object({
+      q: z.string().trim().max(255).optional(),
+      limit: z.coerce.number().int().min(1).max(100).default(40),
+      cursor: z.string().min(1).optional(),
+    })
     .parse(Object.fromEntries(url.searchParams));
   const files = await prisma.file.findMany({
     where: {
@@ -323,13 +474,24 @@ export async function listTrashFilesHandler(request: Request) {
       },
       folder: { select: { id: true, name: true } },
     },
-    orderBy: { deletedAt: "desc" },
+    orderBy: [{ deletedAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
+    ...(query.cursor
+      ? {
+          cursor: { id: query.cursor },
+          skip: 1,
+        }
+      : {}),
   });
+  const hasMore = files.length > query.limit;
+  const page = hasMore ? files.slice(0, query.limit) : files;
+  const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
   return json({
-    files: files.map((file) => ({
+    files: page.map((file) => ({
       ...file,
       sizeBytes: file.sizeBytes.toString(),
     })),
+    nextCursor,
   });
 }
 
@@ -554,6 +716,74 @@ export async function updateFileHandler(
   });
 }
 
+export async function getFileShareHandler(
+  request: Request,
+  _user?: unknown,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const fileId = params?.id;
+  if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+
+  const url = new URL(request.url);
+  const sizeParam = url.searchParams.get("sizeBytes");
+  const file = await resolveShareableFile(
+    user.id,
+    fileId,
+    {
+      name: url.searchParams.get("name") ?? undefined,
+      mimeType: url.searchParams.get("mimeType") ?? undefined,
+      sizeBytes: sizeParam == null || sizeParam === "" ? undefined : sizeParam,
+    },
+    { createIfMissing: false },
+  );
+  if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+
+  if ("virtual" in file && file.virtual) {
+    return json({
+      status: "none" as const,
+      fileId: null,
+      fileName: file.name,
+      shareId: null,
+      enabled: false,
+      url: null,
+    });
+  }
+
+  const share = await prisma.fileShare.findFirst({
+    where: {
+      fileId: file.id,
+      userId: user.id,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!share) {
+    return json({
+      status: "none" as const,
+      fileId: file.id,
+      fileName: file.name,
+      shareId: null,
+      enabled: false,
+      url: null,
+    });
+  }
+
+  const token = decryptShareToken(share.tokenEncrypted);
+  return json({
+    status: share.enabled ? ("active" as const) : ("disabled" as const),
+    fileId: file.id,
+    fileName: file.name,
+    shareId: share.id,
+    enabled: share.enabled,
+    url: token ? sharePublicUrl(token) : null,
+    needsRegenerate: !token,
+    expiresAt: share.expiresAt?.toISOString() ?? null,
+  });
+}
+
 export async function shareFileHandler(
   request: Request,
   _user?: unknown,
@@ -563,32 +793,66 @@ export async function shareFileHandler(
   if (user instanceof Response) return user;
   const fileId = params?.id;
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
-  const file = await prisma.file.findFirstOrThrow({
-    where: { id: fileId, userId: user.id, status: "active" },
-  });
+
+  const body = z
+    .object({
+      rotate: z.boolean().optional(),
+      name: z.string().trim().min(1).max(255).optional(),
+      mimeType: z.string().trim().max(191).optional(),
+      sizeBytes: z.union([z.string(), z.number()]).optional(),
+    })
+    .parse(await request.json().catch(() => ({})));
+
+  const file = await resolveShareableFile(
+    user.id,
+    fileId,
+    {
+      name: body.name,
+      mimeType: body.mimeType,
+      sizeBytes: body.sizeBytes,
+    },
+    { createIfMissing: true },
+  );
+  if (!file || ("virtual" in file && file.virtual)) {
+    return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  }
+
   const existingShare = await prisma.fileShare.findFirst({
     where: {
       fileId: file.id,
       userId: user.id,
-      enabled: true,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
     orderBy: { createdAt: "desc" },
   });
-  const body = z
-    .object({ rotate: z.boolean().optional() })
-    .parse(await request.json().catch(() => ({})));
 
   if (existingShare && !body.rotate) {
-    return json({
-      shareId: existingShare.id,
-      url: null,
-      alreadyShared: true,
-    });
+    const token = decryptShareToken(existingShare.tokenEncrypted);
+    if (token && existingShare.enabled) {
+      return json({
+        shareId: existingShare.id,
+        fileId: file.id,
+        url: sharePublicUrl(token),
+        alreadyShared: true,
+        enabled: true,
+        status: "active" as const,
+      });
+    }
+    if (token && !existingShare.enabled) {
+      return json({
+        shareId: existingShare.id,
+        fileId: file.id,
+        url: sharePublicUrl(token),
+        alreadyShared: true,
+        enabled: false,
+        status: "disabled" as const,
+      });
+    }
   }
 
   const token = randomToken(32);
   const tokenHash = hashToken(token);
+  const tokenEncrypted = encryptText(token);
   const expiresAt = new Date(Date.now() + SHARE_LINK_TTL_MS);
   let shareId: string;
   if (!existingShare) {
@@ -597,6 +861,8 @@ export async function shareFileHandler(
         fileId: file.id,
         userId: user.id,
         tokenHash,
+        tokenEncrypted,
+        enabled: true,
         expiresAt,
       },
     });
@@ -604,19 +870,87 @@ export async function shareFileHandler(
   } else {
     const share = await prisma.fileShare.update({
       where: { id: existingShare.id },
-      data: { tokenHash, expiresAt },
+      data: {
+        tokenHash,
+        tokenEncrypted,
+        enabled: true,
+        expiresAt,
+      },
     });
     shareId = share.id;
   }
   return json(
     {
-      url: `${env.APP_URL}/public/files/${token}`,
+      url: sharePublicUrl(token),
       shareId,
+      fileId: file.id,
       alreadyShared: Boolean(existingShare),
+      enabled: true,
+      status: "active" as const,
       expiresAt: expiresAt.toISOString(),
     },
     existingShare ? 200 : 201,
   );
+}
+
+export async function setFileShareEnabledHandler(
+  request: Request,
+  _user?: unknown,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const fileId = params?.id;
+  if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+
+  const body = z
+    .object({
+      enabled: z.boolean(),
+      name: z.string().trim().min(1).max(255).optional(),
+      mimeType: z.string().trim().max(191).optional(),
+      sizeBytes: z.union([z.string(), z.number()]).optional(),
+    })
+    .parse(await request.json());
+
+  const file = await resolveShareableFile(
+    user.id,
+    fileId,
+    {
+      name: body.name,
+      mimeType: body.mimeType,
+      sizeBytes: body.sizeBytes,
+    },
+    { createIfMissing: true },
+  );
+  if (!file || ("virtual" in file && file.virtual)) {
+    return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  }
+
+  const share = await prisma.fileShare.findFirst({
+    where: {
+      fileId: file.id,
+      userId: user.id,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!share) {
+    return errorJson("SHARE_NOT_FOUND", "No public link exists yet.", 404);
+  }
+
+  const updated = await prisma.fileShare.update({
+    where: { id: share.id },
+    data: { enabled: body.enabled },
+  });
+  const token = decryptShareToken(updated.tokenEncrypted);
+
+  return json({
+    status: updated.enabled ? ("active" as const) : ("disabled" as const),
+    shareId: updated.id,
+    fileId: file.id,
+    enabled: updated.enabled,
+    url: token ? sharePublicUrl(token) : null,
+  });
 }
 
 export async function publicPermissionHandler(
@@ -671,8 +1005,14 @@ export async function unshareFileHandler(
   if (user instanceof Response) return user;
   const fileId = params?.id;
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const file = await resolveShareableFile(user.id, fileId, undefined, {
+    createIfMissing: false,
+  });
+  if (!file || ("virtual" in file && file.virtual)) {
+    return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  }
   await prisma.fileShare.updateMany({
-    where: { fileId, userId: user.id, enabled: true },
+    where: { fileId: file.id, userId: user.id, enabled: true },
     data: { enabled: false },
   });
   return json({ status: "ok" });

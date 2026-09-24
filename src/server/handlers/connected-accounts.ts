@@ -957,6 +957,7 @@ export async function browseConnectedAccountHandler(
     .object({
       parentId: z.string().optional(),
       q: z.string().trim().max(255).optional(),
+      limit: z.coerce.number().int().min(1).max(200).optional(),
     })
     .parse(Object.fromEntries(url.searchParams));
 
@@ -975,6 +976,7 @@ export async function browseConnectedAccountHandler(
       user.id,
       parentId,
       query.q,
+      { limit: query.limit ?? 40 },
     );
     return json(result);
   } catch (error) {
@@ -1194,7 +1196,13 @@ export async function renameConnectedAccountItemHandler(
   }
 
   const body = z
-    .object({ name: z.string().trim().min(1).max(255) })
+    .object({
+      name: z.string().trim().min(1).max(255).optional(),
+      parentId: z.string().trim().min(1).max(512).optional(),
+    })
+    .refine((value) => Boolean(value.name || value.parentId), {
+      message: "Provide name or parentId.",
+    })
     .parse(await request.json());
 
   const account = await prisma.connectedAccount.findFirst({
@@ -1205,19 +1213,77 @@ export async function renameConnectedAccountItemHandler(
   }
 
   try {
-    const { renameProviderFile } = await import(
+    const { moveProviderItem, renameProviderFile } = await import(
       "@/server/modules/providers/operations"
     );
+    const providerFileId = decodeURIComponent(itemId);
+
+    if (body.parentId) {
+      const moved = await moveProviderItem({
+        account,
+        providerItemId: providerFileId,
+        destParentId: body.parentId,
+      });
+      await prisma.folder.updateMany({
+        where: {
+          userId: user.id,
+          connectedAccountId: accountId,
+          providerFolderId: providerFileId,
+          deletedAt: null,
+        },
+        data: {
+          // Keep DB hierarchy in sync when destination maps to a tracked folder.
+          ...(await (async () => {
+            if (body.parentId === "root") return { parentId: null };
+            const dest = await prisma.folder.findFirst({
+              where: {
+                userId: user.id,
+                connectedAccountId: accountId,
+                providerFolderId: body.parentId,
+                deletedAt: null,
+              },
+              select: { id: true },
+            });
+            return dest ? { parentId: dest.id } : {};
+          })()),
+        },
+      });
+      return json({ item: moved });
+    }
+
     const renamed = await renameProviderFile({
       account,
-      providerFileId: itemId,
-      newName: body.name,
+      providerFileId,
+      newName: body.name!,
     });
+
+    // Keep local folder/file rows in sync when this provider item is tracked.
+    await Promise.all([
+      prisma.folder.updateMany({
+        where: {
+          userId: user.id,
+          connectedAccountId: accountId,
+          providerFolderId: providerFileId,
+          deletedAt: null,
+        },
+        data: { name: body.name! },
+      }),
+      prisma.file.updateMany({
+        where: {
+          userId: user.id,
+          connectedAccountId: accountId,
+          providerFileId,
+          deletedAt: null,
+        },
+        data: { name: body.name! },
+      }),
+    ]);
+
     return json({ item: renamed });
   } catch (error) {
     return errorJson(
-      "RENAME_FAILED",
-      error instanceof Error ? error.message : "Rename failed.",
+      body.parentId ? "MOVE_FAILED" : "RENAME_FAILED",
+      error instanceof Error ? error.message : "Operation failed.",
       400,
     );
   }
@@ -1290,7 +1356,10 @@ export async function deleteConnectedAccountItemHandler(
     const { deleteProviderFile } = await import(
       "@/server/modules/providers/operations"
     );
-    await deleteProviderFile({ account, providerFileId: itemId });
+    await deleteProviderFile({
+      account,
+      providerFileId: decodeURIComponent(itemId),
+    });
     return json({ status: "ok" });
   } catch (error) {
     return errorJson(

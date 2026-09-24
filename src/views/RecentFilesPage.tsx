@@ -8,7 +8,8 @@ import { WorkspaceFileList } from "@/components/drive/WorkspaceFileList";
 import { useWorkspaceFiles } from "@/hooks/useWorkspaceFiles";
 
 export function RecentFilesPage() {
-  const { files, loading, error } = useWorkspaceFiles("recent", 40);
+  const { files, loading, loadingMore, nextCursor, error, loadMore } =
+    useWorkspaceFiles("recent", 40);
 
   const todayCount = useMemo(() => {
     const start = new Date();
@@ -45,11 +46,16 @@ export function RecentFilesPage() {
       <WorkspaceFileList
         files={files}
         loading={loading}
+        loadingMore={loadingMore}
+        hasMore={Boolean(nextCursor)}
         error={error}
         mode="recent"
         storageKey="archivecloud:recent-view"
         emptyTitle="No recent files"
         emptyDescription="Preview or download files from Home to see them here."
+        onLoadMore={() => {
+          void loadMore();
+        }}
       />
     </>
   );

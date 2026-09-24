@@ -123,21 +123,27 @@ export async function browseProviderFolder(
   userId: string,
   parentId: string,
   searchQuery?: string,
+  options?: { limit?: number },
 ): Promise<ProviderBrowseResult> {
   const id = account.id;
+  const limit = options?.limit;
   switch (account.provider) {
     case "google_drive":
-      return browseGoogleDriveFolder(id, userId, parentId, searchQuery);
+      return browseGoogleDriveFolder(id, userId, parentId, searchQuery, {
+        limit,
+      });
     case "google_photos":
       return browseGooglePhotosFolder(id, userId, parentId, searchQuery);
     case "google_shared_drive":
-      return browseGoogleSharedDriveFolder(id, userId, parentId, searchQuery);
+      return browseGoogleSharedDriveFolder(id, userId, parentId, searchQuery, {
+        limit,
+      });
     case "dropbox":
-      return browseDropboxFolder(id, userId, parentId, searchQuery);
+      return browseDropboxFolder(id, userId, parentId, searchQuery, { limit });
     case "onedrive":
-      return browseOneDriveFolder(id, userId, parentId, searchQuery);
+      return browseOneDriveFolder(id, userId, parentId, searchQuery, { limit });
     case "pcloud":
-      return browsePCloudFolder(id, userId, parentId, searchQuery);
+      return browsePCloudFolder(id, userId, parentId, searchQuery, { limit });
     case "icloud_drive":
     case "icloud_photos":
       return browseICloudFolder(
@@ -585,6 +591,161 @@ export async function renameProviderFile(params: {
       throw new Error("Google Photos does not support renaming media items.");
     default:
       throw new Error(`Rename not supported for ${account.provider}`);
+  }
+}
+
+export async function moveProviderItem(params: {
+  account: ConnectedAccount;
+  providerItemId: string;
+  destParentId: string;
+}): Promise<{ id: string; name: string }> {
+  const { account, providerItemId } = params;
+  const destParentId =
+    !params.destParentId || params.destParentId === "root"
+      ? "root"
+      : params.destParentId;
+
+  switch (account.provider) {
+    case "google_drive":
+    case "google_shared_drive": {
+      const auth = await getAuthedGoogleClient(account);
+      const drive = google.drive({ version: "v3", auth });
+      const fileInfo = await drive.files.get({
+        fileId: providerItemId,
+        fields: "id,name,parents",
+        supportsAllDrives: true,
+      });
+      const previousParents = fileInfo.data.parents?.join(",") ?? "";
+      let addParents = destParentId;
+      if (destParentId === "root") {
+        const rootMeta = await drive.files.get({
+          fileId: "root",
+          fields: "id",
+          supportsAllDrives: true,
+        });
+        addParents = rootMeta.data.id ?? "root";
+      }
+      const updated = await drive.files.update({
+        fileId: providerItemId,
+        addParents,
+        removeParents: previousParents || undefined,
+        fields: "id,name,parents",
+        supportsAllDrives: true,
+      });
+      if (!updated.data.id) throw new Error("Move failed.");
+      return {
+        id: updated.data.id,
+        name: updated.data.name ?? fileInfo.data.name ?? "untitled",
+      };
+    }
+    case "dropbox": {
+      const accessToken = await getDropboxAccessToken(account);
+      const meta = await getDropboxFileMetadata(account, providerItemId);
+      const fromPath = meta.path_display || providerItemId;
+      if (!fromPath) throw new Error("Dropbox path missing for move.");
+      const baseName = fromPath.includes("/")
+        ? fromPath.slice(fromPath.lastIndexOf("/") + 1)
+        : fromPath;
+      let toParent = "";
+      if (destParentId !== "root") {
+        const destMeta = await getDropboxFileMetadata(account, destParentId);
+        toParent = destMeta.path_display || destParentId;
+      }
+      const toPathRaw = `${toParent}/${baseName}`.replace(/\/+/g, "/");
+      const toPath = toPathRaw.startsWith("/") ? toPathRaw : `/${toPathRaw}`;
+      const response = await fetch(
+        "https://api.dropboxapi.com/2/files/move_v2",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from_path: fromPath,
+            to_path: toPath,
+            autorename: false,
+          }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Dropbox move failed: ${await response.text()}`);
+      }
+      const data = (await response.json()) as {
+        metadata?: { id?: string; name?: string; path_display?: string };
+      };
+      return {
+        id: data.metadata?.id || data.metadata?.path_display || providerItemId,
+        name: data.metadata?.name ?? baseName,
+      };
+    }
+    case "onedrive": {
+      const accessToken = await getOneDriveAccessToken(account);
+      const parentRef =
+        destParentId === "root"
+          ? { path: "/drive/root:" }
+          : { id: destParentId };
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(providerItemId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ parentReference: parentRef }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`OneDrive move failed: ${await response.text()}`);
+      }
+      const data = (await response.json()) as { id: string; name: string };
+      return { id: data.id, name: data.name };
+    }
+    case "pcloud": {
+      const accessToken = await getPCloudAccessToken(account);
+      const apiBase = getPCloudApiBaseForAccount(account);
+      const toFolderId = destParentId === "root" ? "0" : destParentId;
+      const fileUrl = new URL(`${apiBase}/renamefile`);
+      fileUrl.searchParams.set("access_token", accessToken);
+      fileUrl.searchParams.set("fileid", providerItemId);
+      fileUrl.searchParams.set("tofolderid", toFolderId);
+      const fileResponse = await fetch(fileUrl);
+      const fileData = (await fileResponse.json()) as {
+        result: number;
+        error?: string;
+        metadata?: { fileid: number; name: string };
+      };
+      if (fileResponse.ok && fileData.result === 0) {
+        return {
+          id: String(fileData.metadata?.fileid ?? providerItemId),
+          name: fileData.metadata?.name ?? "untitled",
+        };
+      }
+      const folderUrl = new URL(`${apiBase}/renamefolder`);
+      folderUrl.searchParams.set("access_token", accessToken);
+      folderUrl.searchParams.set("folderid", providerItemId);
+      folderUrl.searchParams.set("tofolderid", toFolderId);
+      const folderResponse = await fetch(folderUrl);
+      const folderData = (await folderResponse.json()) as {
+        result: number;
+        error?: string;
+        metadata?: { folderid: number; name: string };
+      };
+      if (!folderResponse.ok || folderData.result !== 0) {
+        throw new Error(
+          fileData.error ?? folderData.error ?? "pCloud move failed",
+        );
+      }
+      return {
+        id: String(folderData.metadata?.folderid ?? providerItemId),
+        name: folderData.metadata?.name ?? "untitled",
+      };
+    }
+    case "google_photos":
+      throw new Error("Google Photos does not support moving media items.");
+    default:
+      throw new Error(`Move not supported for ${account.provider}`);
   }
 }
 

@@ -28,6 +28,7 @@
     "@heroui/react": "^3.2.4",
     "@heroui/styles": "^3.2.4",
     "@internationalized/date": "^3.12.3",
+    "@marsidev/react-turnstile": "^1.6.1",
     "@polar-sh/nextjs": "^0.9.6",
     "@polar-sh/sdk": "^0.49.0",
     "@prisma/adapter-pg": "^7.10.0",

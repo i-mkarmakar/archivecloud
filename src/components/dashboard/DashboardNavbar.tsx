@@ -79,7 +79,7 @@ export function DashboardNavbar({
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
-  const { planId, canUpgrade } = useUserPlan();
+  const { planId, canUpgrade, loaded: planLoaded, hasThunder } = useUserPlan();
 
   const upgradeButton = (
     <Button
@@ -183,7 +183,7 @@ export function DashboardNavbar({
                   <Bars className="h-5 w-5" />
                 </Button>
                 <div className="flex items-center gap-3">
-                  {canUpgrade ? upgradeButton : null}
+                  {planLoaded && canUpgrade ? upgradeButton : null}
                   <Button
                     variant="outline"
                     isIconOnly
@@ -203,7 +203,14 @@ export function DashboardNavbar({
             <div className="flex min-w-0 items-center justify-start">
               {showDesktopBrand ? (
                 <div className="flex items-center gap-2.5">
-                  <BrandLogo className="h-8 w-8 shrink-0" />
+                  {planLoaded ? (
+                    <BrandLogo
+                      className="h-8 w-8 shrink-0"
+                      thunder={hasThunder}
+                    />
+                  ) : (
+                    <span className="inline-block h-8 w-8 shrink-0" aria-hidden />
+                  )}
                   <span className="text-lg font-extrabold tracking-tight text-foreground">
                     Archive Cloud
                   </span>
@@ -212,13 +219,13 @@ export function DashboardNavbar({
             </div>
             {searchField()}
             <div className="hidden items-center justify-end gap-4 lg:flex">
-              {canUpgrade ? upgradeButton : null}
+              {planLoaded && canUpgrade ? upgradeButton : null}
               <SystemInfoPopover />
             </div>
           </div>
         </div>
       </Header>
-      {canUpgrade ? (
+      {planLoaded && canUpgrade ? (
         <UpgradePlanModal
           open={upgradeOpen}
           onClose={() => setUpgradeOpen(false)}

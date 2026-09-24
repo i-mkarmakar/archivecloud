@@ -320,6 +320,7 @@ export async function browseDropboxFolder(
   userId: string,
   parentId: string,
   searchQuery?: string,
+  options?: { limit?: number },
 ): Promise<ProviderBrowseResult> {
   const account = await prisma.connectedAccount.findFirstOrThrow({
     where: {
@@ -331,6 +332,7 @@ export async function browseDropboxFolder(
   });
 
   const path = toDropboxPath(parentId);
+  const maxItems = options?.limit;
   const listed = await dropboxApi<{
     entries: DropboxListEntry[];
     cursor: string;
@@ -340,13 +342,13 @@ export async function browseDropboxFolder(
     recursive: false,
     include_deleted: false,
     include_mounted_folders: true,
-    limit: 2000,
+    limit: maxItems ? Math.min(maxItems, 500) : 2000,
   });
 
   let entries = listed.entries ?? [];
   let cursor = listed.cursor;
   let hasMore = listed.has_more;
-  while (hasMore) {
+  while (hasMore && !maxItems) {
     const more = await dropboxApi<{
       entries: DropboxListEntry[];
       cursor: string;

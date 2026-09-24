@@ -1,6 +1,14 @@
+import { timingSafeEqual } from "node:crypto";
 import { env } from "@/server/config/env";
 import { errorJson, json } from "@/server/http/responses";
 import { runScheduledTransferTick } from "@/server/modules/automation/run-scheduled-tick";
+
+function secretsEqual(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
 
 export function assertCronAuthorized(request: Request): Response | null {
   const secret = env.CRON_SECRET?.trim();
@@ -20,7 +28,7 @@ export function assertCronAuthorized(request: Request): Response | null {
     ? header.slice(7).trim()
     : header.trim();
 
-  if (!token || token !== secret) {
+  if (!token || !secretsEqual(token, secret)) {
     return errorJson("UNAUTHORIZED", "Invalid cron secret.", 401);
   }
   return null;

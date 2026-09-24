@@ -279,10 +279,10 @@ export function ConnectCloudAccountModal({
           <Drawer.Dialog className="h-full w-full max-w-lg gap-0 overflow-hidden rounded-none border-0 p-0 shadow-xl sm:max-w-xl">
             <Drawer.CloseTrigger
               isDisabled={connecting}
-              className="z-10 text-white hover:bg-white/10"
+              className="z-10 text-[#4a5568] hover:bg-black/5"
             />
-            <Drawer.Header className="border-0 bg-[#1e3a5f] px-5 py-3.5 pr-12 text-white">
-              <Drawer.Heading className="text-base font-semibold tracking-tight text-white">
+            <Drawer.Header className="border-0 bg-white px-5 py-3.5 pr-12">
+              <Drawer.Heading className="text-xl font-bold tracking-tight text-[#2d3748] sm:text-2xl">
                 Connect Cloud Account
               </Drawer.Heading>
             </Drawer.Header>
@@ -426,21 +426,40 @@ export function ConnectCloudAccountModal({
               )}
             </Drawer.Body>
 
-            <Drawer.Footer className="border-t border-[#e8ecf2] bg-white px-5 py-4">
+            <Drawer.Footer className="bg-white px-5 py-4">
               {step === "pick" ? (
-                <Button
-                  onPress={handleConnect}
-                  isDisabled={!canConnect}
-                  className="min-w-[140px] cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] data-[disabled=true]:bg-[#c5cdd8] data-[disabled=true]:text-white"
-                >
-                  {connecting ? "Connecting..." : "Connect Account"}
-                </Button>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onPress={onClose}
+                    isDisabled={connecting}
+                    className="cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onPress={handleConnect}
+                    isDisabled={!canConnect}
+                    className="min-w-[140px] cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] data-[disabled=true]:bg-[#c5cdd8] data-[disabled=true]:text-white"
+                  >
+                    {connecting ? "Connecting..." : "Connect Account"}
+                  </Button>
+                </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onPress={onClose}
+                    isDisabled={connecting}
+                    className="cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     variant="outline"
                     onPress={() => setStep("pick")}
                     isDisabled={connecting}
+                    className="cursor-pointer"
                   >
                     Back
                   </Button>
