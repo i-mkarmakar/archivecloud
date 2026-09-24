@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { Readable } from "node:stream";
 import { google } from "googleapis";
 import type {

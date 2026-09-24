@@ -1,3 +1,5 @@
+import "server-only";
+
 import { prisma } from "@/server/config/prisma";
 import {
   copyBetweenProviders,

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { browseProviderFolder } from "@/server/modules/providers/operations";

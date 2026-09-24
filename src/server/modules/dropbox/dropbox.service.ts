@@ -1,8 +1,10 @@
+import "server-only";
+
+import { Readable } from "node:stream";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";

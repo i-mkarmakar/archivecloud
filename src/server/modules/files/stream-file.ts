@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { streamGoogleFileResponse } from "./stream-google-file";
 

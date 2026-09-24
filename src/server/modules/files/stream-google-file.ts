@@ -1,3 +1,5 @@
+import "server-only";
+
 import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";

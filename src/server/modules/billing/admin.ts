@@ -1,3 +1,5 @@
+import "server-only";
+
 import { normalizePlanId, type PlanId } from "@/lib/plans";
 import { env } from "@/server/config/env";
 import { isPolarConfigured } from "@/server/modules/billing/polar";

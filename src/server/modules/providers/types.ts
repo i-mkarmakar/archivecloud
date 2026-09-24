@@ -1,3 +1,5 @@
+import "server-only";
+
 export const SUPPORTED_PROVIDERS = [
   "google_drive",
   "google_photos",

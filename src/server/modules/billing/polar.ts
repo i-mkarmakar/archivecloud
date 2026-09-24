@@ -1,3 +1,5 @@
+import "server-only";
+
 import { Polar } from "@polar-sh/sdk";
 import type { PlanId } from "@/lib/plans";
 import { env } from "@/server/config/env";

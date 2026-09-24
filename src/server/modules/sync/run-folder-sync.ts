@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import {

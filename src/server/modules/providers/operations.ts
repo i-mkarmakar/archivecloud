@@ -1,6 +1,8 @@
-import type { ConnectedAccount } from "@/generated/prisma/client";
-import { google } from "googleapis";
+import "server-only";
+
 import type { Readable } from "node:stream";
+import { google } from "googleapis";
+import type { ConnectedAccount } from "@/generated/prisma/client";
 import {
   browseDropboxFolder,
   deleteDropboxFile,
@@ -13,6 +15,16 @@ import {
   syncDropboxQuota,
   uploadDropboxFileFromStream,
 } from "@/server/modules/dropbox/dropbox.service";
+import {
+  googleDownloadExportMimeTypes,
+  withExtension,
+} from "@/server/modules/files/stream-google-file";
+import {
+  browseGoogleDriveFolder,
+  ensureGoogleAppFolder,
+  getAuthedGoogleClient,
+  syncGoogleQuota,
+} from "@/server/modules/google/google.service";
 import {
   browseGooglePhotosFolder,
   deleteGooglePhotosFile,
@@ -30,12 +42,6 @@ import {
   uploadGoogleSharedDriveFileFromStream,
 } from "@/server/modules/google/google-shared-drive.service";
 import { copyGoogleDriveFile } from "@/server/modules/google/google-transfer";
-import {
-  browseGoogleDriveFolder,
-  ensureGoogleAppFolder,
-  getAuthedGoogleClient,
-  syncGoogleQuota,
-} from "@/server/modules/google/google.service";
 import {
   browseICloudFolder,
   deleteICloudFile,
@@ -64,10 +70,6 @@ import {
   syncPCloudQuota,
   uploadPCloudFileFromStream,
 } from "@/server/modules/pcloud/pcloud.service";
-import {
-  googleDownloadExportMimeTypes,
-  withExtension,
-} from "@/server/modules/files/stream-google-file";
 import type {
   ProviderBrowseResult,
   ProviderCopyResult,

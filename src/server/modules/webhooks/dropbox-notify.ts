@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";

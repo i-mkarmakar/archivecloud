@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { PlanId } from "@/lib/plans";
 import { prisma } from "@/server/config/prisma";
 import { isAdminEmail } from "@/server/modules/billing/admin";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 import { google } from "googleapis";
 import type { ConnectedAccount } from "@/generated/prisma/client";

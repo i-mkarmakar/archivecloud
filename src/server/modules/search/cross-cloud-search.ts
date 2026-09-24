@@ -1,5 +1,7 @@
-import type { ConnectedAccount } from "@/generated/prisma/client";
+import "server-only";
+
 import { google } from "googleapis";
+import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { getDropboxAccessToken } from "@/server/modules/dropbox/dropbox.service";
 import { getAuthedGoogleClient } from "@/server/modules/google/google.service";

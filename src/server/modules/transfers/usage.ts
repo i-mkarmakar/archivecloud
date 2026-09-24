@@ -1,6 +1,8 @@
+import "server-only";
+
 import { getPlanById } from "@/lib/plans";
-import { getUserPlanId } from "@/server/modules/billing/plan-gate";
 import { prisma } from "@/server/config/prisma";
+import { getUserPlanId } from "@/server/modules/billing/plan-gate";
 
 export function currentYearMonth(date = new Date()) {
   const year = date.getUTCFullYear();
