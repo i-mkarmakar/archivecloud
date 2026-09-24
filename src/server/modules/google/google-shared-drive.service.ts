@@ -136,6 +136,35 @@ export async function listSharedDrives(account: ConnectedAccount) {
   return drives.filter((item) => item.id && item.name);
 }
 
+export async function listSharedDrivesWithTokens(
+  config: ProviderConfig,
+  tokens: {
+    access_token?: string | null;
+    refresh_token?: string | null;
+    expiry_date?: number | null;
+  },
+) {
+  const client = createOAuthClient(config);
+  client.setCredentials(tokens);
+  const drive = google.drive({ version: "v3", auth: client });
+  const drives: Array<{ id: string; name: string }> = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await drive.drives.list({
+      pageSize: 100,
+      pageToken,
+      fields: "nextPageToken,drives(id,name)",
+    });
+    for (const item of response.data.drives ?? []) {
+      if (item.id && item.name) {
+        drives.push({ id: item.id, name: item.name });
+      }
+    }
+    pageToken = response.data.nextPageToken ?? undefined;
+  } while (pageToken);
+  return drives;
+}
+
 export async function connectSharedDriveFromGoogleAccount(params: {
   userId: string;
   providerConfigId: string;

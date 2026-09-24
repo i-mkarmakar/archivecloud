@@ -259,3 +259,27 @@ export async function streamGoogleDriveThumbnailResponse(
   outHeaders.set("Cache-Control", "private, max-age=300");
   return new Response(response.body, { status: 200, headers: outHeaders });
 }
+
+/** Fetch Drive file bytes (exporting Google Docs types when needed). */
+export async function fetchGoogleDriveFileMedia(
+  account: ConnectedAccount,
+  params: {
+    providerFileId: string;
+    mimeType: string;
+    name: string;
+  },
+): Promise<{ response: Response; fileName: string } | null> {
+  const auth = await getAuthedGoogleClient(account);
+  const headers = normalizeHeaders(await auth.getRequestHeaders());
+  const exportTarget = googleDownloadExportMimeTypes[params.mimeType];
+  let fileName = params.name;
+  const url = exportTarget
+    ? `https://www.googleapis.com/drive/v3/files/${params.providerFileId}/export?mimeType=${encodeURIComponent(exportTarget.mimeType)}`
+    : `https://www.googleapis.com/drive/v3/files/${params.providerFileId}?alt=media`;
+  if (exportTarget) {
+    fileName = withExtension(params.name, exportTarget.extension);
+  }
+  const response = await fetch(url, { headers });
+  if (!response.ok || !response.body) return null;
+  return { response, fileName };
+}

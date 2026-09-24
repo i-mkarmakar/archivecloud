@@ -1,5 +1,4 @@
 import { Readable } from "node:stream";
-import { google } from "googleapis";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -33,7 +32,8 @@ import {
 import {
   createOAuthClient,
   ensureGlobalGoogleProviderConfig,
-  getAuthedGoogleClient,
+  fetchGoogleOAuthUserInfo,
+  getGoogleDriveFileBasicMeta,
   syncGoogleQuota,
 } from "@/server/modules/google/google.service";
 import {
@@ -644,8 +644,7 @@ export async function googleCallbackHandler(request: Request) {
         400,
       );
     client.setCredentials(tokens);
-    const oauth2 = google.oauth2({ version: "v2", auth: client });
-    const profile = await oauth2.userinfo.get();
+    const profile = await fetchGoogleOAuthUserInfo(client);
     const providerAccountId = profile.data.id;
     const email = profile.data.email;
     if (!providerAccountId || !email)
@@ -1024,19 +1023,13 @@ export async function previewConnectedAccountFileHandler(
     account.provider === "google_drive" ||
     account.provider === "google_shared_drive"
   ) {
-    const auth = await getAuthedGoogleClient(account);
-    const drive = google.drive({ version: "v3", auth });
-    const metadata = await drive.files.get({
-      fileId: providerFileId,
-      fields: "id,name,mimeType",
-      supportsAllDrives: true,
-    });
-    if (!metadata.data.id || !metadata.data.name) {
+    const metadata = await getGoogleDriveFileBasicMeta(account, providerFileId);
+    if (!metadata) {
       return errorJson("FILE_NOT_FOUND", "File not found on this drive.", 404);
     }
 
-    const mimeType = metadata.data.mimeType ?? "application/octet-stream";
-    const name = metadata.data.name;
+    const mimeType = metadata.mimeType;
+    const name = metadata.name;
     const range = request.headers.get("range") ?? undefined;
 
     if (
@@ -1109,18 +1102,12 @@ export async function downloadConnectedAccountFileHandler(
     account.provider === "google_drive" ||
     account.provider === "google_shared_drive"
   ) {
-    const auth = await getAuthedGoogleClient(account);
-    const drive = google.drive({ version: "v3", auth });
-    const metadata = await drive.files.get({
-      fileId: providerFileId,
-      fields: "id,name,mimeType",
-      supportsAllDrives: true,
-    });
-    if (!metadata.data.id || !metadata.data.name) {
+    const metadata = await getGoogleDriveFileBasicMeta(account, providerFileId);
+    if (!metadata) {
       return errorJson("FILE_NOT_FOUND", "File not found on this drive.", 404);
     }
-    const mimeType = metadata.data.mimeType ?? "application/octet-stream";
-    const name = metadata.data.name;
+    const mimeType = metadata.mimeType;
+    const name = metadata.name;
     const range = request.headers.get("range") ?? undefined;
     return streamGoogleProviderFileResponse(
       account,

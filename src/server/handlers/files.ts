@@ -1,25 +1,27 @@
 import { PassThrough, Readable } from "node:stream";
 import { ZipArchive } from "archiver";
-import { google } from "googleapis";
 import { z } from "zod";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import { serializeFile, touchFileAccess } from "@/server/lib/file-serialize";
 import { getAccessibleFile } from "@/server/lib/file-access";
+import { serializeFile, touchFileAccess } from "@/server/lib/file-serialize";
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import {
-  googleDownloadExportMimeTypes,
-  normalizeHeaders,
+  fetchGoogleDriveFileMedia,
   streamGoogleDriveThumbnailResponse,
-  withExtension,
 } from "@/server/modules/files/stream-google-file";
 import {
-  getAuthedGoogleClient,
+  getGoogleDriveWebLinks,
+  makeGoogleDriveFilePublicReader,
   syncGoogleAppFolderFiles,
   syncGoogleQuota,
 } from "@/server/modules/google/google.service";
+import {
+  deleteProviderFile,
+  renameProviderFile,
+} from "@/server/modules/providers/operations";
 import { createAuditLog } from "@/server/utils/audit";
 import {
   decryptText,
@@ -317,8 +319,7 @@ export async function listFilesHandler(request: Request) {
                       ]
                     : [{ createdAt: "desc" as const }, { id: "desc" as const }];
 
-  const limit =
-    query.limit ?? 40;
+  const limit = query.limit ?? 40;
 
   const files = await prisma.file.findMany({
     where,
@@ -347,7 +348,7 @@ export async function listFilesHandler(request: Request) {
 
   const hasMore = files.length > limit;
   const page = hasMore ? files.slice(0, limit) : files;
-  const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
+  const nextCursor = hasMore ? (page[page.length - 1]?.id ?? null) : null;
 
   return json({
     files: page.map((file) =>
@@ -485,7 +486,7 @@ export async function listTrashFilesHandler(request: Request) {
   });
   const hasMore = files.length > query.limit;
   const page = hasMore ? files.slice(0, query.limit) : files;
-  const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
+  const nextCursor = hasMore ? (page[page.length - 1]?.id ?? null) : null;
   return json({
     files: page.map((file) => ({
       ...file,
@@ -528,9 +529,10 @@ export async function batchPermanentDeleteFilesHandler(request: Request) {
 
   for (const file of files) {
     try {
-      const auth = await getAuthedGoogleClient(file.connectedAccount);
-      const drive = google.drive({ version: "v3", auth });
-      await drive.files.delete({ fileId: file.providerFileId });
+      await deleteProviderFile({
+        account: file.connectedAccount,
+        providerFileId: file.providerFileId,
+      });
       deletedIds.push(file.id);
       syncedAccountIds.add(file.connectedAccountId);
       await createAuditLog(user.id, "PERMANENT_DELETE_FILE", "file", file.id, {
@@ -665,18 +667,15 @@ export async function updateFileHandler(
     where: { id: fileId, userId: user.id },
     include: { connectedAccount: true },
   });
-  const drive = google.drive({
-    version: "v3",
-    auth: await getAuthedGoogleClient(file.connectedAccount),
-  });
   if (body.folderId)
     await prisma.folder.findFirstOrThrow({
       where: { id: body.folderId, userId: user.id, deletedAt: null },
     });
   if (body.name)
-    await drive.files.update({
-      fileId: file.providerFileId,
-      requestBody: { name: body.name },
+    await renameProviderFile({
+      account: file.connectedAccount,
+      providerFileId: file.providerFileId,
+      newName: body.name,
     });
   const now = new Date();
   const updated = await prisma.file.update({
@@ -973,19 +972,13 @@ export async function publicPermissionHandler(
       400,
     );
   try {
-    const auth = await getAuthedGoogleClient(file.connectedAccount);
-    const drive = google.drive({ version: "v3", auth });
-    await drive.permissions.create({
-      fileId: file.providerFileId,
-      requestBody: { role: "reader", type: "anyone" },
-    });
-    const metadata = await drive.files.get({
-      fileId: file.providerFileId,
-      fields: "webViewLink,webContentLink",
-    });
+    const links = await makeGoogleDriveFilePublicReader(
+      file.connectedAccount,
+      file.providerFileId,
+    );
     return json({
       status: "ok",
-      url: metadata.data.webViewLink ?? metadata.data.webContentLink,
+      url: links.webViewLink ?? links.webContentLink,
     });
   } catch (error) {
     const message =
@@ -1055,14 +1048,12 @@ export async function getViewUrlHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId);
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
-  const auth = await getAuthedGoogleClient(file.connectedAccount);
-  const drive = google.drive({ version: "v3", auth });
-  const metadata = await drive.files.get({
-    fileId: file.providerFileId,
-    fields: "webViewLink,webContentLink",
-  });
+  const links = await getGoogleDriveWebLinks(
+    file.connectedAccount,
+    file.providerFileId,
+  );
   return json({
-    url: metadata.data.webViewLink ?? metadata.data.webContentLink,
+    url: links.webViewLink ?? links.webContentLink,
   });
 }
 
@@ -1152,22 +1143,16 @@ export async function batchDownloadHandler(request: Request) {
   void (async () => {
     for (const file of files) {
       try {
-        let fileName = file.name;
-        const auth = await getAuthedGoogleClient(file.connectedAccount);
-        const headers = normalizeHeaders(await auth.getRequestHeaders());
-        const exportTarget = googleDownloadExportMimeTypes[file.mimeType];
-        if (exportTarget) {
-          fileName = withExtension(file.name, exportTarget.extension);
-        }
-        const url = exportTarget
-          ? `https://www.googleapis.com/drive/v3/files/${file.providerFileId}/export?mimeType=${encodeURIComponent(exportTarget.mimeType)}`
-          : `https://www.googleapis.com/drive/v3/files/${file.providerFileId}?alt=media`;
-        const response = await fetch(url, { headers });
-        if (!response.ok || !response.body) continue;
+        const media = await fetchGoogleDriveFileMedia(file.connectedAccount, {
+          providerFileId: file.providerFileId,
+          mimeType: file.mimeType,
+          name: file.name,
+        });
+        if (!media) continue;
         const stream = Readable.fromWeb(
-          response.body as Parameters<typeof Readable.fromWeb>[0],
+          media.response.body as Parameters<typeof Readable.fromWeb>[0],
         );
-        archive.append(stream, { name: fileName });
+        archive.append(stream, { name: media.fileName });
       } catch (err) {
         console.error(`Failed to add file ${file.name} to zip:`, err);
       }
