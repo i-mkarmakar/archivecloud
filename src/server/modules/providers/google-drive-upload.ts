@@ -94,7 +94,6 @@ export async function putGoogleDriveResumableChunk(params: {
   body: ReadableStream<Uint8Array> | null;
 }): Promise<Response> {
   const auth = await getAuthedGoogleClient(params.account);
-  const _drive = google.drive({ version: "v3", auth });
   const token = await auth.getAccessToken();
 
   const putHeaders = new Headers();
