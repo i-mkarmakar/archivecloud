@@ -49,12 +49,12 @@ export function useAllFilesShortcuts(args: {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setContextMenu({ x: 0, y: 0, file: null });
-      if (event.key === "Escape")
+      if (event.key === "Escape") {
+        setContextMenu({ x: 0, y: 0, file: null });
         setFolderContextMenu({ x: 0, y: 0, folder: null });
-      if (event.key === "Escape") setFolderDetailOpen(false);
-      if (event.key === "Escape")
+        setFolderDetailOpen(false);
         setEmptyContextMenu({ x: 0, y: 0, open: false });
+      }
       if (
         event.ctrlKey &&
         event.key.toLowerCase() === "x" &&
