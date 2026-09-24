@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import type { MouseEvent } from "react";
 import { FileGrid } from "@/components/drive/FileGrid";
 import { FileTable } from "@/components/drive/FileTable";
@@ -14,6 +15,8 @@ import { useFileViewMode } from "@/hooks/useFileViewMode";
 export function WorkspaceFileList({
   files,
   loading,
+  loadingMore = false,
+  hasMore = false,
   error,
   mode = "default",
   storageKey = "archivecloud:workspace-view",
@@ -24,9 +27,12 @@ export function WorkspaceFileList({
   onToggleFile,
   onToggleAll,
   onFileContextMenu,
+  onLoadMore,
 }: {
   files: FileItem[];
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   error: string;
   mode?: "default" | "shared" | "starred" | "archived" | "recent";
   storageKey?: string;
@@ -37,6 +43,7 @@ export function WorkspaceFileList({
   onToggleFile?: (file: FileItem) => void;
   onToggleAll?: () => void;
   onFileContextMenu?: (event: MouseEvent<HTMLElement>, file: FileItem) => void;
+  onLoadMore?: () => void;
 }) {
   const [viewMode, setViewMode] = useFileViewMode(storageKey);
 
@@ -84,6 +91,19 @@ export function WorkspaceFileList({
           onFileContextMenu={onFileContextMenu}
         />
       )}
+
+      {hasMore && onLoadMore ? (
+        <div className="mt-4 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            isDisabled={loadingMore}
+            onPress={() => onLoadMore()}
+          >
+            {loadingMore ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import {
   ArrowRotateRight,
   ArrowUpFromLine,
   ChevronsExpandVertical,
-  CircleCheck,
   CopyCheck,
   EllipsisVertical,
   FolderArrowRight,
@@ -26,6 +25,7 @@ import {
   useState,
 } from "react";
 import {
+  CONNECT_ONBOARDING_DESCRIPTION,
   NoConnectedAccountsEmptyState,
   NoConnectedAccountsEmptyStateSkeleton,
 } from "@/components/dashboard/NoConnectedAccountsEmptyState";
@@ -37,6 +37,18 @@ import { DummyModal } from "@/components/drive/DummyModal";
 import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
 import { FileContextMenu } from "@/components/drive/FileContextMenu";
 import { FileDetailsDrawer } from "@/components/drive/FileDetailsDrawer";
+import {
+  MoveDestinationModal,
+  type MoveSource,
+} from "@/components/drive/MoveDestinationModal";
+import { ManageTagsModal } from "@/components/drive/ManageTagsModal";
+import type { ManageTagsTarget } from "@/components/drive/ManageTagsModal";
+import {
+  AddToVirtualFolderModal,
+  type AddToVirtualFolderTarget,
+} from "@/components/drive/AddToVirtualFolderModal";
+import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
+import { FolderDetailsDrawer } from "@/components/drive/FolderDetailsDrawer";
 import { FileGrid } from "@/components/drive/FileGrid";
 import { FileTable } from "@/components/drive/FileTable";
 import { FileViewToggle } from "@/components/drive/FileViewToggle";
@@ -107,11 +119,15 @@ type ProviderBrowseFile = {
 type ProviderBrowseResult = {
   folders: ProviderBrowseFolder[];
   files: ProviderBrowseFile[];
+  breadcrumbs?: Array<{ id: string; name: string }>;
 };
 
 const ACCOUNT_FOLDER_PREFIX = "account:";
 const LINKED_FOLDER_PREFIX = "linked:";
 const LINKED_FILE_PREFIX = "linked:";
+const MAX_RENAME_LENGTH = 100;
+const FILES_PAGE_SIZE = 40;
+const LINKED_BROWSE_LIMIT = 40;
 
 function isAccountFolderId(id: string | undefined | null) {
   return Boolean(id?.startsWith(ACCOUNT_FOLDER_PREFIX));
@@ -233,6 +249,7 @@ export function AllFilesPage() {
   const activeFolderId = sp.get("folderId");
   const searchQuery = sp.get("q")?.trim() ?? "";
   const filterAccountId = sp.get("accountId")?.trim() ?? "";
+  const cloudFolderId = sp.get("cloudFolder")?.trim() ?? "";
   const sortParam = (sp.get("sort") as FileSort | null) ?? "created_desc";
   const activeSort = FILE_SORT_OPTIONS.some(
     (option) => option.value === sortParam,
@@ -266,19 +283,26 @@ export function AllFilesPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [folderRenameOpen, setFolderRenameOpen] = useState(false);
   const [folderDeleteOpen, setFolderDeleteOpen] = useState(false);
+  const [manageTagsOpen, setManageTagsOpen] = useState(false);
+  const [manageTagsTarget, setManageTagsTarget] =
+    useState<ManageTagsTarget | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [moveSource, setMoveSource] = useState<MoveSource | null>(null);
+  const [moveItemName, setMoveItemName] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [folderDetailOpen, setFolderDetailOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
-  const [copiedShareLink, setCopiedShareLink] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewError, setPreviewError] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [filesNextCursor, setFilesNextCursor] = useState<string | null>(null);
+  const [filesLoadingMore, setFilesLoadingMore] = useState(false);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [allFolders, setAllFolders] = useState<FolderItem[]>([]);
+  const allFoldersLoadedRef = useRef(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState("");
   const [isUploadDragging, setIsUploadDragging] = useState(false);
@@ -312,8 +336,6 @@ export function AllFilesPage() {
     y: number;
     open: boolean;
   }>({ x: 0, y: 0, open: false });
-  const [gdrivePublicUrl, setGdrivePublicUrl] = useState("");
-  const [makingPublic, setMakingPublic] = useState(false);
   const [loading, setLoading] = useState(false);
   const [syncingDrive, setSyncingDrive] = useState(false);
   const [fileViewMode, changeFileViewMode] = useFileViewMode(
@@ -329,12 +351,9 @@ export function AllFilesPage() {
   const [inviteTargetId, setInviteTargetId] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviting, setInviting] = useState(false);
-  const [virtualFolders, setVirtualFolders] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-  const [virtualFolderId, setVirtualFolderId] = useState("");
   const [virtualFolderOpen, setVirtualFolderOpen] = useState(false);
-  const [addingToVirtual, setAddingToVirtual] = useState(false);
+  const [virtualFolderTarget, setVirtualFolderTarget] =
+    useState<AddToVirtualFolderTarget | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const [connectedAccounts, setConnectedAccounts] = useState<
     ConnectedAccount[]
@@ -343,12 +362,20 @@ export function AllFilesPage() {
   const [selectedTargetAccountId, setSelectedTargetAccountId] = useState("");
   const [linkedFolders, setLinkedFolders] = useState<FolderItem[]>([]);
   const [linkedFiles, setLinkedFiles] = useState<FileItem[]>([]);
+  const [linkedBreadcrumbs, setLinkedBreadcrumbs] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [linkedLoading, setLinkedLoading] = useState(false);
   const [accountFilterOpen, setAccountFilterOpen] = useState(false);
   const [sortFilterOpen, setSortFilterOpen] = useState(false);
 
-  async function loadFiles() {
+  async function loadFiles(cursor?: string | null) {
+    const isMore = Boolean(cursor);
+    if (isMore) setFilesLoadingMore(true);
+
     const params = new URLSearchParams();
+    params.set("limit", String(FILES_PAGE_SIZE));
+    if (cursor) params.set("cursor", cursor);
     if (activeFolderId) params.set("folderId", activeFolderId);
     if (searchQuery) params.set("q", searchQuery);
 
@@ -368,10 +395,27 @@ export function AllFilesPage() {
     if (endDate) params.set("endDate", endDate);
     if (activeSort) params.set("sort", activeSort);
 
-    const query = params.toString();
-    const path = query ? `/files?${query}` : "/files";
-    const data = await apiFetch<{ files: BackendFile[] }>(path);
-    setFiles(data.files.map(mapFile));
+    try {
+      const data = await apiFetch<{
+        files: BackendFile[];
+        nextCursor: string | null;
+      }>(`/files?${params.toString()}`);
+      const mapped = data.files.map(mapFile);
+      setFiles((prev) => (isMore ? [...prev, ...mapped] : mapped));
+      setFilesNextCursor(data.nextCursor);
+    } finally {
+      if (isMore) setFilesLoadingMore(false);
+    }
+  }
+
+  async function loadAllFoldersCatalog() {
+    const allParams = new URLSearchParams({ all: "1" });
+    if (filterAccountId) allParams.set("accountId", filterAccountId);
+    const allData = await apiFetch<{ folders: BackendFolder[] }>(
+      `/folders?${allParams.toString()}`,
+    );
+    setAllFolders(allData.folders.map(mapFolder));
+    allFoldersLoadedRef.current = true;
   }
 
   async function loadFolders() {
@@ -381,19 +425,28 @@ export function AllFilesPage() {
     const visibleQuery = folderParams.toString();
     const visiblePath = visibleQuery ? `/folders?${visibleQuery}` : "/folders";
 
-    const allParams = new URLSearchParams({ all: "1" });
-    if (filterAccountId) allParams.set("accountId", filterAccountId);
-    const allPath = `/folders?${allParams.toString()}`;
-
-    const [visibleData, allData] = await Promise.all([
-      apiFetch<{ folders: BackendFolder[] }>(visiblePath),
-      apiFetch<{ folders: BackendFolder[] }>(allPath),
-    ]);
+    const visibleData = await apiFetch<{ folders: BackendFolder[] }>(
+      visiblePath,
+    );
     setFolders(visibleData.folders.map(mapFolder));
-    setAllFolders(allData.folders.map(mapFolder));
+
+    // Full folder tree is only needed for breadcrumbs / move / create-parent.
+    if (activeFolderId || moveOpen || folderOpen) {
+      await loadAllFoldersCatalog();
+    } else {
+      setAllFolders(visibleData.folders.map(mapFolder));
+      allFoldersLoadedRef.current = false;
+    }
   }
 
   async function loadAll() {
+    // Inside a linked cloud folder: only provider browse is needed.
+    if (cloudFolderId) {
+      setFiles([]);
+      setFolders([]);
+      setFilesNextCursor(null);
+      return;
+    }
     await Promise.all([loadFiles(), loadFolders()]);
   }
 
@@ -407,6 +460,7 @@ export function AllFilesPage() {
       color: defaultFolderColor,
       updated: `${providerLabel(account.provider)} · ${formatDate(folder.modifiedTime)}`,
       providerFolderId: folder.id,
+      connectedAccountId: account.id,
     };
   }
 
@@ -446,13 +500,15 @@ export function AllFilesPage() {
       name: accountTitle(account),
       color: defaultFolderColor,
       updated: providerLabel(account.provider),
+      connectedAccountId: account.id,
     };
   }
 
   async function loadLinkedStorage(accounts: ConnectedAccount[]) {
-    if (activeFolderId || searchQuery) {
+    if (searchQuery || activeFolderId) {
       setLinkedFolders([]);
       setLinkedFiles([]);
+      setLinkedBreadcrumbs([]);
       return;
     }
 
@@ -462,26 +518,44 @@ export function AllFilesPage() {
     if (connected.length === 0) {
       setLinkedFolders([]);
       setLinkedFiles([]);
+      setLinkedBreadcrumbs([]);
       return;
     }
 
     setLinkedLoading(true);
     try {
-      const targets = filterAccountId
-        ? connected.filter((account) => account.id === filterAccountId)
-        : connected;
+      // Browse one account (optionally nested under cloudFolder).
+      if (filterAccountId) {
+        const account = connected.find((item) => item.id === filterAccountId);
+        if (!account) {
+          setLinkedFolders([]);
+          setLinkedFiles([]);
+          setLinkedBreadcrumbs([]);
+          return;
+        }
 
-      if (targets.length === 0) {
-        setLinkedFolders([]);
-        setLinkedFiles([]);
+        const parentId = cloudFolderId || "root";
+        const browse = await apiFetch<ProviderBrowseResult>(
+          `/connected-accounts/${account.id}/browse?parentId=${encodeURIComponent(parentId)}&limit=${LINKED_BROWSE_LIMIT}`,
+        );
+        setLinkedFolders(
+          (browse.folders ?? []).map((folder) =>
+            mapLinkedFolder(account, folder),
+          ),
+        );
+        setLinkedFiles(
+          (browse.files ?? []).map((file) => mapLinkedFile(account, file)),
+        );
+        setLinkedBreadcrumbs(browse.breadcrumbs ?? []);
         return;
       }
 
+      // Home: sample root folders/files across all connected accounts.
       const results = await Promise.all(
-        targets.map(async (account) => {
+        connected.map(async (account) => {
           try {
             const browse = await apiFetch<ProviderBrowseResult>(
-              `/connected-accounts/${account.id}/browse?parentId=root`,
+              `/connected-accounts/${account.id}/browse?parentId=root&limit=${LINKED_BROWSE_LIMIT}`,
             );
             return { account, browse };
           } catch (error) {
@@ -503,9 +577,7 @@ export function AllFilesPage() {
       for (const { account, browse } of results) {
         for (const folder of browse.folders ?? []) {
           const mapped = mapLinkedFolder(account, folder);
-          if (!filterAccountId) {
-            mapped.updated = `${providerLabel(account.provider)} · ${accountTitle(account)}`;
-          }
+          mapped.updated = `${providerLabel(account.provider)} · ${accountTitle(account)}`;
           nextFolders.push(mapped);
         }
         for (const file of browse.files ?? []) {
@@ -513,19 +585,16 @@ export function AllFilesPage() {
         }
       }
 
-      // If nothing came back from providers, still show account entry points.
-      if (
-        nextFolders.length === 0 &&
-        nextFiles.length === 0 &&
-        !filterAccountId
-      ) {
+      if (nextFolders.length === 0 && nextFiles.length === 0) {
         setLinkedFolders(connected.map(mapAccountAsFolder));
         setLinkedFiles([]);
+        setLinkedBreadcrumbs([]);
         return;
       }
 
       setLinkedFolders(nextFolders);
       setLinkedFiles(nextFiles);
+      setLinkedBreadcrumbs([]);
     } catch (error) {
       console.warn("Failed to load linked storage browse:", error);
       if (!filterAccountId) {
@@ -535,6 +604,7 @@ export function AllFilesPage() {
         setLinkedFolders([]);
         setLinkedFiles([]);
       }
+      setLinkedBreadcrumbs([]);
     } finally {
       setLinkedLoading(false);
     }
@@ -674,7 +744,12 @@ export function AllFilesPage() {
       ),
     );
     setSelectedFileIds(new Set());
-  }, [activeFolderId, searchQuery, filterAccountId, activeSort]);
+  }, [activeFolderId, searchQuery, filterAccountId, activeSort, cloudFolderId]);
+
+  useEffect(() => {
+    if (!(moveOpen || folderOpen) || allFoldersLoadedRef.current) return;
+    void loadAllFoldersCatalog().catch(() => undefined);
+  }, [moveOpen, folderOpen]);
 
   const connectedAccountKey = useMemo(
     () =>
@@ -693,6 +768,7 @@ export function AllFilesPage() {
     accountsLoaded,
     connectedAccountKey,
     filterAccountId,
+    cloudFolderId,
     activeFolderId,
     searchQuery,
   ]);
@@ -701,12 +777,20 @@ export function AllFilesPage() {
     () => connectedAccounts.find((account) => account.id === filterAccountId),
     [connectedAccounts, filterAccountId],
   );
+  const accountFilterOptions = useMemo(() => {
+    if (!selectedAccount) return connectedAccounts;
+    return connectedAccounts.filter(
+      (account) => account.provider === selectedAccount.provider,
+    );
+  }, [connectedAccounts, selectedAccount]);
   const activeSortLabel =
     FILE_SORT_OPTIONS.find((option) => option.value === activeSort)?.label ??
     "Created (Newest)";
 
   const displayFolders = useMemo(() => {
     if (activeFolderId || searchQuery) return folders;
+    // Nested cloud folder view: show only that folder's children.
+    if (cloudFolderId) return linkedFolders;
     const byId = new Map<string, FolderItem>();
     for (const folder of folders) {
       if (folder.id) byId.set(folder.id, folder);
@@ -715,10 +799,11 @@ export function AllFilesPage() {
       if (folder.id && !byId.has(folder.id)) byId.set(folder.id, folder);
     }
     return Array.from(byId.values());
-  }, [activeFolderId, searchQuery, folders, linkedFolders]);
+  }, [activeFolderId, searchQuery, cloudFolderId, folders, linkedFolders]);
 
   const displayFiles = useMemo(() => {
     if (activeFolderId || searchQuery) return files;
+    if (cloudFolderId) return linkedFiles;
     const byId = new Map<string, FileItem>();
     for (const file of files) {
       if (file.id) byId.set(file.id, file);
@@ -727,7 +812,7 @@ export function AllFilesPage() {
       if (file.id && !byId.has(file.id)) byId.set(file.id, file);
     }
     return Array.from(byId.values());
-  }, [activeFolderId, searchQuery, files, linkedFiles]);
+  }, [activeFolderId, searchQuery, cloudFolderId, files, linkedFiles]);
 
   const filesByDay = useMemo(() => {
     const groups = new Map<string, FileItem[]>();
@@ -747,6 +832,7 @@ export function AllFilesPage() {
       if (event.key === "Escape") setContextMenu({ x: 0, y: 0, file: null });
       if (event.key === "Escape")
         setFolderContextMenu({ x: 0, y: 0, folder: null });
+      if (event.key === "Escape") setFolderDetailOpen(false);
       if (event.key === "Escape")
         setEmptyContextMenu({ x: 0, y: 0, open: false });
       if (
@@ -770,8 +856,7 @@ export function AllFilesPage() {
     function onOpenMoveShortcut(e: Event) {
       const file = (e as CustomEvent).detail as FileItem;
       setActiveFile(file);
-      setSelectedFolderId(file.folderId || "");
-      setMoveOpen(true);
+      openMoveForFiles([file]);
     }
 
     window.addEventListener("keydown", onKey);
@@ -982,16 +1067,101 @@ export function AllFilesPage() {
   }
 
   function openFolderMenu(event: MouseEvent<HTMLElement>, folder: FolderItem) {
-    if (isAccountFolderId(folder.id) || isLinkedFolderId(folder.id)) {
-      event.preventDefault();
-      event.stopPropagation();
-      openFolder(folder);
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
     setActiveFolderForMenu(folder);
-    setFolderContextMenu({ x: event.clientX, y: event.clientY, folder });
+    if (event.type === "contextmenu") {
+      setFolderContextMenu({ x: event.clientX, y: event.clientY, folder });
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    setFolderContextMenu({
+      x: Math.max(12, rect.right - 224),
+      y: rect.bottom + 4,
+      folder,
+    });
+  }
+
+  function folderMenuAccount(folder: FolderItem | null) {
+    if (!folder?.id) return null;
+    if (folder.connectedAccountId) {
+      return (
+        connectedAccounts.find(
+          (account) => account.id === folder.connectedAccountId,
+        ) ?? null
+      );
+    }
+    if (isAccountFolderId(folder.id)) {
+      const accountId = folder.id.slice(ACCOUNT_FOLDER_PREFIX.length);
+      return connectedAccounts.find((account) => account.id === accountId) ?? null;
+    }
+    if (isLinkedFolderId(folder.id)) {
+      const ref = parseLinkedRef(folder.id);
+      if (!ref) return null;
+      return (
+        connectedAccounts.find((account) => account.id === ref.accountId) ??
+        null
+      );
+    }
+    return null;
+  }
+
+  function goToProviderFolder(folder: FolderItem | null) {
+    if (!folder) return;
+    const account = folderMenuAccount(folder);
+    const providerId =
+      folder.providerFolderId ??
+      (folder.id && isLinkedFolderId(folder.id)
+        ? parseLinkedRef(folder.id)?.providerId
+        : null);
+
+    if (account && providerId) {
+      const provider = account.provider.toLowerCase();
+      if (provider.includes("google") || provider === "drive") {
+        window.open(
+          `https://drive.google.com/drive/folders/${encodeURIComponent(providerId)}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+        return;
+      }
+      if (provider.includes("dropbox")) {
+        window.open("https://www.dropbox.com/home", "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (provider.includes("onedrive") || provider.includes("microsoft")) {
+        window.open(
+          "https://onedrive.live.com/",
+          "_blank",
+          "noopener,noreferrer",
+        );
+        return;
+      }
+      if (provider.includes("pcloud")) {
+        window.open("https://my.pcloud.com/", "_blank", "noopener,noreferrer");
+        return;
+      }
+    }
+
+    if (isAccountFolderId(folder.id) && account) {
+      const provider = account.provider.toLowerCase();
+      if (provider.includes("google") || provider === "drive") {
+        window.open(
+          "https://drive.google.com/drive/my-drive",
+          "_blank",
+          "noopener,noreferrer",
+        );
+        return;
+      }
+    }
+
+    toast.danger(
+      `Open in ${account ? providerLabel(account.provider) : "provider"} is not available for this folder.`,
+    );
+  }
+
+  function folderActionNotSupported(action: string) {
+    toast.danger(`${action} is only available for Archive Cloud folders.`);
   }
 
   function openFolder(folder: FolderItem) {
@@ -999,16 +1169,23 @@ export function AllFilesPage() {
 
     if (isAccountFolderId(folder.id)) {
       const accountId = folder.id.slice(ACCOUNT_FOLDER_PREFIX.length);
-      patchHomeParams({ accountId, folderId: null });
+      patchHomeParams({
+        accountId,
+        cloudFolder: null,
+        folderId: null,
+      });
       return;
     }
 
     if (isLinkedFolderId(folder.id)) {
       const ref = parseLinkedRef(folder.id);
       if (!ref) return;
-      router.push(
-        `/clouds?accountId=${encodeURIComponent(ref.accountId)}&parentId=${encodeURIComponent(ref.providerId)}`,
-      );
+      // Open this provider folder inside Archive Cloud (not the whole cloud root / external site).
+      patchHomeParams({
+        accountId: ref.accountId,
+        cloudFolder: ref.providerId,
+        folderId: null,
+      });
       return;
     }
 
@@ -1034,12 +1211,29 @@ export function AllFilesPage() {
     );
   }
 
+  function openCloudBreadcrumb(providerFolderId: string | null) {
+    if (!filterAccountId) return;
+    patchHomeParams({
+      accountId: filterAccountId,
+      cloudFolder: providerFolderId,
+      folderId: null,
+    });
+  }
+
   function openEmptyContextMenu(event: MouseEvent<HTMLElement>) {
     event.preventDefault();
     setEmptyContextMenu({ x: event.clientX, y: event.clientY, open: true });
   }
 
   function closeFolder() {
+    if (cloudFolderId || (filterAccountId && !activeFolderId)) {
+      patchHomeParams({
+        accountId: null,
+        cloudFolder: null,
+        folderId: null,
+      });
+      return;
+    }
     setFolderSearchParams(searchQuery ? { q: searchQuery } : {});
   }
 
@@ -1135,35 +1329,115 @@ export function AllFilesPage() {
   async function renameFile(event: FormEvent) {
     event.preventDefault();
     if (!activeFile?.id) return;
-    await apiFetch(`/files/${activeFile.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ name: renameValue }),
-    });
-    setRenameOpen(false);
-    await loadFiles();
-  }
-
-  async function moveFile(event: FormEvent) {
-    event.preventDefault();
-    const selectedIds = [...selectedFileIds];
-    if (selectedIds.length > 0)
-      await apiFetch("/files/batch", {
-        method: "PATCH",
-        body: JSON.stringify({
-          fileIds: selectedIds,
-          folderId: selectedFolderId || null,
-        }),
-      });
-    else if (activeFile?.id)
+    const nextName = renameValue.trim();
+    if (!nextName || nextName.length > MAX_RENAME_LENGTH) return;
+    try {
       await apiFetch(`/files/${activeFile.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ folderId: selectedFolderId || null }),
+        body: JSON.stringify({ name: nextName }),
       });
-    else return;
-    setMoveOpen(false);
-    setSelectedFolderId("");
-    clearSelection();
-    await loadFiles();
+      setRenameOpen(false);
+      toast.success("File renamed.");
+      await loadFiles();
+    } catch (error) {
+      toast.danger(
+        error instanceof Error ? error.message : "Failed to rename file",
+      );
+    }
+  }
+
+  function openMoveForFiles(filesToMove: FileItem[]) {
+    const ids = filesToMove.map((file) => file.id).filter(Boolean) as string[];
+    if (ids.length === 0) return;
+
+    // If every file is a linked provider item from the same account, move in-cloud.
+    const linked = filesToMove.filter((file) => file.id && isLinkedFileId(file.id));
+    if (linked.length === filesToMove.length) {
+      const accountId = linked[0]?.connectedAccountId;
+      const providerId = linked[0]?.providerFileId;
+      if (
+        accountId &&
+        providerId &&
+        linked.every(
+          (file) =>
+            file.connectedAccountId === accountId && Boolean(file.providerFileId),
+        )
+      ) {
+        if (linked.length > 1) {
+          toast.danger("Move one linked cloud file at a time.");
+          return;
+        }
+        setMoveSource({
+          kind: "linked",
+          accountId,
+          providerId: providerId,
+        });
+        setMoveItemName(linked[0]?.name ?? "file");
+        setMoveOpen(true);
+        return;
+      }
+    }
+
+    const archiveIds = filesToMove
+      .filter((file) => file.id && !isLinkedFileId(file.id))
+      .map((file) => file.id!) ;
+    if (archiveIds.length === 0) {
+      toast.danger("These items cannot be moved here yet.");
+      return;
+    }
+    setMoveSource({ kind: "archive-files", fileIds: archiveIds });
+    setMoveItemName(
+      archiveIds.length > 1
+        ? `${archiveIds.length} files`
+        : (filesToMove[0]?.name ?? "file"),
+    );
+    setMoveOpen(true);
+  }
+
+  function openMoveForFolder(folder: FolderItem) {
+    if (!folder.id) return;
+    if (isAccountFolderId(folder.id)) {
+      folderActionNotSupported("Move");
+      return;
+    }
+    if (isLinkedFolderId(folder.id)) {
+      const ref = parseLinkedRef(folder.id);
+      if (!ref) {
+        folderActionNotSupported("Move");
+        return;
+      }
+      setMoveSource({
+        kind: "linked",
+        accountId: ref.accountId,
+        providerId: ref.providerId,
+      });
+      setMoveItemName(folder.name);
+      setMoveOpen(true);
+      return;
+    }
+    setMoveSource({ kind: "archive-folder", folderId: folder.id });
+    setMoveItemName(folder.name);
+    setMoveOpen(true);
+  }
+
+  function moveExcludeFolderIds(folderId: string) {
+    const excluded = new Set<string>([folderId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const folder of allFolders) {
+        if (
+          folder.id &&
+          folder.parentId &&
+          excluded.has(folder.parentId) &&
+          !excluded.has(folder.id)
+        ) {
+          excluded.add(folder.id);
+          changed = true;
+        }
+      }
+    }
+    return excluded;
   }
 
   async function deleteFile() {
@@ -1201,39 +1475,12 @@ export function AllFilesPage() {
     window.dispatchEvent(new Event("archivecloud:storage-changed"));
   }
 
-  async function shareFile(fileOverride?: FileItem | null) {
+  function shareFile(fileOverride?: FileItem | null) {
     const target = fileOverride ?? activeFile;
     if (!target?.id) return;
     if (fileOverride) setActiveFile(fileOverride);
-    const data = await apiFetch<{
-      url: string | null;
-      alreadyShared?: boolean;
-      shareId: string;
-    }>(`/files/${target.id}/share`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    setShareUrl(data.url ?? "");
-    setCopiedShareLink(false);
-    setGdrivePublicUrl("");
-    setMakingPublic(false);
     setShareOpen(true);
     setContextMenu({ x: 0, y: 0, file: null });
-  }
-
-  async function regenerateShareLink() {
-    if (!activeFile?.id) return;
-    const data = await apiFetch<{ url: string }>(
-      `/files/${activeFile.id}/share`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rotate: true }),
-      },
-    );
-    setShareUrl(data.url);
-    setCopiedShareLink(false);
   }
 
   async function goToGoogleDrive(fileOverride?: FileItem | null) {
@@ -1241,7 +1488,7 @@ export function AllFilesPage() {
     if (!target?.id) return;
     try {
       const data = await apiFetch<{ url: string | null }>(
-        `/files/${target.id}/view-url`,
+        `/files/${encodeURIComponent(target.id)}/view-url`,
       );
       if (data.url) {
         window.open(data.url, "_blank", "noopener,noreferrer");
@@ -1262,59 +1509,83 @@ export function AllFilesPage() {
     setContextMenu({ x: 0, y: 0, file: null });
   }
 
-  async function openAddToVirtualFolder(fileOverride?: FileItem | null) {
-    const target = fileOverride ?? activeFile;
-    if (!target?.id) return;
-    if (fileOverride) setActiveFile(fileOverride);
-    setContextMenu({ x: 0, y: 0, file: null });
-    try {
-      const data = await apiFetch<{
-        folders: Array<{ id: string; name: string }>;
-      }>("/vf");
-      const foldersList = data.folders ?? [];
-      setVirtualFolders(foldersList);
-      setVirtualFolderId(foldersList[0]?.id ?? "");
-      setVirtualFolderOpen(true);
-    } catch (error) {
-      toast.danger(
-        error instanceof Error
-          ? error.message
-          : "Failed to load virtual folders",
-      );
-    }
+  function resolveVirtualFolderTargetFromFile(
+    file: FileItem,
+  ): AddToVirtualFolderTarget | null {
+    if (!file.connectedAccountId || !file.providerFileId) return null;
+    return {
+      kind: "file",
+      name: file.name,
+      connectedAccountId: file.connectedAccountId,
+      providerItemId: file.providerFileId,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes ?? 0,
+    };
   }
 
-  async function addActiveFileToVirtualFolder() {
-    if (!activeFile?.id || !virtualFolderId) return;
-    if (!activeFile.connectedAccountId || !activeFile.providerFileId) {
-      toast.danger("This file cannot be added to a virtual folder yet.");
+  function resolveVirtualFolderTargetFromFolder(
+    folder: FolderItem,
+  ): AddToVirtualFolderTarget | null {
+    let accountId = folder.connectedAccountId ?? null;
+    let providerId = folder.providerFolderId ?? null;
+
+    if ((!accountId || !providerId) && folder.id && isLinkedFolderId(folder.id)) {
+      const parsed = parseLinkedRef(folder.id);
+      if (parsed) {
+        accountId = accountId ?? parsed.accountId;
+        providerId = providerId ?? parsed.providerId;
+      }
+    }
+
+    if (!accountId || !providerId) return null;
+    return {
+      kind: "folder",
+      name: folder.name,
+      connectedAccountId: accountId,
+      providerItemId: providerId,
+      mimeType: "application/vnd.archivecloud.folder",
+      sizeBytes: 0,
+    };
+  }
+
+  function openAddToVirtualFolder(fileOverride?: FileItem | null) {
+    const targetFile = fileOverride ?? activeFile;
+    if (!targetFile?.id) return;
+    if (fileOverride) setActiveFile(fileOverride);
+    setContextMenu({ x: 0, y: 0, file: null });
+
+    const target = resolveVirtualFolderTargetFromFile(targetFile);
+    if (!target) {
+      toast.danger(
+        "This file cannot be added to a virtual folder yet.",
+      );
       return;
     }
-    setAddingToVirtual(true);
-    try {
-      await apiFetch(`/vf/${virtualFolderId}/items`, {
-        method: "POST",
-        body: JSON.stringify({
-          connectedAccountId: activeFile.connectedAccountId,
-          providerFileId: activeFile.providerFileId,
-          name: activeFile.name,
-          mimeType: activeFile.mimeType,
-          sizeBytes: activeFile.sizeBytes,
-          kind: "file",
-        }),
-      });
-      toast.success("Added to virtual folder");
-      setVirtualFolderOpen(false);
-      setVirtualFolderId("");
-    } catch (error) {
+    setVirtualFolderTarget(target);
+    setVirtualFolderOpen(true);
+  }
+
+  function openAddFolderToVirtualFolder(folder?: FolderItem | null) {
+    const targetFolder = folder ?? activeFolderForMenu;
+    if (!targetFolder?.id) return;
+    setFolderContextMenu({ x: 0, y: 0, folder: null });
+
+    if (isAccountFolderId(targetFolder.id)) {
       toast.danger(
-        error instanceof Error
-          ? error.message
-          : "Failed to add to virtual folder",
+        "Connect into a folder first — whole accounts cannot be added to a virtual folder.",
       );
-    } finally {
-      setAddingToVirtual(false);
+      return;
     }
+
+    const target = resolveVirtualFolderTargetFromFolder(targetFolder);
+    if (!target) {
+      toast.danger(
+        "This folder cannot be added to a virtual folder yet.",
+      );
+      return;
+    }
+    setVirtualFolderTarget(target);
+    setVirtualFolderOpen(true);
   }
 
   async function copyShareLinkDirect(fileOverride?: FileItem | null) {
@@ -1322,19 +1593,25 @@ export function AllFilesPage() {
     if (!target?.id) return;
     if (fileOverride) setActiveFile(fileOverride);
     try {
+      const encodedId = encodeURIComponent(target.id);
       const data = await apiFetch<{ url: string | null }>(
-        `/files/${target.id}/view-url`,
+        `/files/${encodedId}/view-url`,
       );
       if (data.url) {
         await navigator.clipboard.writeText(data.url);
         toast.success("Google Drive link copied to clipboard!");
       } else {
         const shareData = await apiFetch<{ url: string }>(
-          `/files/${target.id}/share`,
+          `/files/${encodedId}/share`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rotate: true }),
+            body: JSON.stringify({
+              rotate: true,
+              name: target.name,
+              mimeType: target.mimeType,
+              sizeBytes: target.sizeBytes,
+            }),
           },
         );
         await navigator.clipboard.writeText(shareData.url);
@@ -1404,31 +1681,106 @@ export function AllFilesPage() {
     }
   }
 
-  async function copyShareLink() {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopiedShareLink(true);
-    window.setTimeout(() => setCopiedShareLink(false), 1600);
-  }
-
   async function renameFolder(event: FormEvent) {
     event.preventDefault();
-    if (!activeFolderForMenu?.id) return;
-    await apiFetch(`/folders/${activeFolderForMenu.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        name: folderRenameValue,
-        color: folderRenameColor,
-      }),
-    });
-    setFolderRenameOpen(false);
-    await loadFolders();
+    const folder = activeFolderForMenu;
+    if (!folder?.id) return;
+
+    const nextName = folderRenameValue.trim();
+    if (!nextName || nextName.length > MAX_RENAME_LENGTH) return;
+
+    try {
+      if (isLinkedFolderId(folder.id)) {
+        const ref = parseLinkedRef(folder.id);
+        if (!ref) {
+          folderActionNotSupported("Rename");
+          return;
+        }
+        await apiFetch(
+          `/connected-accounts/${ref.accountId}/items/${encodeURIComponent(ref.providerId)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ name: nextName }),
+          },
+        );
+        setFolderRenameOpen(false);
+        toast.success("Folder renamed.");
+        await Promise.all([
+          loadFolders(),
+          loadLinkedStorage(connectedAccounts),
+        ]);
+        return;
+      }
+
+      if (isAccountFolderId(folder.id)) {
+        folderActionNotSupported("Rename");
+        return;
+      }
+
+      await apiFetch(`/folders/${folder.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: nextName,
+          color: folderRenameColor,
+        }),
+      });
+      setFolderRenameOpen(false);
+      toast.success("Folder renamed.");
+      await loadFolders();
+    } catch (error) {
+      toast.danger(
+        error instanceof Error ? error.message : "Failed to rename folder",
+      );
+    }
   }
 
   async function deleteFolder() {
-    if (!activeFolderForMenu?.id) return;
-    await apiFetch(`/folders/${activeFolderForMenu.id}`, { method: "DELETE" });
-    setFolderDeleteOpen(false);
-    await loadFolders();
+    const folder = activeFolderForMenu;
+    if (!folder?.id) return;
+
+    try {
+      if (isAccountFolderId(folder.id)) {
+        toast.danger("Remove is not available for cloud account shortcuts.");
+        return;
+      }
+
+      if (isLinkedFolderId(folder.id)) {
+        const account =
+          folderMenuAccount(folder) ??
+          (() => {
+            const ref = parseLinkedRef(folder.id!);
+            return ref
+              ? connectedAccounts.find((item) => item.id === ref.accountId)
+              : null;
+          })();
+        const providerId =
+          folder.providerFolderId ?? parseLinkedRef(folder.id)?.providerId;
+        if (!account || !providerId) {
+          throw new Error("Missing cloud account details for this folder.");
+        }
+        await apiFetch(
+          `/connected-accounts/${account.id}/items/${encodeURIComponent(providerId)}`,
+          { method: "DELETE" },
+        );
+        setFolderDeleteOpen(false);
+        toast.success(`Deleted "${folder.name}".`);
+        await loadLinkedStorage(connectedAccounts);
+        if (!cloudFolderId) await loadFolders();
+        return;
+      }
+
+      await apiFetch(`/folders/${folder.id}`, { method: "DELETE" });
+      setFolderDeleteOpen(false);
+      toast.success(`Deleted "${folder.name}".`);
+      await loadFolders();
+      if (activeFolderId === folder.id) {
+        closeFolder();
+      }
+    } catch (error) {
+      toast.danger(
+        error instanceof Error ? error.message : "Failed to delete folder",
+      );
+    }
   }
 
   function cutSelectedFolder(folder: FolderItem | null) {
@@ -1493,6 +1845,16 @@ export function AllFilesPage() {
     }
     return path;
   })();
+  const isCloudFolderView = Boolean(
+    cloudFolderId && filterAccountId && !activeFolderId,
+  );
+  const cloudPathCrumbs = useMemo(() => {
+    if (!isCloudFolderView) return [];
+    return linkedBreadcrumbs.filter(
+      (crumb) => crumb.id && crumb.id !== "root" && crumb.id !== "0",
+    );
+  }, [isCloudFolderView, linkedBreadcrumbs]);
+  const showFolderTrail = Boolean(activeFolder) || isCloudFolderView;
   const allVisibleSelected =
     displayFiles.length > 0 &&
     displayFiles.every((file) => file.id && selectedFileIds.has(file.id));
@@ -1532,26 +1894,37 @@ export function AllFilesPage() {
         className="min-h-[620px] w-full min-w-0"
       >
         {showConnectOnboardingSkeleton ? (
-          <NoConnectedAccountsEmptyStateSkeleton />
+          <>
+            <PageHeader
+              title={homeGreeting}
+              description={CONNECT_ONBOARDING_DESCRIPTION}
+            />
+            <NoConnectedAccountsEmptyStateSkeleton />
+          </>
         ) : showConnectOnboarding ? (
-          <NoConnectedAccountsEmptyState
-            userName={session?.user?.name}
-            onConnected={() => {
-              void apiFetch<{ accounts: ConnectedAccount[] }>(
-                "/connected-accounts",
-              )
-                .then((data) => {
-                  setConnectedAccounts(data.accounts || []);
-                  setAccountsLoaded(true);
-                })
-                .catch(() => undefined);
-            }}
-          />
+          <>
+            <PageHeader
+              title={homeGreeting}
+              description={CONNECT_ONBOARDING_DESCRIPTION}
+            />
+            <NoConnectedAccountsEmptyState
+              onConnected={() => {
+                void apiFetch<{ accounts: ConnectedAccount[] }>(
+                  "/connected-accounts",
+                )
+                  .then((data) => {
+                    setConnectedAccounts(data.accounts || []);
+                    setAccountsLoaded(true);
+                  })
+                  .catch(() => undefined);
+              }}
+            />
+          </>
         ) : (
           <>
             <PageHeader
               title={
-                activeFolder ? (
+                showFolderTrail ? (
                   <span className="block min-w-0 truncate">
                     <button
                       type="button"
@@ -1560,24 +1933,54 @@ export function AllFilesPage() {
                     >
                       Home
                     </button>
-                    {folderBreadcrumbs.map((folder, index) => (
-                      <span key={folder.id}>
+                    {activeFolder
+                      ? folderBreadcrumbs.map((folder, index) => (
+                          <span key={folder.id}>
+                            <span className="text-muted"> / </span>
+                            {index === folderBreadcrumbs.length - 1 ? (
+                              <span>{folder.name}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-foreground hover:underline"
+                                onClick={() =>
+                                  folder.id && openFolderById(folder.id)
+                                }
+                              >
+                                {folder.name}
+                              </button>
+                            )}
+                          </span>
+                        ))
+                      : null}
+                    {isCloudFolderView && selectedAccount ? (
+                      <>
                         <span className="text-muted"> / </span>
-                        {index === folderBreadcrumbs.length - 1 ? (
-                          <span>{folder.name}</span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="text-foreground hover:underline"
-                            onClick={() =>
-                              folder.id && openFolderById(folder.id)
-                            }
-                          >
-                            {folder.name}
-                          </button>
-                        )}
-                      </span>
-                    ))}
+                        <button
+                          type="button"
+                          className="text-foreground hover:underline"
+                          onClick={() => openCloudBreadcrumb(null)}
+                        >
+                          {accountTitle(selectedAccount)}
+                        </button>
+                        {cloudPathCrumbs.map((crumb, index) => (
+                          <span key={`${crumb.id}-${index}`}>
+                            <span className="text-muted"> / </span>
+                            {index === cloudPathCrumbs.length - 1 ? (
+                              <span>{crumb.name}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-foreground hover:underline"
+                                onClick={() => openCloudBreadcrumb(crumb.id)}
+                              >
+                                {crumb.name}
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                      </>
+                    ) : null}
                   </span>
                 ) : (
                   homeGreeting
@@ -1585,6 +1988,7 @@ export function AllFilesPage() {
               }
               actions={
                 <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+                  {!isCloudFolderView ? (
                   <Popover
                     isOpen={accountFilterOpen}
                     onOpenChange={setAccountFilterOpen}
@@ -1604,7 +2008,7 @@ export function AllFilesPage() {
                       </span>
                       <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
                     </Popover.Trigger>
-                    <Popover.Content className="w-64 p-1.5">
+                    <Popover.Content className="w-72 p-1.5">
                       <Popover.Dialog>
                         <button
                           type="button"
@@ -1618,39 +2022,68 @@ export function AllFilesPage() {
                             setAccountFilterOpen(false);
                             patchHomeParams({
                               accountId: null,
+                              cloudFolder: null,
                               folderId: null,
                             });
                           }}
                         >
                           All Accounts
                         </button>
-                        {connectedAccounts.map((account) => (
-                          <button
-                            key={account.id}
-                            type="button"
-                            className={cn(
-                              "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                              filterAccountId === account.id
-                                ? "bg-primary/10 font-semibold text-primary"
-                                : "font-medium text-foreground hover:bg-black/5",
-                            )}
-                            onClick={() => {
-                              setAccountFilterOpen(false);
-                              patchHomeParams({
-                                accountId: account.id,
-                                folderId: null,
-                              });
-                            }}
-                          >
-                            <AccountProviderIcon provider={account.provider} />
-                            <span className="min-w-0 flex-1 truncate">
-                              {accountTitle(account)}
-                            </span>
-                          </button>
-                        ))}
+                        {accountFilterOptions.map((account) => {
+                          const email = account.email?.trim();
+                          const showEmail =
+                            Boolean(email) &&
+                            (selectedAccount
+                              ? accountFilterOptions.length > 1
+                              : connectedAccounts.filter(
+                                  (item) => item.provider === account.provider,
+                                ).length > 1);
+                          return (
+                            <button
+                              key={account.id}
+                              type="button"
+                              className={cn(
+                                "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                                filterAccountId === account.id
+                                  ? "bg-primary/10 font-semibold text-primary"
+                                  : "font-medium text-foreground hover:bg-black/5",
+                              )}
+                              onClick={() => {
+                                setAccountFilterOpen(false);
+                                patchHomeParams({
+                                  accountId: account.id,
+                                  cloudFolder: null,
+                                  folderId: null,
+                                });
+                              }}
+                            >
+                              <AccountProviderIcon
+                                provider={account.provider}
+                              />
+                              <span className="min-w-0 flex-1 overflow-hidden">
+                                <span className="block truncate">
+                                  {accountTitle(account)}
+                                </span>
+                                {showEmail ? (
+                                  <span
+                                    className={cn(
+                                      "mt-0.5 block truncate text-[11px] font-normal",
+                                      filterAccountId === account.id
+                                        ? "text-primary/80"
+                                        : "text-muted",
+                                    )}
+                                  >
+                                    {email}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </Popover.Dialog>
                     </Popover.Content>
                   </Popover>
+                  ) : null}
 
                   <Popover
                     isOpen={sortFilterOpen}
@@ -1714,7 +2147,7 @@ export function AllFilesPage() {
                 </div>
               }
             />
-            {!activeFolder ? (
+            {!activeFolder && !isCloudFolderView ? (
               <SuggestedSection
                 title="Suggested folders"
                 variant="plain"
@@ -1828,7 +2261,12 @@ export function AllFilesPage() {
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
                       aria-label="Move"
                       title="Move"
-                      onClick={() => setMoveOpen(true)}
+                      onClick={() => {
+                        const selected = displayFiles.filter(
+                          (file) => file.id && selectedFileIds.has(file.id),
+                        );
+                        openMoveForFiles(selected);
+                      }}
                     >
                       <FolderArrowRight className="h-5 w-5" />
                     </button>
@@ -1871,7 +2309,9 @@ export function AllFilesPage() {
               </p>
             ) : null}
             <SuggestedSection
-              title={activeFolder ? "Files" : "Suggested files"}
+              title={
+                activeFolder || isCloudFolderView ? "Files" : "Suggested files"
+              }
               variant="plain"
               open={suggestedFilesOpen}
               onOpenChange={setSuggestedFilesOpen}
@@ -1881,7 +2321,7 @@ export function AllFilesPage() {
                   <p className="text-center text-sm text-muted">
                     {searchQuery
                       ? `No files found for "${searchQuery}".`
-                      : activeFolder
+                      : activeFolder || isCloudFolderView
                         ? "No files in this folder yet."
                         : linkedLoading
                           ? "Loading files from linked storage..."
@@ -1935,6 +2375,26 @@ export function AllFilesPage() {
                   onFileContextMenu={openContext}
                 />
               )}
+              {filesNextCursor ? (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    isDisabled={filesLoadingMore}
+                    onPress={() =>
+                      loadFiles(filesNextCursor).catch((error) =>
+                        toast.danger(
+                          error instanceof Error
+                            ? error.message
+                            : "Failed to load more files",
+                        ),
+                      )
+                    }
+                  >
+                    {filesLoadingMore ? "Loading…" : "Load more"}
+                  </Button>
+                </div>
+              ) : null}
             </SuggestedSection>
           </>
         )}
@@ -1966,6 +2426,14 @@ export function AllFilesPage() {
         x={contextMenu.x}
         y={contextMenu.y}
         file={contextMenu.file}
+        goToDriveLabel={(() => {
+          const provider =
+            activeFile?.accountProvider ??
+            connectedAccounts.find(
+              (item) => item.id === activeFile?.connectedAccountId,
+            )?.provider;
+          return provider ? `Go to ${providerLabel(provider)}` : "Go to Drive";
+        })()}
         onClose={() => setContextMenu({ x: 0, y: 0, file: null })}
         onDetails={() => {
           setDetailOpen(true);
@@ -1983,7 +2451,14 @@ export function AllFilesPage() {
           void downloadFile();
         }}
         onMove={() => {
-          setMoveOpen(true);
+          if (selectedFileIds.size > 0) {
+            const selected = displayFiles.filter(
+              (file) => file.id && selectedFileIds.has(file.id),
+            );
+            openMoveForFiles(selected);
+          } else if (activeFile) {
+            openMoveForFiles([activeFile]);
+          }
           setContextMenu({ x: 0, y: 0, file: null });
         }}
         onRemove={() => {
@@ -1991,7 +2466,14 @@ export function AllFilesPage() {
           setContextMenu({ x: 0, y: 0, file: null });
         }}
         onManageTags={() => {
-          setDetailOpen(true);
+          if (activeFile?.id) {
+            setManageTagsTarget({
+              kind: "file",
+              id: activeFile.id,
+              name: activeFile.name ?? "",
+            });
+            setManageTagsOpen(true);
+          }
           setContextMenu({ x: 0, y: 0, file: null });
         }}
         onPublicLink={() => {
@@ -2005,27 +2487,96 @@ export function AllFilesPage() {
         x={folderContextMenu.x}
         y={folderContextMenu.y}
         folder={folderContextMenu.folder}
+        goToDriveLabel={
+          folderMenuAccount(folderContextMenu.folder)
+            ? `Go to ${providerLabel(folderMenuAccount(folderContextMenu.folder)!.provider)}`
+            : "Go to Drive"
+        }
         onClose={() => setFolderContextMenu({ x: 0, y: 0, folder: null })}
-        onCut={() => cutSelectedFolder(activeFolderForMenu)}
-        onRename={() => {
-          setFolderRenameValue(activeFolderForMenu?.name ?? "");
-          setFolderRenameColor(
-            normalizeFolderColor(activeFolderForMenu?.color),
-          );
-          setFolderRenameOpen(true);
-          setFolderContextMenu({ x: 0, y: 0, folder: null });
+        onDetails={() => {
+          if (!activeFolderForMenu) return;
+          setFolderDetailOpen(true);
         }}
-        onInvite={inviteToFolder}
-        onCopyLink={copyFolderLink}
-        onDelete={() => {
+        onOpen={() => {
+          if (activeFolderForMenu) openFolder(activeFolderForMenu);
+        }}
+        onGoToDrive={() => {
+          goToProviderFolder(activeFolderForMenu);
+        }}
+        onRename={() => {
+          const folder = activeFolderForMenu;
+          if (!folder?.id) return;
+          if (isAccountFolderId(folder.id)) {
+            folderActionNotSupported("Rename");
+            return;
+          }
+          setFolderRenameValue(folder.name ?? "");
+          setFolderRenameColor(normalizeFolderColor(folder.color));
+          setFolderRenameOpen(true);
+        }}
+        onDownload={() => {
+          folderActionNotSupported("Download");
+        }}
+        onMove={() => {
+          const folder = activeFolderForMenu;
+          if (!folder?.id) return;
+          openMoveForFolder(folder);
+        }}
+        onRemove={() => {
+          const folder = activeFolderForMenu;
+          if (!folder?.id) return;
+          if (isAccountFolderId(folder.id)) {
+            folderActionNotSupported("Remove");
+            return;
+          }
           setFolderDeleteOpen(true);
-          setFolderContextMenu({ x: 0, y: 0, folder: null });
+        }}
+        onManageTags={() => {
+          const folder = activeFolderForMenu;
+          if (!folder?.id) return;
+          setManageTagsTarget({
+            kind: "folder",
+            id: folder.id,
+            name: folder.name ?? "",
+          });
+          setManageTagsOpen(true);
+        }}
+        onAddToVirtualFolder={() => {
+          openAddFolderToVirtualFolder();
         }}
       />
       <FileDetailsDrawer
         open={detailOpen}
         file={activeFile}
         onClose={() => setDetailOpen(false)}
+        onOpenFile={() => {
+          if (!activeFile) return;
+          setDetailOpen(false);
+          void openFilePreview(activeFile);
+        }}
+      />
+      <FolderDetailsDrawer
+        open={folderDetailOpen}
+        details={
+          activeFolderForMenu
+            ? {
+                folder: activeFolderForMenu,
+                provider: folderMenuAccount(activeFolderForMenu)?.provider,
+                accountName: folderMenuAccount(activeFolderForMenu)
+                  ? accountTitle(folderMenuAccount(activeFolderForMenu)!)
+                  : "Archive Cloud",
+                owner: "You",
+                modified: activeFolderForMenu.updated || null,
+                mimeType: null,
+              }
+            : null
+        }
+        onClose={() => setFolderDetailOpen(false)}
+        onOpenFolder={() => {
+          if (!activeFolderForMenu) return;
+          setFolderDetailOpen(false);
+          openFolder(activeFolderForMenu);
+        }}
       />
 
       <DummyModal
@@ -2205,16 +2756,29 @@ export function AllFilesPage() {
       <DummyModal
         open={renameOpen}
         title="Rename File"
-        description={activeFile?.name ?? ""}
         onClose={() => setRenameOpen(false)}
       >
-        <form onSubmit={renameFile} className="grid gap-4">
-          <Input
-            fullWidth
-            value={renameValue}
-            onChange={(event) => setRenameValue(event.target.value)}
-            required
-          />
+        <form onSubmit={renameFile} className="grid gap-5">
+          <label
+            htmlFor="rename-file-name"
+            className="grid gap-2 text-sm font-semibold"
+          >
+            <span>
+              File Name <span className="text-danger">*</span>
+            </span>
+            <Input
+              id="rename-file-name"
+              fullWidth
+              value={renameValue}
+              maxLength={MAX_RENAME_LENGTH}
+              onChange={(event) => setRenameValue(event.target.value)}
+              autoFocus
+              required
+            />
+            <span className="text-xs font-normal text-muted">
+              {renameValue.length}/{MAX_RENAME_LENGTH} characters
+            </span>
+          </label>
           <div className="flex justify-end gap-3">
             <Button
               type="button"
@@ -2223,45 +2787,47 @@ export function AllFilesPage() {
             >
               Cancel
             </Button>
-            <Button>Rename</Button>
+            <Button type="submit">Rename</Button>
           </div>
         </form>
       </DummyModal>
-      <DummyModal
+      <ManageTagsModal
+        open={manageTagsOpen}
+        target={manageTagsTarget}
+        onClose={() => {
+          setManageTagsOpen(false);
+          setManageTagsTarget(null);
+        }}
+        onSaved={async () => {
+          await loadAll();
+        }}
+      />
+      <MoveDestinationModal
         open={moveOpen}
-        title="Move to Folder"
-        description={
-          selectedFileIds.size > 0
-            ? `Move ${selectedFileIds.size} files`
-            : (activeFile?.name ?? "")
+        itemName={moveItemName}
+        source={moveSource}
+        accounts={connectedAccounts}
+        archiveFolders={allFolders}
+        excludeArchiveFolderIds={
+          moveSource?.kind === "archive-folder"
+            ? moveExcludeFolderIds(moveSource.folderId)
+            : undefined
         }
-        onClose={() => setMoveOpen(false)}
-      >
-        <form onSubmit={moveFile} className="grid gap-4">
-          <select
-            className="h-11 rounded-xl border border-border px-3 text-sm"
-            value={selectedFolderId}
-            onChange={(event) => setSelectedFolderId(event.target.value)}
-          >
-            <option value="">No folder</option>
-            {allFolders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setMoveOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button>Move</Button>
-          </div>
-        </form>
-      </DummyModal>
+        onClose={() => {
+          setMoveOpen(false);
+          setMoveSource(null);
+          setMoveItemName("");
+        }}
+        onMoved={async () => {
+          clearSelection();
+          if (cloudFolderId) {
+            await loadLinkedStorage(connectedAccounts);
+          } else {
+            await loadAll();
+            await loadLinkedStorage(connectedAccounts);
+          }
+        }}
+      />
       <DummyModal
         open={deleteOpen}
         title={selectedFileIds.size > 0 ? "Delete Files" : "Delete File"}
@@ -2281,115 +2847,47 @@ export function AllFilesPage() {
           </Button>
         </div>
       </DummyModal>
-      <DummyModal
+      <PublicLinkModal
         open={shareOpen}
-        title="Share Link"
-        description={activeFile?.name ?? ""}
+        fileId={activeFile?.id ?? null}
+        fileName={activeFile?.name ?? ""}
+        mimeType={activeFile?.mimeType}
+        sizeBytes={activeFile?.sizeBytes}
         onClose={() => setShareOpen(false)}
-      >
-        <div className="grid gap-4">
-          <div>
-            <p className="text-xs font-bold text-muted block mb-1">
-              Archive Cloud Public Share Link (No GDrive login required)
-            </p>
-            {shareUrl ? (
-              <Input fullWidth value={shareUrl} readOnly />
-            ) : (
-              <div className="grid gap-2">
-                <p className="rounded-xl bg-surface-secondary p-3 text-sm text-muted">
-                  A public link is already active. The raw token is not stored,
-                  so regenerate to copy a new link (this invalidates the old
-                  one).
-                </p>
-                <Button variant="outline" onClick={regenerateShareLink}>
-                  Regenerate link
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShareOpen(false)}>
-              Close
-            </Button>
-            <Button onClick={copyShareLink} isDisabled={!shareUrl}>
-              {copiedShareLink ? <CircleCheck className="h-4 w-4" /> : null}
-              {copiedShareLink ? "Copied!" : "Copy Link"}
-            </Button>
-          </div>
-          {copiedShareLink ? (
-            <p className="rounded-xl bg-surface-secondary p-3 text-sm font-semibold text-foreground">
-              Share link copied to clipboard.
-            </p>
-          ) : null}
-
-          {activeFile?.accountProvider === "google_drive" && (
-            <div className="mt-4 pt-4 border-t border-separator dark:border-border grid gap-3">
-              <div>
-                <p className="text-xs font-bold text-muted block mb-1">
-                  Google Drive Direct Link (Public Access)
-                </p>
-                <p className="text-xs text-muted mb-2">
-                  Make this file publicly viewable on Google Drive so external
-                  tools can open or download it (read-only, not editable).
-                </p>
-              </div>
-              {gdrivePublicUrl ? (
-                <div className="grid gap-2">
-                  <Input fullWidth value={gdrivePublicUrl} readOnly />
-                  <p className="rounded-xl bg-surface-secondary p-3 text-sm font-semibold text-foreground">
-                    Google Drive public link generated and copied to clipboard!
-                  </p>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  isDisabled={makingPublic}
-                  onClick={async () => {
-                    if (!activeFile?.id) return;
-                    setMakingPublic(true);
-                    try {
-                      const res = await apiFetch<{ url: string }>(
-                        `/files/${activeFile.id}/public-permission`,
-                        { method: "POST" },
-                      );
-                      setGdrivePublicUrl(res.url);
-                      await navigator.clipboard.writeText(res.url);
-                    } catch (err: any) {
-                      alert(
-                        `Failed to update Google Drive permission: ${err.message || err}`,
-                      );
-                    } finally {
-                      setMakingPublic(false);
-                    }
-                  }}
-                  className="w-full text-foreground bg-surface-secondary border-border hover:bg-surface-secondary dark:text-muted dark:bg-accent/40 dark:border-border"
-                >
-                  {makingPublic
-                    ? "Making Public..."
-                    : "Make Public & Copy GDrive Link"}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </DummyModal>
+      />
       <DummyModal
         open={folderRenameOpen}
         title="Rename Folder"
-        description={activeFolderForMenu?.name ?? ""}
         onClose={() => setFolderRenameOpen(false)}
       >
-        <form onSubmit={renameFolder} className="grid gap-4">
-          <Input
-            fullWidth
-            value={folderRenameValue}
-            onChange={(event) => setFolderRenameValue(event.target.value)}
-            required
-          />
-          <FolderColorFields
-            color={folderRenameColor}
-            onColorChange={setFolderRenameColor}
-          />
+        <form onSubmit={renameFolder} className="grid gap-5">
+          <label
+            htmlFor="rename-folder-name"
+            className="grid gap-2 text-sm font-semibold"
+          >
+            <span>
+              Folder Name <span className="text-danger">*</span>
+            </span>
+            <Input
+              id="rename-folder-name"
+              fullWidth
+              value={folderRenameValue}
+              maxLength={MAX_RENAME_LENGTH}
+              onChange={(event) => setFolderRenameValue(event.target.value)}
+              autoFocus
+              required
+            />
+            <span className="text-xs font-normal text-muted">
+              {folderRenameValue.length}/{MAX_RENAME_LENGTH} characters
+            </span>
+          </label>
+          {activeFolderForMenu?.id &&
+          !isLinkedFolderId(activeFolderForMenu.id) ? (
+            <FolderColorFields
+              color={folderRenameColor}
+              onColorChange={setFolderRenameColor}
+            />
+          ) : null}
           <div className="flex justify-end gap-3">
             <Button
               type="button"
@@ -2398,78 +2896,69 @@ export function AllFilesPage() {
             >
               Cancel
             </Button>
-            <Button>Rename</Button>
+            <Button type="submit">Rename</Button>
           </div>
         </form>
       </DummyModal>
       <DummyModal
         open={folderDeleteOpen}
-        title="Delete Folder"
-        description={`Delete virtual folder ${activeFolderForMenu?.name ?? ""}? Files inside will remain uploaded.`}
+        title="Delete"
         onClose={() => setFolderDeleteOpen(false)}
       >
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setFolderDeleteOpen(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={deleteFolder}>
-            Delete
-          </Button>
-        </div>
-      </DummyModal>
-      <DummyModal
-        open={virtualFolderOpen}
-        title="Add to Virtual Folder"
-        description={activeFile?.name ?? ""}
-        onClose={() => {
-          setVirtualFolderOpen(false);
-          setVirtualFolderId("");
-        }}
-      >
-        <div className="grid gap-4">
-          {virtualFolders.length === 0 ? (
-            <p className="rounded-xl bg-surface-secondary p-3 text-sm text-muted">
-              No virtual folders yet. Create one from the Virtual Folders page.
+        <div className="grid gap-5">
+          <div className="grid gap-2">
+            <p className="text-sm leading-relaxed text-foreground">
+              Are you sure you want to delete{" "}
+              <span className="font-extrabold">
+                &apos;{activeFolderForMenu?.name ?? "folder"}&apos;
+              </span>{" "}
+              folder
+              {folderMenuAccount(activeFolderForMenu) ? (
+                <>
+                  {" "}
+                  from{" "}
+                  <span className="font-extrabold">
+                    &apos;
+                    {accountTitle(folderMenuAccount(activeFolderForMenu)!)}
+                    &apos;
+                  </span>
+                </>
+              ) : (
+                <> from Archive Cloud</>
+              )}
+              ?
             </p>
-          ) : (
-            <div className="grid gap-2 text-sm font-semibold">
-              Virtual folder
-              <select
-                className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
-                value={virtualFolderId}
-                onChange={(event) => setVirtualFolderId(event.target.value)}
-              >
-                {virtualFolders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            <p className="text-sm font-semibold text-amber-600">
+              All contents will be deleted permanently.
+            </p>
+          </div>
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"
-              onClick={() => {
-                setVirtualFolderOpen(false);
-                setVirtualFolderId("");
-              }}
+              onPress={() => setFolderDeleteOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              isDisabled={
-                !virtualFolderId ||
-                addingToVirtual ||
-                virtualFolders.length === 0
-              }
-              onPress={() => void addActiveFileToVirtualFolder()}
+              variant="danger"
+              onPress={() => {
+                void deleteFolder();
+              }}
             >
-              {addingToVirtual ? "Adding…" : "Add"}
+              <TrashBin className="h-4 w-4" />
+              Delete Folder
             </Button>
           </div>
         </div>
       </DummyModal>
+      <AddToVirtualFolderModal
+        open={virtualFolderOpen}
+        target={virtualFolderTarget}
+        onClose={() => {
+          setVirtualFolderOpen(false);
+          setVirtualFolderTarget(null);
+        }}
+      />
       <DummyModal
         open={inviteOpen}
         title="Invite Member"

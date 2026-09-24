@@ -5,6 +5,7 @@ export type FolderItem = {
   color: string;
   parentId?: string | null;
   providerFolderId?: string | null;
+  connectedAccountId?: string | null;
 };
 
 export type FileItem = {

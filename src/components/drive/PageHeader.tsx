@@ -23,7 +23,7 @@ export function PageHeader({
             {title}
           </Heading>
           {description ? (
-            <Paragraph className="mt-1 text-sm text-muted">
+            <Paragraph className="mt-1 max-w-xl text-sm leading-relaxed text-muted">
               {description}
             </Paragraph>
           ) : null}

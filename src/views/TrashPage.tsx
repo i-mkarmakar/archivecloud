@@ -49,9 +49,11 @@ function mapTrashFile(file: TrashFile): FileItem {
 
 export function TrashPage() {
   const [files, setFiles] = useState<TrashFile[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useFileViewMode("archivecloud:trash-view");
   const [listLoading, setListLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     "restore" | "delete" | null
   >(null);
@@ -59,17 +61,26 @@ export function TrashPage() {
   const busy = pendingAction !== null;
   const gridFiles = useMemo(() => files.map(mapTrashFile), [files]);
 
-  async function loadTrash() {
-    setListLoading(true);
+  async function loadTrash(cursor?: string | null) {
+    const isMore = Boolean(cursor);
+    if (isMore) setLoadingMore(true);
+    else setListLoading(true);
     try {
-      const data = await apiFetch<{ files: TrashFile[] }>("/files/trash");
-      setFiles(data.files);
+      const qs = new URLSearchParams({ limit: "40" });
+      if (cursor) qs.set("cursor", cursor);
+      const data = await apiFetch<{
+        files: TrashFile[];
+        nextCursor: string | null;
+      }>(`/files/trash?${qs.toString()}`);
+      setFiles((prev) => (isMore ? [...prev, ...data.files] : data.files));
+      setNextCursor(data.nextCursor);
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : "Failed to load trash",
       );
     } finally {
       setListLoading(false);
+      setLoadingMore(false);
     }
   }
 
@@ -323,6 +334,20 @@ export function TrashPage() {
             </table>
           </div>
         )}
+        {nextCursor ? (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              isDisabled={loadingMore}
+              onPress={() => {
+                void loadTrash(nextCursor);
+              }}
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </Button>
+          </div>
+        ) : null}
       </section>
     </>
   );

@@ -8,7 +8,8 @@ import { WorkspaceFileList } from "@/components/drive/WorkspaceFileList";
 import { useWorkspaceFiles } from "@/hooks/useWorkspaceFiles";
 
 export function StarredPage() {
-  const { files, loading, error } = useWorkspaceFiles("starred");
+  const { files, loading, loadingMore, nextCursor, error, loadMore } =
+    useWorkspaceFiles("starred");
 
   const folderCount = useMemo(
     () => files.filter((file) => file.folderId).length,
@@ -56,11 +57,16 @@ export function StarredPage() {
       <WorkspaceFileList
         files={files}
         loading={loading}
+        loadingMore={loadingMore}
+        hasMore={Boolean(nextCursor)}
         error={error}
         mode="starred"
         storageKey="archivecloud:starred-view"
         emptyTitle="No starred files"
         emptyDescription="Star files from Home to pin them here."
+        onLoadMore={() => {
+          void loadMore();
+        }}
       />
     </>
   );

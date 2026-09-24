@@ -2,7 +2,6 @@
 
 import { Suspense, type ReactNode } from "react";
 import {
-  AccountCardsSkeleton,
   CardListSkeleton,
   FileGridSkeleton,
   FormPageSkeleton,
@@ -56,12 +55,6 @@ export function AutomationPageFallback() {
 
 export function SearchPageFallback() {
   return <CardListSkeleton className="mt-6" count={6} label="Loading search" />;
-}
-
-export function CloudsPageFallback() {
-  return (
-    <AccountCardsSkeleton className="mt-6" count={3} label="Loading clouds" />
-  );
 }
 
 export function BillingSuccessFallback() {

@@ -89,12 +89,17 @@ export function mapApiFileToItem(file: ApiFile): FileItem {
 
 export type FileListView = "default" | "starred" | "archived" | "recent";
 
-export function buildFilesQuery(view: FileListView, limit?: number) {
+export function buildFilesQuery(
+  view: FileListView,
+  options?: { limit?: number; cursor?: string | null },
+) {
   const params = new URLSearchParams();
   if (view === "starred") params.set("view", "starred");
   if (view === "archived") params.set("view", "archived");
   if (view === "recent") params.set("view", "recent");
-  if (limit) params.set("limit", String(limit));
+  const limit = options?.limit ?? 40;
+  params.set("limit", String(limit));
+  if (options?.cursor) params.set("cursor", options.cursor);
   const qs = params.toString();
   return qs ? `/files?${qs}` : "/files";
 }
