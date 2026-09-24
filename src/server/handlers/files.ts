@@ -671,12 +671,22 @@ export async function updateFileHandler(
     await prisma.folder.findFirstOrThrow({
       where: { id: body.folderId, userId: user.id, deletedAt: null },
     });
-  if (body.name)
-    await renameProviderFile({
-      account: file.connectedAccount,
-      providerFileId: file.providerFileId,
-      newName: body.name,
-    });
+  if (body.name) {
+    try {
+      await renameProviderFile({
+        account: file.connectedAccount,
+        providerFileId: file.providerFileId,
+        newName: body.name,
+      });
+    } catch (error) {
+      console.error(error);
+      return errorJson(
+        "RENAME_FAILED",
+        "Could not rename the file. Please try again.",
+        400,
+      );
+    }
+  }
   const now = new Date();
   const updated = await prisma.file.update({
     where: { id: file.id },

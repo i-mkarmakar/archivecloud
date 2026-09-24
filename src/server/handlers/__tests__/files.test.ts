@@ -147,12 +147,15 @@ describe("updateFileHandler", () => {
     });
   });
 
-  it("returns provider error when renameProviderFile fails", async () => {
+  it("returns RENAME_FAILED when renameProviderFile fails", async () => {
     prismaMock.file.findFirstOrThrow.mockResolvedValue({
       ...fileRow,
       connectedAccount: fileRow.connectedAccount,
     });
     renameProviderFile.mockRejectedValue(new Error("provider rename failed"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     const response = await updateFile(
       jsonRequest(
@@ -166,12 +169,16 @@ describe("updateFileHandler", () => {
     );
     const body = await readJson(response);
 
-    // Characterization: uncaught provider error becomes INTERNAL_SERVER_ERROR.
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
     expect(body).toMatchObject({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "provider rename failed",
+      code: "RENAME_FAILED",
+      message: "Could not rename the file. Please try again.",
     });
+    expect(consoleError).toHaveBeenCalled();
+    const logged = consoleError.mock.calls[0]?.[0];
+    expect(logged).toBeInstanceOf(Error);
+    expect((logged as Error).message).toBe("provider rename failed");
+    consoleError.mockRestore();
   });
 
   it("returns VALIDATION_ERROR for invalid Zod input", async () => {
