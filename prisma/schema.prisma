@@ -38,6 +38,7 @@ model User {
   transferJobs           TransferJob[]
   transferUsageMonths    TransferUsageMonth[]
   tags                   Tag[]
+  folderTags             FolderTag[]
   scheduledTransfers    ScheduledTransfer[]
   folderSyncs           FolderSync[]
   virtualFolders        VirtualFolder[]
@@ -247,14 +248,15 @@ model File {
 }
 
 model Tag {
-  id        String    @id @default(uuid()) @db.Char(36)
-  userId    String    @map("user_id") @db.Char(36)
-  name      String    @db.VarChar(64)
-  color     String    @default("text-blue-500") @db.VarChar(64)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileTags  FileTag[]
+  id         String      @id @default(uuid()) @db.Char(36)
+  userId     String      @map("user_id") @db.Char(36)
+  name       String      @db.VarChar(64)
+  color      String      @default("text-blue-500") @db.VarChar(64)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileTags   FileTag[]
+  folderTags FolderTag[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -273,6 +275,21 @@ model FileTag {
   @@index([tagId])
   @@index([fileId])
   @@map("file_tags")
+}
+
+model FolderTag {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @map("user_id") @db.Char(36)
+  folderKey String   @map("folder_key") @db.VarChar(512)
+  tagId     String   @map("tag_id") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, folderKey, tagId])
+  @@index([tagId])
+  @@index([userId, folderKey])
+  @@map("folder_tags")
 }
 
 model TransferJob {
@@ -402,16 +419,17 @@ model ProviderWebhookChannel {
 }
 
 model FileShare {
-  id        String    @id @default(uuid()) @db.Char(36)
-  fileId    String    @map("file_id") @db.Char(36)
-  userId    String    @map("user_id") @db.Char(36)
-  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
-  enabled   Boolean   @default(true)
-  expiresAt DateTime? @map("expires_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  file      File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(uuid()) @db.Char(36)
+  fileId         String    @map("file_id") @db.Char(36)
+  userId         String    @map("user_id") @db.Char(36)
+  tokenHash      String    @unique @map("token_hash") @db.VarChar(255)
+  tokenEncrypted String?   @map("token_encrypted") @db.Text
+  enabled        Boolean   @default(true)
+  expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  file           File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([fileId])
   @@index([userId])
