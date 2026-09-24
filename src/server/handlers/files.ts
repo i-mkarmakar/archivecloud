@@ -11,7 +11,7 @@ import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import {
   fetchGoogleDriveFileMedia,
   streamGoogleDriveThumbnailResponse,
-} from "@/server/modules/files/stream-google-file";
+} from "@/server/modules/providers/google/drive-stream";
 import {
   getGoogleDriveWebLinks,
   makeGoogleDriveFilePublicReader,

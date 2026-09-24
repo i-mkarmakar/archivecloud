@@ -27,7 +27,7 @@ vi.mock("@/server/modules/files/stream-file", () => ({
   streamProviderFileResponse: vi.fn(),
 }));
 
-vi.mock("@/server/modules/files/stream-google-file", () => ({
+vi.mock("@/server/modules/providers/google/drive-stream", () => ({
   fetchGoogleDriveFileMedia: vi.fn(),
   streamGoogleDriveThumbnailResponse: vi.fn(),
 }));

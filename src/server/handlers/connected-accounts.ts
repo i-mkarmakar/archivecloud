@@ -24,18 +24,16 @@ import {
   syncDropboxQuota,
 } from "@/server/modules/dropbox/dropbox.service";
 import {
-  isBrowserInlineImageMimeType,
-  isHeicLike,
-  streamGoogleDriveThumbnailResponse,
-  streamGoogleProviderFileResponse,
-} from "@/server/modules/files/stream-google-file";
-import {
   buildOneDriveAuthUrl,
   ensureGlobalOneDriveProviderConfig,
   exchangeOneDriveCode,
   getOneDriveProfileWithToken,
   syncOneDriveQuota,
 } from "@/server/modules/onedrive/onedrive.service";
+import {
+  streamGoogleDriveThumbnailResponse,
+  streamGoogleProviderFileResponse,
+} from "@/server/modules/providers/google/drive-stream";
 import {
   createOAuthClient,
   ensureGlobalGoogleProviderConfig,
@@ -59,6 +57,29 @@ import {
   hashToken,
   randomToken,
 } from "@/server/utils/crypto";
+
+const browserInlineImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/bmp",
+]);
+
+function isBrowserInlineImageMimeType(mimeType: string, fileName: string) {
+  if (browserInlineImageMimeTypes.has(mimeType)) return true;
+  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(fileName);
+}
+
+function isHeicLike(mimeType: string, fileName: string) {
+  return (
+    mimeType === "image/heic" ||
+    mimeType === "image/heif" ||
+    /\.heic$/i.test(fileName) ||
+    /\.heif$/i.test(fileName)
+  );
+}
 
 export const GOOGLE_CONNECT_RETURN_COOKIE = "archivecloud_oauth_return";
 

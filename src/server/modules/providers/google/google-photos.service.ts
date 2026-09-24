@@ -8,7 +8,7 @@ import type {
 } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
-import { normalizeHeaders } from "@/server/modules/files/stream-google-file";
+import { normalizeHeaders } from "@/server/modules/providers/google/drive-stream";
 import {
   createOAuthClient,
   getAuthedGoogleClient,

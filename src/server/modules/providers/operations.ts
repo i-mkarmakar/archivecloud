@@ -16,10 +16,6 @@ import {
   uploadDropboxFileFromStream,
 } from "@/server/modules/dropbox/dropbox.service";
 import {
-  googleDownloadExportMimeTypes,
-  withExtension,
-} from "@/server/modules/files/stream-google-file";
-import {
   browseICloudFolder,
   deleteICloudFile,
   downloadICloudFileStream,
@@ -47,6 +43,10 @@ import {
   syncPCloudQuota,
   uploadPCloudFileFromStream,
 } from "@/server/modules/pcloud/pcloud.service";
+import {
+  googleDownloadExportMimeTypes,
+  withExtension,
+} from "@/server/modules/providers/google/drive-stream";
 import {
   browseGoogleDriveFolder,
   ensureGoogleAppFolder,

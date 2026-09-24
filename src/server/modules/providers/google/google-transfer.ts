@@ -5,7 +5,7 @@ import type { ConnectedAccount } from "@/generated/prisma/client";
 import {
   googleDownloadExportMimeTypes,
   withExtension,
-} from "@/server/modules/files/stream-google-file";
+} from "@/server/modules/providers/google/drive-stream";
 import {
   ensureGoogleAppFolder,
   getAuthedGoogleClient,
