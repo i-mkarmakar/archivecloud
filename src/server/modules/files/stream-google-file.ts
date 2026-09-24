@@ -3,7 +3,7 @@ import "server-only";
 import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";
-import { getAuthedGoogleClient } from "../google/google.service";
+import { getAuthedGoogleClient } from "../providers/google/google.service";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
 type StreamOptions = { disposition?: "inline" | "attachment" };

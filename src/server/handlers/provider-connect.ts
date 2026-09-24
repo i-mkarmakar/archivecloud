@@ -15,22 +15,6 @@ import {
 import { oauthConnectStartResponse } from "@/server/http/oauth-connect-response";
 import { errorJson, json } from "@/server/http/responses";
 import {
-  buildGooglePhotosAuthUrl,
-  ensureGlobalGooglePhotosProviderConfig,
-  exchangeGooglePhotosCode,
-  getGooglePhotosProfileWithTokens,
-  syncGooglePhotosQuota,
-} from "@/server/modules/google/google-photos.service";
-import {
-  buildGoogleSharedDriveAuthUrl,
-  connectSharedDriveFromGoogleAccount,
-  ensureGlobalGoogleSharedDriveProviderConfig,
-  exchangeGoogleSharedDriveCode,
-  getGoogleSharedDriveProfileWithTokens,
-  listSharedDrivesWithTokens,
-  syncGoogleSharedDriveQuota,
-} from "@/server/modules/google/google-shared-drive.service";
-import {
   connectICloudAccount,
   syncICloudQuota,
 } from "@/server/modules/icloud/icloud.service";
@@ -43,6 +27,22 @@ import {
   resolvePCloudUserId,
   syncPCloudQuota,
 } from "@/server/modules/pcloud/pcloud.service";
+import {
+  buildGooglePhotosAuthUrl,
+  ensureGlobalGooglePhotosProviderConfig,
+  exchangeGooglePhotosCode,
+  getGooglePhotosProfileWithTokens,
+  syncGooglePhotosQuota,
+} from "@/server/modules/providers/google/google-photos.service";
+import {
+  buildGoogleSharedDriveAuthUrl,
+  connectSharedDriveFromGoogleAccount,
+  ensureGlobalGoogleSharedDriveProviderConfig,
+  exchangeGoogleSharedDriveCode,
+  getGoogleSharedDriveProfileWithTokens,
+  listSharedDrivesWithTokens,
+  syncGoogleSharedDriveQuota,
+} from "@/server/modules/providers/google/google-shared-drive.service";
 import { ensureGoogleDriveWatch } from "@/server/modules/webhooks/google-drive-watch";
 import {
   decryptText,

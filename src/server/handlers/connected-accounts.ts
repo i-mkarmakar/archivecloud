@@ -30,19 +30,19 @@ import {
   streamGoogleProviderFileResponse,
 } from "@/server/modules/files/stream-google-file";
 import {
-  createOAuthClient,
-  ensureGlobalGoogleProviderConfig,
-  fetchGoogleOAuthUserInfo,
-  getGoogleDriveFileBasicMeta,
-  syncGoogleQuota,
-} from "@/server/modules/google/google.service";
-import {
   buildOneDriveAuthUrl,
   ensureGlobalOneDriveProviderConfig,
   exchangeOneDriveCode,
   getOneDriveProfileWithToken,
   syncOneDriveQuota,
 } from "@/server/modules/onedrive/onedrive.service";
+import {
+  createOAuthClient,
+  ensureGlobalGoogleProviderConfig,
+  fetchGoogleOAuthUserInfo,
+  getGoogleDriveFileBasicMeta,
+  syncGoogleQuota,
+} from "@/server/modules/providers/google/google.service";
 import {
   browseProviderFolder,
   ensureProviderChildFolder,

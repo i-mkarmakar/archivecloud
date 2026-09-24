@@ -20,29 +20,6 @@ import {
   withExtension,
 } from "@/server/modules/files/stream-google-file";
 import {
-  browseGoogleDriveFolder,
-  ensureGoogleAppFolder,
-  getAuthedGoogleClient,
-  syncGoogleQuota,
-} from "@/server/modules/google/google.service";
-import {
-  browseGooglePhotosFolder,
-  deleteGooglePhotosFile,
-  downloadGooglePhotosFileStream,
-  getGooglePhotosFileMetadata,
-  syncGooglePhotosQuota,
-  uploadGooglePhotosFileFromStream,
-} from "@/server/modules/google/google-photos.service";
-import {
-  browseGoogleSharedDriveFolder,
-  deleteGoogleSharedDriveFile,
-  downloadGoogleSharedDriveFileStream,
-  getGoogleSharedDriveFileMetadata,
-  syncGoogleSharedDriveQuota,
-  uploadGoogleSharedDriveFileFromStream,
-} from "@/server/modules/google/google-shared-drive.service";
-import { copyGoogleDriveFile } from "@/server/modules/google/google-transfer";
-import {
   browseICloudFolder,
   deleteICloudFile,
   downloadICloudFileStream,
@@ -70,6 +47,29 @@ import {
   syncPCloudQuota,
   uploadPCloudFileFromStream,
 } from "@/server/modules/pcloud/pcloud.service";
+import {
+  browseGoogleDriveFolder,
+  ensureGoogleAppFolder,
+  getAuthedGoogleClient,
+  syncGoogleQuota,
+} from "@/server/modules/providers/google/google.service";
+import {
+  browseGooglePhotosFolder,
+  deleteGooglePhotosFile,
+  downloadGooglePhotosFileStream,
+  getGooglePhotosFileMetadata,
+  syncGooglePhotosQuota,
+  uploadGooglePhotosFileFromStream,
+} from "@/server/modules/providers/google/google-photos.service";
+import {
+  browseGoogleSharedDriveFolder,
+  deleteGoogleSharedDriveFile,
+  downloadGoogleSharedDriveFileStream,
+  getGoogleSharedDriveFileMetadata,
+  syncGoogleSharedDriveQuota,
+  uploadGoogleSharedDriveFileFromStream,
+} from "@/server/modules/providers/google/google-shared-drive.service";
+import { copyGoogleDriveFile } from "@/server/modules/providers/google/google-transfer";
 import type {
   ProviderBrowseResult,
   ProviderCopyResult,

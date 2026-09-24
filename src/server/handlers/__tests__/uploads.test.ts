@@ -32,7 +32,7 @@ vi.mock("@/server/modules/providers/google-drive-upload", () => ({
   putGoogleDriveResumableChunk,
 }));
 
-vi.mock("@/server/modules/google/google.service", () => ({
+vi.mock("@/server/modules/providers/google/google.service", () => ({
   ensureGoogleAppFolder,
   syncGoogleQuota,
 }));

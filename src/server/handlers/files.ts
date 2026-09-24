@@ -17,7 +17,7 @@ import {
   makeGoogleDriveFilePublicReader,
   syncGoogleAppFolderFiles,
   syncGoogleQuota,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
 import {
   deleteProviderFile,
   renameProviderFile,

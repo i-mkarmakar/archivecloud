@@ -5,7 +5,7 @@ import { google } from "googleapis";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
-import { getAuthedGoogleClient } from "@/server/modules/google/google.service";
+import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 const GOOGLE_PROVIDERS = new Set(["google_drive", "google_shared_drive"]);
 

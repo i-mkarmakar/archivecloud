@@ -16,7 +16,7 @@ vi.mock("@/server/modules/providers/operations", () => ({
   deleteProviderFile: (...args: unknown[]) => deleteProviderFile(...args),
 }));
 
-vi.mock("@/server/modules/google/google.service", () => ({
+vi.mock("@/server/modules/providers/google/google.service", () => ({
   makeGoogleDriveFilePublicReader: vi.fn(),
   getGoogleDriveWebLinks: vi.fn(),
   syncGoogleAppFolderFiles: vi.fn(),

@@ -3,7 +3,7 @@ import "server-only";
 import type { Readable } from "node:stream";
 import { google } from "googleapis";
 import type { ConnectedAccount } from "@/generated/prisma/client";
-import { getAuthedGoogleClient } from "@/server/modules/google/google.service";
+import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 /**
  * Single seam for Google Drive upload I/O used by the uploads handler.

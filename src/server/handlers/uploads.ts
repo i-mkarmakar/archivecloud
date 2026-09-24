@@ -8,7 +8,7 @@ import { errorJson, json } from "@/server/http/responses";
 import {
   ensureGoogleAppFolder,
   syncGoogleQuota,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
 import {
   initGoogleDriveResumableUpload,
   putGoogleDriveResumableChunk,

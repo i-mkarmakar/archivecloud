@@ -18,7 +18,7 @@ vi.mock("@/server/utils/crypto", () => ({
 
 const makeGoogleDriveFilePublicReader = vi.fn();
 
-vi.mock("@/server/modules/google/google.service", () => ({
+vi.mock("@/server/modules/providers/google/google.service", () => ({
   googleDriveOAuthScopes: ["https://www.googleapis.com/auth/drive"],
   makeGoogleDriveFilePublicReader: (...args: unknown[]) =>
     makeGoogleDriveFilePublicReader(...args),

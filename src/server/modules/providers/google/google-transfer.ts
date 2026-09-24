@@ -9,7 +9,7 @@ import {
 import {
   ensureGoogleAppFolder,
   getAuthedGoogleClient,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
 import type { ProviderCopyResult } from "@/server/modules/providers/types";
 
 const GOOGLE_APPS_PREFIX = "application/vnd.google-apps.";

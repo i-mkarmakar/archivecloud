@@ -15,7 +15,7 @@ const renameProviderFile = vi.fn();
 const moveProviderItem = vi.fn();
 const deleteProviderFile = vi.fn();
 
-vi.mock("@/server/modules/google/google.service", () => ({
+vi.mock("@/server/modules/providers/google/google.service", () => ({
   ensureGoogleAppFolder: (...args: unknown[]) => ensureGoogleAppFolder(...args),
   createGoogleDriveFolder: (...args: unknown[]) =>
     createGoogleDriveFolder(...args),

@@ -4,12 +4,12 @@ import { google } from "googleapis";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { getDropboxAccessToken } from "@/server/modules/dropbox/dropbox.service";
-import { getAuthedGoogleClient } from "@/server/modules/google/google.service";
 import { getOneDriveAccessToken } from "@/server/modules/onedrive/onedrive.service";
 import {
   getPCloudAccessToken,
   getPCloudApiBaseForAccount,
 } from "@/server/modules/pcloud/pcloud.service";
+import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 import { browseProviderFolder } from "@/server/modules/providers/operations";
 import type {
   ProviderBrowseFile,

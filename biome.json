@@ -61,7 +61,7 @@
   "overrides": [
     {
       "includes": [
-        "src/server/modules/google/**",
+        "src/server/modules/providers/google/**",
         "src/server/modules/providers/**",
         "src/server/modules/files/stream-google-file.ts",
         "src/server/modules/webhooks/google-drive-watch.ts",
@@ -129,7 +129,7 @@
                   },
                   {
                     "group": [
-                      "@/server/modules/google/**",
+                      "@/server/modules/providers/google/**",
                       "@/server/modules/onedrive/**",
                       "@/server/modules/dropbox/**",
                       "@/server/modules/pcloud/**",

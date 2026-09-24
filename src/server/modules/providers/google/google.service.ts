@@ -5,13 +5,13 @@ import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { env } from "../../config/env";
-import { prisma } from "../../config/prisma";
-import { decryptText, encryptText } from "../../utils/crypto";
+import { env } from "@/server/config/env";
+import { prisma } from "@/server/config/prisma";
 import {
   classifyFileKind,
   classifyFileName,
-} from "../files/classify-file-kind";
+} from "@/server/modules/files/classify-file-kind";
+import { decryptText, encryptText } from "@/server/utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
 const appFolderName = "archivecloud";

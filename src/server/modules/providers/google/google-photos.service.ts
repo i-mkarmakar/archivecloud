@@ -12,7 +12,7 @@ import { normalizeHeaders } from "@/server/modules/files/stream-google-file";
 import {
   createOAuthClient,
   getAuthedGoogleClient,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 

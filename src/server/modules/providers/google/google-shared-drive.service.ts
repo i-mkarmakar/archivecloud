@@ -12,7 +12,7 @@ import {
   createOAuthClient,
   getAuthedGoogleClient,
   googleDriveOAuthScopes,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { encryptText } from "@/server/utils/crypto";
 
