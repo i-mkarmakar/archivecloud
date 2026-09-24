@@ -1,5 +1,5 @@
 import { toast } from "@heroui/react";
-import { type Dispatch, type SetStateAction, useEffect } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useRef } from "react";
 import { apiFetch, isAbortError, isNetworkError } from "@/lib/api";
 import type { ConnectedAccount } from "@/views/all-files/types";
 
@@ -11,6 +11,8 @@ export function useHomeConnectedAccounts(args: {
 }) {
   const { loadAll, setConnectedAccounts, setAccountsLoaded, setSyncingDrive } =
     args;
+  const loadAllRef = useRef(loadAll);
+  loadAllRef.current = loadAll;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,7 +67,7 @@ export function useHomeConnectedAccounts(args: {
 
           let created = 0;
           for (const res of response.results) created += res.created;
-          await loadAll();
+          await loadAllRef.current();
           window.dispatchEvent(new Event("archivecloud:storage-changed"));
           if (created > 0) {
             toast.success(
