@@ -63,8 +63,6 @@
       "includes": [
         "src/server/modules/providers/google/**",
         "src/server/modules/providers/**",
-        "src/server/modules/files/stream-google-file.ts",
-        "src/server/modules/webhooks/google-drive-watch.ts",
         "src/server/modules/search/cross-cloud-search.ts"
       ],
       "linter": {
