@@ -1,10 +1,14 @@
-import { cn } from "@/lib/utils";
 import Link from "next/link";
-import type { ButtonHTMLAttributes, MouseEventHandler, ReactNode } from "react";
+import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-type InteractiveHoverButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type InteractiveHoverButtonProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "onClick"
+> & {
   children: ReactNode;
   href?: string;
+  onClick?: (event: MouseEvent<HTMLElement>) => void;
 };
 
 export function InteractiveHoverButton({
@@ -35,11 +39,7 @@ export function InteractiveHoverButton({
 
   if (href) {
     return (
-      <Link
-        href={href}
-        className={classes}
-        onClick={onClick as unknown as MouseEventHandler<HTMLAnchorElement>}
-      >
+      <Link href={href} className={classes} onClick={onClick}>
         {content}
       </Link>
     );

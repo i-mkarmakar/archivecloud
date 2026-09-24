@@ -1,7 +1,10 @@
+import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { errorJson, json } from "@/server/http/responses";
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import { hashToken } from "@/server/utils/crypto";
+
+const publicTokenSchema = z.string().min(1);
 
 async function findSharedFile(token: string) {
   const share = await prisma.fileShare.findFirst({
@@ -24,14 +27,21 @@ async function findSharedFile(token: string) {
   };
 }
 
+function parsePublicToken(params?: Record<string, string>) {
+  const parsed = publicTokenSchema.safeParse(params?.token);
+  if (!parsed.success) {
+    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  }
+  return parsed.data;
+}
+
 export async function getPublicFileHandler(
   _request: Request,
   _user?: unknown,
   params?: Record<string, string>,
 ) {
-  const token = params?.token;
-  if (!token)
-    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  const token = parsePublicToken(params);
+  if (token instanceof Response) return token;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
     return errorJson(
@@ -65,9 +75,8 @@ export async function downloadPublicFileHandler(
   _user?: unknown,
   params?: Record<string, string>,
 ) {
-  const token = params?.token;
-  if (!token)
-    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  const token = parsePublicToken(params);
+  if (token instanceof Response) return token;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
     return errorJson(
@@ -91,9 +100,8 @@ export async function previewPublicFileHandler(
   _user?: unknown,
   params?: Record<string, string>,
 ) {
-  const token = params?.token;
-  if (!token)
-    return errorJson("SHARE_NOT_FOUND", "Shared file not found.", 404);
+  const token = parsePublicToken(params);
+  if (token instanceof Response) return token;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
     return errorJson(

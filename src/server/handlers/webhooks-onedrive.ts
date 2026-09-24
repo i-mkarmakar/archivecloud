@@ -1,6 +1,20 @@
+import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { json } from "@/server/http/responses";
 import { scheduleFolderSyncsForAccount } from "@/server/modules/webhooks/trigger-account-syncs";
+
+const oneDriveNotificationSchema = z.object({
+  value: z
+    .array(
+      z.object({
+        subscriptionId: z.string().optional(),
+        clientState: z.string().optional(),
+        changeType: z.string().optional(),
+        resource: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
 
 export async function oneDriveWebhookHandler(request: Request) {
   const url = new URL(request.url);
@@ -15,22 +29,19 @@ export async function oneDriveWebhookHandler(request: Request) {
     });
   }
 
-  let body: {
-    value?: Array<{
-      subscriptionId?: string;
-      clientState?: string;
-      changeType?: string;
-      resource?: string;
-    }>;
-  };
-
+  let jsonBody: unknown;
   try {
-    body = (await request.json()) as typeof body;
+    jsonBody = await request.json();
   } catch {
     return json({ ok: false, reason: "invalid_json" }, 400);
   }
 
-  const notifications = body.value ?? [];
+  const parsed = oneDriveNotificationSchema.safeParse(jsonBody);
+  if (!parsed.success) {
+    return json({ ok: false, reason: "invalid_json" }, 400);
+  }
+
+  const notifications = parsed.data.value ?? [];
   const matchedAccountIds = new Set<string>();
 
   for (const note of notifications) {

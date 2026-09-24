@@ -24,6 +24,8 @@ import {
 import {
   grantLifetimeFromPolarOrder,
   markPolarSubscriptionEnded,
+  type PolarOrderLike,
+  type PolarSubscriptionLike,
   revokeLifetimeFromPolarOrder,
   upsertPolarSubscription,
 } from "@/server/modules/billing/sync-subscription";
@@ -388,24 +390,25 @@ async function dispatchPolarEvent(payload: {
 }): Promise<void> {
   switch (payload.type) {
     case "order.paid":
-      await grantLifetimeFromPolarOrder(payload.data as never);
+      await grantLifetimeFromPolarOrder(payload.data as PolarOrderLike);
       break;
     case "order.refunded":
-      await revokeLifetimeFromPolarOrder(payload.data as never);
+      await revokeLifetimeFromPolarOrder(payload.data as PolarOrderLike);
       break;
     case "subscription.created":
     case "subscription.updated":
     case "subscription.active":
     case "subscription.canceled":
     case "subscription.uncanceled":
-      await upsertPolarSubscription(payload.data as never);
+      await upsertPolarSubscription(payload.data as PolarSubscriptionLike);
       break;
-    case "subscription.revoked":
-      await markPolarSubscriptionEnded(
-        (payload.data as { id: string }).id,
-        "revoked",
-      );
+    case "subscription.revoked": {
+      const revoked = payload.data as { id?: unknown };
+      if (typeof revoked.id === "string" && revoked.id.length > 0) {
+        await markPolarSubscriptionEnded(revoked.id, "revoked");
+      }
       break;
+    }
     default:
       break;
   }

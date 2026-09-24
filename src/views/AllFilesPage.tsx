@@ -1490,8 +1490,9 @@ export function AllFilesPage() {
         await navigator.clipboard.writeText(shareData.url);
         toast.success("Share link copied to clipboard!");
       }
-    } catch (err: any) {
-      toast.danger(`Failed to copy link: ${err.message || err}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.danger(`Failed to copy link: ${message}`);
     }
     setContextMenu({ x: 0, y: 0, file: null });
   }

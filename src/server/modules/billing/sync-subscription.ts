@@ -4,7 +4,7 @@ import { isAdminEmail } from "@/server/modules/billing/admin";
 import { planIdFromPolarProductId } from "@/server/modules/billing/polar";
 import { createAuditLog } from "@/server/utils/audit";
 
-type PolarSubscriptionLike = {
+export type PolarSubscriptionLike = {
   id: string;
   status: string;
   cancelAtPeriodEnd?: boolean | null;
@@ -24,7 +24,7 @@ type PolarSubscriptionLike = {
   metadata?: Record<string, unknown> | null;
 };
 
-type PolarOrderLike = {
+export type PolarOrderLike = {
   id: string;
   status?: string | null;
   paid?: boolean | null;
