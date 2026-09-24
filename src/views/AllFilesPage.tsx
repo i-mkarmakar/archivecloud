@@ -33,36 +33,34 @@ import {
   SIDEBAR_CREATE_EVENT,
   type SidebarCreateAction,
 } from "@/components/dashboard/SidebarNewButton";
-import { DummyModal } from "@/components/drive/DummyModal";
-import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
-import { FileContextMenu } from "@/components/drive/FileContextMenu";
-import { FileDetailsDrawer } from "@/components/drive/FileDetailsDrawer";
-import {
-  MoveDestinationModal,
-  type MoveSource,
-} from "@/components/drive/MoveDestinationModal";
-import { ManageTagsModal } from "@/components/drive/ManageTagsModal";
-import type { ManageTagsTarget } from "@/components/drive/ManageTagsModal";
 import {
   AddToVirtualFolderModal,
   type AddToVirtualFolderTarget,
 } from "@/components/drive/AddToVirtualFolderModal";
-import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
-import { FolderDetailsDrawer } from "@/components/drive/FolderDetailsDrawer";
+import { DummyModal } from "@/components/drive/DummyModal";
+import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
+import { FileContextMenu } from "@/components/drive/FileContextMenu";
+import { FileDetailsDrawer } from "@/components/drive/FileDetailsDrawer";
 import { FileGrid } from "@/components/drive/FileGrid";
 import { FileTable } from "@/components/drive/FileTable";
 import { FileViewToggle } from "@/components/drive/FileViewToggle";
 import { FolderContextMenu } from "@/components/drive/FolderContextMenu";
+import { FolderDetailsDrawer } from "@/components/drive/FolderDetailsDrawer";
 import { FolderGrid } from "@/components/drive/FolderGrid";
 import {
   defaultFolderColor,
-  folderColorOptions,
   normalizeFolderColor,
 } from "@/components/drive/folder-colors";
 import { ImageLightbox } from "@/components/drive/ImageLightbox";
+import type { ManageTagsTarget } from "@/components/drive/ManageTagsModal";
+import { ManageTagsModal } from "@/components/drive/ManageTagsModal";
+import {
+  MoveDestinationModal,
+  type MoveSource,
+} from "@/components/drive/MoveDestinationModal";
 import { PageHeader } from "@/components/drive/PageHeader";
+import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
 import { SuggestedSection } from "@/components/drive/SuggestedSection";
-import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { useUpload } from "@/context/UploadContext";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
@@ -76,171 +74,37 @@ import {
   isNetworkError,
 } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
-import { type ApiFile, mapApiFileToItem } from "@/lib/files";
+import { mapApiFileToItem } from "@/lib/files";
 import { getFirstName, getTimeGreeting } from "@/lib/greeting";
 import { createPlyr, ensurePlyr } from "@/lib/plyr";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
 import { providerLabel } from "@/lib/providers";
 import { cn } from "@/lib/utils";
-
-type BackendFile = ApiFile;
-type BackendFolder = {
-  id: string;
-  name: string;
-  color: string;
-  parentId?: string | null;
-  providerFolderId?: string | null;
-  updatedAt: string;
-};
-type ConnectedAccount = {
-  id: string;
-  provider: string;
-  email: string;
-  displayName?: string | null;
-  avatarUrl?: string | null;
-  status: string;
-};
-
-type ProviderBrowseFolder = {
-  id: string;
-  name: string;
-  modifiedTime: string;
-};
-
-type ProviderBrowseFile = {
-  id: string;
-  name: string;
-  mimeType: string;
-  sizeBytes: string;
-  modifiedTime: string;
-  dbFileId?: string | null;
-};
-
-type ProviderBrowseResult = {
-  folders: ProviderBrowseFolder[];
-  files: ProviderBrowseFile[];
-  breadcrumbs?: Array<{ id: string; name: string }>;
-};
-
-const ACCOUNT_FOLDER_PREFIX = "account:";
-const LINKED_FOLDER_PREFIX = "linked:";
-const LINKED_FILE_PREFIX = "linked:";
-const MAX_RENAME_LENGTH = 100;
-const FILES_PAGE_SIZE = 40;
-const LINKED_BROWSE_LIMIT = 40;
-
-function isAccountFolderId(id: string | undefined | null) {
-  return Boolean(id?.startsWith(ACCOUNT_FOLDER_PREFIX));
-}
-
-function isLinkedFolderId(id: string | undefined | null) {
-  return Boolean(id?.startsWith(LINKED_FOLDER_PREFIX));
-}
-
-function isLinkedFileId(id: string | undefined | null) {
-  return Boolean(id?.startsWith(LINKED_FILE_PREFIX));
-}
-
-function parseLinkedRef(id: string) {
-  const rest = id.slice(LINKED_FOLDER_PREFIX.length);
-  const splitAt = rest.indexOf(":");
-  if (splitAt <= 0) return null;
-  return {
-    accountId: rest.slice(0, splitAt),
-    providerId: rest.slice(splitAt + 1),
-  };
-}
-
-type FileSort =
-  | "created_desc"
-  | "created_asc"
-  | "name_asc"
-  | "name_desc"
-  | "size_desc"
-  | "updated_desc";
-
-const FILE_SORT_OPTIONS: { value: FileSort; label: string }[] = [
-  { value: "created_desc", label: "Created (Newest)" },
-  { value: "created_asc", label: "Created (Oldest)" },
-  { value: "updated_desc", label: "Modified (Newest)" },
-  { value: "name_asc", label: "Name (A–Z)" },
-  { value: "name_desc", label: "Name (Z–A)" },
-  { value: "size_desc", label: "Size (Largest)" },
-];
-
-function AccountProviderIcon({ provider }: { provider: string }) {
-  return (
-    <ProviderBrandIcon
-      name={provider}
-      className="h-5 w-5 shrink-0"
-      fallback={
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-[10px] font-bold text-primary">
-          {providerLabel(provider).charAt(0)}
-        </span>
-      }
-    />
-  );
-}
-
-function accountTitle(account: ConnectedAccount) {
-  const name = account.displayName?.trim();
-  if (name) return name;
-  return `My ${providerLabel(account.provider)}`;
-}
-
-function mapFile(file: BackendFile): FileItem {
-  return mapApiFileToItem(file);
-}
-
-function mapFolder(folder: BackendFolder): FolderItem {
-  return {
-    id: folder.id,
-    name: folder.name,
-    color: folder.color,
-    parentId: folder.parentId,
-    providerFolderId: folder.providerFolderId,
-    updated: `Updated ${formatDate(folder.updatedAt)}`,
-  };
-}
-
-function FolderColorFields({
-  color,
-  onColorChange,
-}: {
-  color: string;
-  onColorChange: (color: string) => void;
-}) {
-  const normalizedColor = normalizeFolderColor(color);
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-2 text-sm font-semibold">
-        Folder Color
-        <Input
-          type="color"
-          value={normalizedColor}
-          onChange={(event) => onColorChange(event.target.value)}
-          className="h-12 p-1"
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {folderColorOptions.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onColorChange(option)}
-            className={
-              normalizedColor === option
-                ? "h-8 w-8 rounded-lg border-2 border-border"
-                : "h-8 w-8 rounded-lg border border-border"
-            }
-            style={{ backgroundColor: option }}
-            aria-label={`Use ${option} folder color`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+import { AccountProviderIcon } from "@/views/all-files/AccountProviderIcon";
+import { FolderColorFields } from "@/views/all-files/FolderColorFields";
+import {
+  ACCOUNT_FOLDER_PREFIX,
+  FILES_PAGE_SIZE,
+  isAccountFolderId,
+  isLinkedFileId,
+  isLinkedFolderId,
+  LINKED_BROWSE_LIMIT,
+  LINKED_FILE_PREFIX,
+  LINKED_FOLDER_PREFIX,
+  MAX_RENAME_LENGTH,
+  parseLinkedRef,
+} from "@/views/all-files/linked-ids";
+import { accountTitle, mapFile, mapFolder } from "@/views/all-files/mappers";
+import {
+  type BackendFile,
+  type BackendFolder,
+  type ConnectedAccount,
+  FILE_SORT_OPTIONS,
+  type FileSort,
+  type ProviderBrowseFile,
+  type ProviderBrowseFolder,
+  type ProviderBrowseResult,
+} from "@/views/all-files/types";
 
 export function AllFilesPage() {
   const sp = useSearchParams() ?? new URLSearchParams();
@@ -1093,7 +957,9 @@ export function AllFilesPage() {
     }
     if (isAccountFolderId(folder.id)) {
       const accountId = folder.id.slice(ACCOUNT_FOLDER_PREFIX.length);
-      return connectedAccounts.find((account) => account.id === accountId) ?? null;
+      return (
+        connectedAccounts.find((account) => account.id === accountId) ?? null
+      );
     }
     if (isLinkedFolderId(folder.id)) {
       const ref = parseLinkedRef(folder.id);
@@ -1126,7 +992,11 @@ export function AllFilesPage() {
         return;
       }
       if (provider.includes("dropbox")) {
-        window.open("https://www.dropbox.com/home", "_blank", "noopener,noreferrer");
+        window.open(
+          "https://www.dropbox.com/home",
+          "_blank",
+          "noopener,noreferrer",
+        );
         return;
       }
       if (provider.includes("onedrive") || provider.includes("microsoft")) {
@@ -1351,7 +1221,9 @@ export function AllFilesPage() {
     if (ids.length === 0) return;
 
     // If every file is a linked provider item from the same account, move in-cloud.
-    const linked = filesToMove.filter((file) => file.id && isLinkedFileId(file.id));
+    const linked = filesToMove.filter(
+      (file) => file.id && isLinkedFileId(file.id),
+    );
     if (linked.length === filesToMove.length) {
       const accountId = linked[0]?.connectedAccountId;
       const providerId = linked[0]?.providerFileId;
@@ -1360,7 +1232,8 @@ export function AllFilesPage() {
         providerId &&
         linked.every(
           (file) =>
-            file.connectedAccountId === accountId && Boolean(file.providerFileId),
+            file.connectedAccountId === accountId &&
+            Boolean(file.providerFileId),
         )
       ) {
         if (linked.length > 1) {
@@ -1380,7 +1253,7 @@ export function AllFilesPage() {
 
     const archiveIds = filesToMove
       .filter((file) => file.id && !isLinkedFileId(file.id))
-      .map((file) => file.id!) ;
+      .map((file) => file.id!);
     if (archiveIds.length === 0) {
       toast.danger("These items cannot be moved here yet.");
       return;
@@ -1529,7 +1402,11 @@ export function AllFilesPage() {
     let accountId = folder.connectedAccountId ?? null;
     let providerId = folder.providerFolderId ?? null;
 
-    if ((!accountId || !providerId) && folder.id && isLinkedFolderId(folder.id)) {
+    if (
+      (!accountId || !providerId) &&
+      folder.id &&
+      isLinkedFolderId(folder.id)
+    ) {
       const parsed = parseLinkedRef(folder.id);
       if (parsed) {
         accountId = accountId ?? parsed.accountId;
@@ -1556,9 +1433,7 @@ export function AllFilesPage() {
 
     const target = resolveVirtualFolderTargetFromFile(targetFile);
     if (!target) {
-      toast.danger(
-        "This file cannot be added to a virtual folder yet.",
-      );
+      toast.danger("This file cannot be added to a virtual folder yet.");
       return;
     }
     setVirtualFolderTarget(target);
@@ -1579,9 +1454,7 @@ export function AllFilesPage() {
 
     const target = resolveVirtualFolderTargetFromFolder(targetFolder);
     if (!target) {
-      toast.danger(
-        "This folder cannot be added to a virtual folder yet.",
-      );
+      toast.danger("This folder cannot be added to a virtual folder yet.");
       return;
     }
     setVirtualFolderTarget(target);
@@ -1989,100 +1862,101 @@ export function AllFilesPage() {
               actions={
                 <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
                   {!isCloudFolderView ? (
-                  <Popover
-                    isOpen={accountFilterOpen}
-                    onOpenChange={setAccountFilterOpen}
-                  >
-                    <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
-                      <span className="flex min-w-0 items-center gap-2">
-                        {selectedAccount ? (
-                          <AccountProviderIcon
-                            provider={selectedAccount.provider}
-                          />
-                        ) : null}
-                        <span className="truncate">
-                          {selectedAccount
-                            ? accountTitle(selectedAccount)
-                            : "All Accounts"}
+                    <Popover
+                      isOpen={accountFilterOpen}
+                      onOpenChange={setAccountFilterOpen}
+                    >
+                      <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
+                        <span className="flex min-w-0 items-center gap-2">
+                          {selectedAccount ? (
+                            <AccountProviderIcon
+                              provider={selectedAccount.provider}
+                            />
+                          ) : null}
+                          <span className="truncate">
+                            {selectedAccount
+                              ? accountTitle(selectedAccount)
+                              : "All Accounts"}
+                          </span>
                         </span>
-                      </span>
-                      <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
-                    </Popover.Trigger>
-                    <Popover.Content className="w-72 p-1.5">
-                      <Popover.Dialog>
-                        <button
-                          type="button"
-                          className={cn(
-                            "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                            !filterAccountId
-                              ? "bg-primary/10 font-semibold text-primary"
-                              : "font-medium text-foreground hover:bg-black/5",
-                          )}
-                          onClick={() => {
-                            setAccountFilterOpen(false);
-                            patchHomeParams({
-                              accountId: null,
-                              cloudFolder: null,
-                              folderId: null,
-                            });
-                          }}
-                        >
-                          All Accounts
-                        </button>
-                        {accountFilterOptions.map((account) => {
-                          const email = account.email?.trim();
-                          const showEmail =
-                            Boolean(email) &&
-                            (selectedAccount
-                              ? accountFilterOptions.length > 1
-                              : connectedAccounts.filter(
-                                  (item) => item.provider === account.provider,
-                                ).length > 1);
-                          return (
-                            <button
-                              key={account.id}
-                              type="button"
-                              className={cn(
-                                "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                                filterAccountId === account.id
-                                  ? "bg-primary/10 font-semibold text-primary"
-                                  : "font-medium text-foreground hover:bg-black/5",
-                              )}
-                              onClick={() => {
-                                setAccountFilterOpen(false);
-                                patchHomeParams({
-                                  accountId: account.id,
-                                  cloudFolder: null,
-                                  folderId: null,
-                                });
-                              }}
-                            >
-                              <AccountProviderIcon
-                                provider={account.provider}
-                              />
-                              <span className="min-w-0 flex-1 overflow-hidden">
-                                <span className="block truncate">
-                                  {accountTitle(account)}
-                                </span>
-                                {showEmail ? (
-                                  <span
-                                    className={cn(
-                                      "mt-0.5 block truncate text-[11px] font-normal",
-                                      filterAccountId === account.id
-                                        ? "text-primary/80"
-                                        : "text-muted",
-                                    )}
-                                  >
-                                    {email}
+                        <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
+                      </Popover.Trigger>
+                      <Popover.Content className="w-72 p-1.5">
+                        <Popover.Dialog>
+                          <button
+                            type="button"
+                            className={cn(
+                              "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                              !filterAccountId
+                                ? "bg-primary/10 font-semibold text-primary"
+                                : "font-medium text-foreground hover:bg-black/5",
+                            )}
+                            onClick={() => {
+                              setAccountFilterOpen(false);
+                              patchHomeParams({
+                                accountId: null,
+                                cloudFolder: null,
+                                folderId: null,
+                              });
+                            }}
+                          >
+                            All Accounts
+                          </button>
+                          {accountFilterOptions.map((account) => {
+                            const email = account.email?.trim();
+                            const showEmail =
+                              Boolean(email) &&
+                              (selectedAccount
+                                ? accountFilterOptions.length > 1
+                                : connectedAccounts.filter(
+                                    (item) =>
+                                      item.provider === account.provider,
+                                  ).length > 1);
+                            return (
+                              <button
+                                key={account.id}
+                                type="button"
+                                className={cn(
+                                  "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                                  filterAccountId === account.id
+                                    ? "bg-primary/10 font-semibold text-primary"
+                                    : "font-medium text-foreground hover:bg-black/5",
+                                )}
+                                onClick={() => {
+                                  setAccountFilterOpen(false);
+                                  patchHomeParams({
+                                    accountId: account.id,
+                                    cloudFolder: null,
+                                    folderId: null,
+                                  });
+                                }}
+                              >
+                                <AccountProviderIcon
+                                  provider={account.provider}
+                                />
+                                <span className="min-w-0 flex-1 overflow-hidden">
+                                  <span className="block truncate">
+                                    {accountTitle(account)}
                                   </span>
-                                ) : null}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </Popover.Dialog>
-                    </Popover.Content>
-                  </Popover>
+                                  {showEmail ? (
+                                    <span
+                                      className={cn(
+                                        "mt-0.5 block truncate text-[11px] font-normal",
+                                        filterAccountId === account.id
+                                          ? "text-primary/80"
+                                          : "text-muted",
+                                      )}
+                                    >
+                                      {email}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </Popover.Dialog>
+                      </Popover.Content>
+                    </Popover>
                   ) : null}
 
                   <Popover
