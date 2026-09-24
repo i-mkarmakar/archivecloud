@@ -39,12 +39,23 @@ const { requireAuthUser, prismaMock } = vi.hoisted(() => {
     },
     connectedAccount: {
       findFirst: vi.fn(),
+      findFirstOrThrow: vi.fn(),
       findMany: vi.fn(),
+      update: vi.fn(),
     },
     transferJob: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+    },
+    uploadSession: {
+      findFirstOrThrow: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    uploadRoutingPolicy: {
+      upsert: vi.fn(),
       update: vi.fn(),
     },
     workspaceInvite: {
