@@ -1,7 +1,11 @@
+import { CustomerPortal } from "@polar-sh/nextjs";
+import { headers } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
 import { normalizePlanId, type PlanId } from "@/lib/plans";
-import { prisma } from "@/server/config/prisma";
 import { env } from "@/server/config/env";
+import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
 import { isAdminEmail, isBillingEnabled } from "@/server/modules/billing/admin";
@@ -9,8 +13,20 @@ import { getUserPlanId } from "@/server/modules/billing/plan-gate";
 import {
   createPolarClient,
   getPolarProductId,
+  getPolarServer,
   isPolarConfigured,
 } from "@/server/modules/billing/polar";
+import {
+  polarWebhookHeaders,
+  verifyAndParsePolarWebhook,
+  WebhookVerificationError,
+} from "@/server/modules/billing/polar-webhooks";
+import {
+  grantLifetimeFromPolarOrder,
+  markPolarSubscriptionEnded,
+  revokeLifetimeFromPolarOrder,
+  upsertPolarSubscription,
+} from "@/server/modules/billing/sync-subscription";
 import { createAuditLog } from "@/server/utils/audit";
 
 export async function getBillingStatusHandler(request: Request) {
@@ -364,4 +380,121 @@ export async function listBillingHistoryHandler(request: Request) {
     }));
 
   return json({ items });
+}
+
+async function dispatchPolarEvent(payload: {
+  type: string;
+  data: unknown;
+}): Promise<void> {
+  switch (payload.type) {
+    case "order.paid":
+      await grantLifetimeFromPolarOrder(payload.data as never);
+      break;
+    case "order.refunded":
+      await revokeLifetimeFromPolarOrder(payload.data as never);
+      break;
+    case "subscription.created":
+    case "subscription.updated":
+    case "subscription.active":
+    case "subscription.canceled":
+    case "subscription.uncanceled":
+      await upsertPolarSubscription(payload.data as never);
+      break;
+    case "subscription.revoked":
+      await markPolarSubscriptionEnded(
+        (payload.data as { id: string }).id,
+        "revoked",
+      );
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * Polar webhook endpoint — see:
+ * https://polar.sh/docs/integrate/sdk/adapters/nextjs
+ * https://polar.sh/docs/integrate/webhooks/delivery
+ */
+export async function polarWebhookHandler(request: Request) {
+  const webhookSecret = env.POLAR_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    return errorJson(
+      "BILLING_NOT_CONFIGURED",
+      "POLAR_WEBHOOK_SECRET is not set.",
+      503,
+    );
+  }
+
+  const requestBody = await request.text();
+  const webhookHeaders = polarWebhookHeaders(request.headers);
+
+  let webhookPayload: { type: string; data: unknown };
+  try {
+    webhookPayload = verifyAndParsePolarWebhook(
+      requestBody,
+      webhookHeaders,
+      webhookSecret,
+    ) as { type: string; data: unknown };
+  } catch (error) {
+    if (error instanceof WebhookVerificationError) {
+      // Polar docs: 403 on verification failure
+      return NextResponse.json({ received: false }, { status: 403 });
+    }
+    throw error;
+  }
+
+  await dispatchPolarEvent(webhookPayload);
+
+  // Prefer 2xx quickly; 202 matches Polar custom-handler examples
+  return NextResponse.json({ received: true }, { status: 202 });
+}
+
+export async function billingPortalHandler(req: NextRequest) {
+  if (!isPolarConfigured() || !env.POLAR_ACCESS_TOKEN) {
+    return errorJson(
+      "BILLING_NOT_CONFIGURED",
+      "Polar billing is not configured.",
+      503,
+    );
+  }
+
+  const historyFallback = new URL("/billing/history", env.APP_URL);
+  historyFallback.searchParams.set("portal_error", "1");
+
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session?.user?.id) {
+      return NextResponse.redirect(new URL("/signin", env.APP_URL));
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { polarCustomerId: true },
+    });
+
+    const polarCustomerId = dbUser?.polarCustomerId?.trim() || null;
+    const externalCustomerId = session.user.id.trim();
+
+    const handler = polarCustomerId
+      ? CustomerPortal({
+          accessToken: env.POLAR_ACCESS_TOKEN,
+          server: getPolarServer(),
+          returnUrl: `${env.APP_URL}/settings`,
+          getCustomerId: async () => polarCustomerId,
+        })
+      : CustomerPortal({
+          accessToken: env.POLAR_ACCESS_TOKEN,
+          server: getPolarServer(),
+          returnUrl: `${env.APP_URL}/settings`,
+          getExternalCustomerId: async () => externalCustomerId,
+        });
+
+    return await handler(req);
+  } catch (error) {
+    console.error("[billing/portal]", error);
+    return NextResponse.redirect(historyFallback);
+  }
 }

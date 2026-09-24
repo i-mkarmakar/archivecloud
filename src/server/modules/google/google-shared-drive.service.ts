@@ -1,17 +1,17 @@
+import type { Readable } from "node:stream";
+import { google } from "googleapis";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { google } from "googleapis";
-import type { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
-import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import {
   createOAuthClient,
   getAuthedGoogleClient,
   googleDriveOAuthScopes,
 } from "@/server/modules/google/google.service";
+import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { encryptText } from "@/server/utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
@@ -20,10 +20,7 @@ const appFolderName = "archivecloud";
 export const googleSharedDriveOAuthScopes = [...googleDriveOAuthScopes];
 
 function resolveGoogleSharedDriveRedirectUri(): string {
-  return (
-    process.env.GOOGLE_SHARED_DRIVE_REDIRECT_URI ??
-    `${env.APP_URL}/connected-accounts/google-shared-drive/callback`
-  );
+  return env.GOOGLE_SHARED_DRIVE_REDIRECT_URI;
 }
 
 function isConfiguredEnvValue(
