@@ -9,6 +9,7 @@
     "dev": "next dev -p 9050",
     "start": "next start -p 9050",
     "check-types": "tsc --noEmit",
+    "test": "vitest run",
     "prepare": "husky",
     "format": "biome format --write .",
     "check-format": "biome format .",
@@ -75,7 +76,9 @@
     "prisma": "^7.10.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.7"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
