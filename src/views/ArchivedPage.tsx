@@ -7,11 +7,11 @@ import { FileGrid } from "@/components/drive/FileGrid";
 import { FileTable } from "@/components/drive/FileTable";
 import { FileViewToggle } from "@/components/drive/FileViewToggle";
 import { MetricCard } from "@/components/drive/MetricCard";
+import { PageHeader } from "@/components/drive/PageHeader";
 import {
   FileGridSkeleton,
   FileListSkeleton,
 } from "@/components/drive/PageSkeletons";
-import { PageHeader } from "@/components/drive/PageHeader";
 import type { FileItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import {
@@ -39,11 +39,12 @@ export function ArchivedPage() {
   const allSelected = files.length > 0 && selectedIds.size === files.length;
 
   function toggleFile(file: FileItem) {
-    if (!file.id) return;
+    const fileId = file.id;
+    if (!fileId) return;
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(file.id!)) next.delete(file.id!);
-      else next.add(file.id!);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
       return next;
     });
   }

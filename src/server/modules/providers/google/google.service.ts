@@ -52,6 +52,7 @@ export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig
   ]);
 
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "google_drive", status: "active" },
@@ -62,8 +63,8 @@ export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig
     data: {
       userId: null,
       provider: "google_drive",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: googleDriveOAuthScopes,
       status: "active",

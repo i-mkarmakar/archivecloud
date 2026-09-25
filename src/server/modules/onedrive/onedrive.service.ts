@@ -52,6 +52,7 @@ export async function ensureGlobalOneDriveProviderConfig(): Promise<ProviderConf
     "build-onedrive-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "onedrive", status: "active" },
@@ -62,8 +63,8 @@ export async function ensureGlobalOneDriveProviderConfig(): Promise<ProviderConf
     data: {
       userId: null,
       provider: "onedrive",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: onedriveOAuthScopes,
       status: "active",

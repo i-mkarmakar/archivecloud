@@ -1259,10 +1259,15 @@ export async function renameConnectedAccountItemHandler(
       return json({ item: moved });
     }
 
+    const newName = body.name;
+    if (!newName) {
+      return errorJson("VALIDATION_ERROR", "Provide name or parentId.", 400);
+    }
+
     const renamed = await renameProviderFile({
       account,
       providerFileId,
-      newName: body.name!,
+      newName,
     });
 
     // Keep local folder/file rows in sync when this provider item is tracked.
@@ -1274,7 +1279,7 @@ export async function renameConnectedAccountItemHandler(
           providerFolderId: providerFileId,
           deletedAt: null,
         },
-        data: { name: body.name! },
+        data: { name: newName },
       }),
       prisma.file.updateMany({
         where: {
@@ -1283,7 +1288,7 @@ export async function renameConnectedAccountItemHandler(
           providerFileId,
           deletedAt: null,
         },
-        data: { name: body.name! },
+        data: { name: newName },
       }),
     ]);
 

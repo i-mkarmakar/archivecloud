@@ -7,11 +7,12 @@ export function useFileSelection(displayFiles: FileItem[]) {
   );
 
   function toggleFileSelection(file: FileItem) {
-    if (!file.id) return;
+    const fileId = file.id;
+    if (!fileId) return;
     setSelectedFileIds((current) => {
       const next = new Set(current);
-      if (next.has(file.id!)) next.delete(file.id!);
-      else next.add(file.id!);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
       return next;
     });
   }

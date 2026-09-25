@@ -85,6 +85,7 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     "build-pcloud-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   const existing = await prisma.providerConfig.findFirst({
     where: { userId: null, provider: "pcloud", status: "active" },
@@ -102,8 +103,8 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     await prisma.providerConfig.update({
       where: { id: existing.id },
       data: {
-        clientIdEncrypted: encryptText(clientId!),
-        clientSecretEncrypted: encryptText(clientSecret!),
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
         redirectUri,
         status: "active",
       },
@@ -122,8 +123,8 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     data: {
       userId: null,
       provider: "pcloud",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: [],
       status: "active",

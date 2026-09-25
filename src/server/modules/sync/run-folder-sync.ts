@@ -74,7 +74,8 @@ async function syncOneDirection(params: {
       );
     }
 
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (!current) break;
     foldersVisited += 1;
 
     const sourceBrowse = await browseProviderFolder(

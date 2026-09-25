@@ -47,6 +47,7 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     "build-dropbox-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   const existing = await prisma.providerConfig.findFirst({
     where: { userId: null, provider: "dropbox", status: "active" },
@@ -65,8 +66,8 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     await prisma.providerConfig.update({
       where: { id: existing.id },
       data: {
-        clientIdEncrypted: encryptText(clientId!),
-        clientSecretEncrypted: encryptText(clientSecret!),
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
         redirectUri,
         scopes: dropboxOAuthScopes,
         status: "active",
@@ -86,8 +87,8 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     data: {
       userId: null,
       provider: "dropbox",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: dropboxOAuthScopes,
       status: "active",

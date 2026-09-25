@@ -75,6 +75,7 @@ export async function ensureGlobalGoogleSharedDriveProviderConfig(): Promise<Pro
     "build-google-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "google_shared_drive", status: "active" },
@@ -85,8 +86,8 @@ export async function ensureGlobalGoogleSharedDriveProviderConfig(): Promise<Pro
     data: {
       userId: null,
       provider: "google_shared_drive",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: googleSharedDriveOAuthScopes,
       status: "active",

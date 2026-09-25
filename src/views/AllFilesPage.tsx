@@ -960,8 +960,10 @@ export function AllFilesPage() {
     }
 
     const archiveIds = filesToMove
-      .filter((file) => file.id && !isLinkedFileId(file.id))
-      .map((file) => file.id!);
+      .filter((file): file is typeof file & { id: string } =>
+        Boolean(file.id && !isLinkedFileId(file.id)),
+      )
+      .map((file) => file.id);
     if (archiveIds.length === 0) {
       toast.danger("These items cannot be moved here yet.");
       return;
@@ -1327,16 +1329,17 @@ export function AllFilesPage() {
       }
 
       if (isLinkedFolderId(folder.id)) {
+        const folderId = folder.id;
         const account =
           folderMenuAccount(folder) ??
           (() => {
-            const ref = parseLinkedRef(folder.id!);
+            const ref = parseLinkedRef(folderId);
             return ref
               ? connectedAccounts.find((item) => item.id === ref.accountId)
               : null;
           })();
         const providerId =
-          folder.providerFolderId ?? parseLinkedRef(folder.id)?.providerId;
+          folder.providerFolderId ?? parseLinkedRef(folderId)?.providerId;
         if (!account || !providerId) {
           throw new Error("Missing cloud account details for this folder.");
         }
@@ -1968,11 +1971,12 @@ export function AllFilesPage() {
         x={folderContextMenu.x}
         y={folderContextMenu.y}
         folder={folderContextMenu.folder}
-        goToDriveLabel={
-          folderMenuAccount(folderContextMenu.folder)
-            ? `Go to ${providerLabel(folderMenuAccount(folderContextMenu.folder)!.provider)}`
-            : "Go to Drive"
-        }
+        goToDriveLabel={(() => {
+          const account = folderMenuAccount(folderContextMenu.folder);
+          return account
+            ? `Go to ${providerLabel(account.provider)}`
+            : "Go to Drive";
+        })()}
         onClose={() => setFolderContextMenu({ x: 0, y: 0, folder: null })}
         onDetails={() => {
           if (!activeFolderForMenu) return;
@@ -2043,9 +2047,10 @@ export function AllFilesPage() {
             ? {
                 folder: activeFolderForMenu,
                 provider: folderMenuAccount(activeFolderForMenu)?.provider,
-                accountName: folderMenuAccount(activeFolderForMenu)
-                  ? accountTitle(folderMenuAccount(activeFolderForMenu)!)
-                  : "Archive Cloud",
+                accountName: (() => {
+                  const account = folderMenuAccount(activeFolderForMenu);
+                  return account ? accountTitle(account) : "Archive Cloud";
+                })(),
                 owner: "You",
                 modified: activeFolderForMenu.updated || null,
                 mimeType: null,
@@ -2275,20 +2280,22 @@ export function AllFilesPage() {
                 &apos;{activeFolderForMenu?.name ?? "folder"}&apos;
               </span>{" "}
               folder
-              {folderMenuAccount(activeFolderForMenu) ? (
-                <>
-                  {" "}
-                  from{" "}
-                  <span className="font-extrabold">
-                    &apos;
-                    {accountTitle(folderMenuAccount(activeFolderForMenu)!)}
-                    &apos;
-                  </span>
-                </>
-              ) : (
-                <> from Archive Cloud</>
-              )}
-              ?
+              {(() => {
+                const account = folderMenuAccount(activeFolderForMenu);
+                return account ? (
+                  <>
+                    {" "}
+                    from{" "}
+                    <span className="font-extrabold">
+                      &apos;
+                      {accountTitle(account)}
+                      &apos;
+                    </span>
+                  </>
+                ) : (
+                  <> from Archive Cloud</>
+                );
+              })()}?
             </p>
             <p className="text-sm font-semibold text-amber-600">
               All contents will be deleted permanently.

@@ -22,7 +22,8 @@ export async function computeFolderTreeHash(
   while (queue.length > 0) {
     if (foldersVisited >= MAX_SYNC_FOLDERS) break;
 
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (!current) break;
     foldersVisited += 1;
 
     const browse = await browseProviderFolder(

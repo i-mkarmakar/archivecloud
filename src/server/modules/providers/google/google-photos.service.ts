@@ -50,6 +50,7 @@ export async function ensureGlobalGooglePhotosProviderConfig(): Promise<Provider
     "build-google-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   const existing = await prisma.providerConfig.findFirst({
     where: { userId: null, provider: "google_photos", status: "active" },
@@ -64,8 +65,8 @@ export async function ensureGlobalGooglePhotosProviderConfig(): Promise<Provider
         where: { id: existing.id },
         data: {
           redirectUri,
-          clientIdEncrypted: encryptText(clientId!),
-          clientSecretEncrypted: encryptText(clientSecret!),
+          clientIdEncrypted: encryptText(clientId),
+          clientSecretEncrypted: encryptText(clientSecret),
           scopes: googlePhotosOAuthScopes,
         },
       });
@@ -82,8 +83,8 @@ export async function ensureGlobalGooglePhotosProviderConfig(): Promise<Provider
     data: {
       userId: null,
       provider: "google_photos",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: googlePhotosOAuthScopes,
       status: "active",
