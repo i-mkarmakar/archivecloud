@@ -38,7 +38,7 @@ export function RotatingSearchPlaceholder({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-y-0 start-9 z-10 flex items-center gap-0 text-base leading-none text-field-placeholder sm:text-sm"
+      className="pointer-events-none absolute inset-y-0 start-9 z-10 flex items-center gap-0 text-sm leading-none text-field-placeholder sm:text-sm"
     >
       <span>Search&nbsp;</span>
       <span className="inline-flex h-[1.25em] items-center overflow-hidden">

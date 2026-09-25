@@ -25,6 +25,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#1e9df1",
+  width: "device-width",
+  initialScale: 1,
+  // Do not set viewportFit: "cover" — on iPhone Safari it enables large
+  // safe-area insets that show up as an intermittent empty band under the
+  // status bar when combined with sticky/fixed chrome.
 };
 
 export default function RootLayout({

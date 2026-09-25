@@ -164,6 +164,7 @@ export function DashboardSidebar({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
+  hideNewButton = false,
   className,
 }: {
   safePathname: string;
@@ -174,6 +175,8 @@ export function DashboardSidebar({
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  /** Hide the New button (e.g. mobile drawer — FAB is shown instead). */
+  hideNewButton?: boolean;
   className?: string;
 }) {
   const searchParams = useSearchParams() ?? new URLSearchParams();
@@ -342,14 +345,16 @@ export function DashboardSidebar({
             )}
           </div>
 
-          <div className="mt-5 flex justify-center px-2 pb-2">
-            <SidebarNewButton
-              safePathname={safePathname}
-              onNavigate={onNavigate}
-              iconOnly
-              disabled={connectedAccounts.length === 0}
-            />
-          </div>
+          {hideNewButton ? null : (
+            <div className="mt-5 flex justify-center px-2 pb-2">
+              <SidebarNewButton
+                safePathname={safePathname}
+                onNavigate={onNavigate}
+                iconOnly
+                disabled={connectedAccounts.length === 0}
+              />
+            </div>
+          )}
 
           <ScrollShadow className="flex-1 px-2 py-2" hideScrollBar>
             <nav className="grid gap-2.5">
@@ -520,13 +525,15 @@ export function DashboardSidebar({
           </span>
         </div>
 
-        <div className="mt-5 min-w-0 px-3 pb-2">
-          <SidebarNewButton
-            safePathname={safePathname}
-            onNavigate={onNavigate}
-            disabled={connectedAccounts.length === 0}
-          />
-        </div>
+        {hideNewButton ? null : (
+          <div className="mt-5 min-w-0 px-3 pb-2">
+            <SidebarNewButton
+              safePathname={safePathname}
+              onNavigate={onNavigate}
+              disabled={connectedAccounts.length === 0}
+            />
+          </div>
+        )}
 
         <ScrollShadow
           className="min-h-0 min-w-0 flex-1 overflow-x-hidden px-2 py-2"

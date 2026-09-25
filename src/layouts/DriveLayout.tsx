@@ -1,16 +1,17 @@
 "use client";
 
 import { Drawer, toast, useOverlayState } from "@heroui/react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { BillingSuccessOverlay } from "@/components/billing/BillingSuccessOverlay";
 import { dashboardContentClassName } from "@/components/dashboard/config";
 import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { SidebarNewButton } from "@/components/dashboard/SidebarNewButton";
 import { UploadProgressPanel } from "@/components/dashboard/UploadProgressPanel";
+import { DashboardSearchProvider } from "@/context/DashboardSearchContext";
 import { useUpload } from "@/context/UploadContext";
 import { resetUserPlanStore } from "@/hooks/useUserPlan";
-import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { clearAppBoot } from "@/lib/app-boot";
 import { authClient } from "@/lib/auth-client";
@@ -266,85 +267,102 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     onLogout: logout,
   };
 
+  const searchProps = {
+    searchValue,
+    onSearchValueChange: setSearchValue,
+    onSearchSubmit: applyFilters,
+    accounts,
+    filterKind,
+    filterAccountId,
+    tags,
+    filterTagId,
+    filterMinSize,
+    filterMaxSize,
+    filterStartDate,
+    filterEndDate,
+    onFilterKindChange: setFilterKind,
+    onFilterAccountIdChange: setFilterAccountId,
+    onFilterTagIdChange: setFilterTagId,
+    onFilterMinSizeChange: setFilterMinSize,
+    onFilterMaxSizeChange: setFilterMaxSize,
+    onFilterStartDateChange: setFilterStartDate,
+    onFilterEndDateChange: setFilterEndDate,
+    onApplyFilters: applyFilters,
+    onClearFilters: clearFilters,
+  };
+
   return (
-    <div className="drive-app flex min-h-svh w-full bg-background text-foreground">
-      <div
-        className={cn(
-          "relative z-20 hidden h-svh shrink-0 overflow-visible transition-[width] duration-200 ease-out lg:flex",
-          desktopSidebarExpanded ? "w-[17rem]" : "w-[4.5rem]",
-        )}
-      >
-        <DashboardSidebar
-          {...sidebarProps}
-          collapsed={!desktopSidebarExpanded}
-          onToggleCollapse={() =>
-            setDesktopSidebarExpandedAndPersist(!desktopSidebarExpanded)
+    <DashboardSearchProvider value={searchProps}>
+      <div className="drive-app flex min-h-svh w-full bg-background text-foreground">
+        <div
+          className={cn(
+            "relative z-20 hidden h-svh shrink-0 overflow-visible transition-[width] duration-200 ease-out lg:flex",
+            desktopSidebarExpanded ? "w-[17rem]" : "w-[4.5rem]",
+          )}
+        >
+          <DashboardSidebar
+            {...sidebarProps}
+            collapsed={!desktopSidebarExpanded}
+            onToggleCollapse={() =>
+              setDesktopSidebarExpandedAndPersist(!desktopSidebarExpanded)
+            }
+          />
+        </div>
+
+        <Drawer state={sidebarDrawer}>
+          <Drawer.Backdrop isDismissable className="lg:hidden">
+            <Drawer.Content placement="left" className="lg:hidden">
+              <Drawer.Dialog className="h-full w-[17rem] max-w-[17rem] gap-0 overflow-hidden rounded-none border-0 bg-[#f4f7fa] p-0 shadow-none sm:w-[17rem]">
+                <DashboardSidebar
+                  {...sidebarProps}
+                  onNavigate={() => setSidebarOpen(false)}
+                  hideNewButton
+                  className="h-full w-full max-w-none border-r-0 bg-[#f4f7fa]"
+                />
+              </Drawer.Dialog>
+            </Drawer.Content>
+          </Drawer.Backdrop>
+        </Drawer>
+
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center lg:hidden">
+          <div className="pointer-events-auto">
+            <SidebarNewButton
+              safePathname={safePathname}
+              fab
+              disabled={
+                accounts.filter((account) => account.status === "connected")
+                  .length === 0
+              }
+            />
+          </div>
+        </div>
+
+        <div className="relative z-0 flex min-w-0 flex-1 flex-col lg:h-svh">
+          <DashboardNavbar
+            {...searchProps}
+            onOpenSidebar={() => setSidebarOpen(true)}
+            showDesktopBrand={false}
+          />
+
+          <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-24 sm:p-6 lg:p-8 lg:pb-8">
+            <div className={dashboardContentClassName}>{children}</div>
+          </main>
+        </div>
+
+        <UploadProgressPanel
+          uploadProgress={uploadProgress}
+          collapsed={uploadProgressCollapsed}
+          onToggleCollapsed={() => setUploadProgressCollapsed((v) => !v)}
+          onClose={() =>
+            setUploadProgress((current) => ({ ...current, open: false }))
           }
-        />
-      </div>
-
-      <Drawer state={sidebarDrawer}>
-        <Drawer.Backdrop isDismissable className="lg:hidden">
-          <Drawer.Content
-            placement="left"
-            className="lg:hidden max-w-[18rem] p-0"
-          >
-            <Drawer.Dialog className="h-full max-w-none p-0">
-              <DashboardSidebar
-                {...sidebarProps}
-                onNavigate={() => setSidebarOpen(false)}
-                className="h-full border-r-0"
-              />
-            </Drawer.Dialog>
-          </Drawer.Content>
-        </Drawer.Backdrop>
-      </Drawer>
-
-      <div className="relative z-0 flex min-w-0 flex-1 flex-col lg:h-svh">
-        <DashboardNavbar
-          searchValue={searchValue}
-          onSearchValueChange={setSearchValue}
-          onSearchSubmit={applyFilters}
-          accounts={accounts}
-          filterKind={filterKind}
-          filterAccountId={filterAccountId}
-          tags={tags}
-          filterTagId={filterTagId}
-          filterMinSize={filterMinSize}
-          filterMaxSize={filterMaxSize}
-          filterStartDate={filterStartDate}
-          filterEndDate={filterEndDate}
-          onFilterKindChange={setFilterKind}
-          onFilterAccountIdChange={setFilterAccountId}
-          onFilterTagIdChange={setFilterTagId}
-          onFilterMinSizeChange={setFilterMinSize}
-          onFilterMaxSizeChange={setFilterMaxSize}
-          onFilterStartDateChange={setFilterStartDate}
-          onFilterEndDateChange={setFilterEndDate}
-          onApplyFilters={applyFilters}
-          onClearFilters={clearFilters}
-          onOpenSidebar={() => setSidebarOpen(true)}
-          showDesktopBrand={false}
+          onRetry={retryFailedUpload}
         />
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className={dashboardContentClassName}>{children}</div>
-        </main>
+        <Suspense fallback={null}>
+          <BillingSuccessOverlay />
+        </Suspense>
       </div>
-
-      <UploadProgressPanel
-        uploadProgress={uploadProgress}
-        collapsed={uploadProgressCollapsed}
-        onToggleCollapsed={() => setUploadProgressCollapsed((v) => !v)}
-        onClose={() =>
-          setUploadProgress((current) => ({ ...current, open: false }))
-        }
-        onRetry={retryFailedUpload}
-      />
-
-      <Suspense fallback={null}>
-        <BillingSuccessOverlay />
-      </Suspense>
-    </div>
+    </DashboardSearchProvider>
   );
 }
