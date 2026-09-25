@@ -156,6 +156,36 @@ type PCloudTokenResponse = {
   error?: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parsePCloudTokenJson(data: unknown): PCloudTokenResponse {
+  if (!isRecord(data) || typeof data.result !== "number") {
+    throw new Error("pCloud token response was malformed.");
+  }
+  return {
+    result: data.result,
+    access_token:
+      typeof data.access_token === "string" ? data.access_token : undefined,
+    refresh_token:
+      typeof data.refresh_token === "string" ? data.refresh_token : undefined,
+    expires_in:
+      typeof data.expires_in === "number" ? data.expires_in : undefined,
+    token_type:
+      typeof data.token_type === "string" ? data.token_type : undefined,
+    uid:
+      typeof data.uid === "number" || typeof data.uid === "string"
+        ? data.uid
+        : undefined,
+    userid:
+      typeof data.userid === "number" || typeof data.userid === "string"
+        ? data.userid
+        : undefined,
+    error: typeof data.error === "string" ? data.error : undefined,
+  };
+}
+
 type PCloudApiResponse<T> = {
   result: number;
   error?: string;
@@ -173,7 +203,7 @@ export function resolvePCloudUserId(tokens: {
 async function parsePCloudTokenResponse(
   response: Response,
 ): Promise<PCloudTokenResponse> {
-  const data = (await response.json()) as PCloudTokenResponse;
+  const data = parsePCloudTokenJson(await response.json());
   if (!response.ok || data.result !== 0 || !data.access_token) {
     throw new Error(
       `pCloud token request failed: ${data.error ?? JSON.stringify(data)}`,

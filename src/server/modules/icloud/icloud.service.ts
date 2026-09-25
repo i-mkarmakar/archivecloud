@@ -29,7 +29,21 @@ function getICloudCreds(account: ConnectedAccount): ICloudCreds {
   if (!account.accessTokenEncrypted) {
     throw new Error("iCloud credentials missing on account.");
   }
-  return JSON.parse(decryptText(account.accessTokenEncrypted)) as ICloudCreds;
+  const data: unknown = JSON.parse(decryptText(account.accessTokenEncrypted));
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("appleId" in data) ||
+    !("appSpecificPassword" in data) ||
+    typeof data.appleId !== "string" ||
+    typeof data.appSpecificPassword !== "string"
+  ) {
+    throw new Error("iCloud credentials are malformed.");
+  }
+  return {
+    appleId: data.appleId,
+    appSpecificPassword: data.appSpecificPassword,
+  };
 }
 
 function providerLabel(provider: ICloudProvider): string {
