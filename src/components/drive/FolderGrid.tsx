@@ -38,52 +38,52 @@ const scaleConfig: Record<
   }
 > = {
   xs: {
-    grid: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-x-3 gap-y-3",
-    item: "min-h-36 min-w-0 px-1.5 py-1",
-    folderSlot: "h-24 w-full",
-    folderScale: "scale-[0.3]",
+    grid: "grid-cols-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-x-1.5 gap-y-2 sm:gap-x-3 sm:gap-y-3",
+    item: "min-h-24 min-w-0 px-0.5 py-0.5 sm:min-h-36 sm:px-1.5 sm:py-1",
+    folderSlot: "h-16 w-full sm:h-24",
+    folderScale: "scale-[0.22] sm:scale-[0.3]",
     folderSize: "sm",
+    title: "text-[10px] mt-0.5 sm:mt-1 sm:text-sm",
+    sub: "text-[8px] mt-0.5 sm:text-xs",
+  },
+  sm: {
+    grid: "grid-cols-3 sm:grid-cols-3 xl:grid-cols-4 gap-x-2 gap-y-3 sm:gap-x-3",
+    item: "min-h-36 min-w-0 px-1 py-1 sm:min-h-40 sm:px-2",
+    folderSlot: "h-24 w-full sm:h-28",
+    folderScale: "scale-[0.3] sm:scale-[0.34]",
+    folderSize: "md",
     title: "text-xs mt-1 sm:text-sm",
     sub: "text-[10px] mt-0.5 sm:text-xs",
   },
-  sm: {
-    grid: "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-3",
-    item: "min-h-40 min-w-0 px-2 py-1",
-    folderSlot: "h-28 w-full",
-    folderScale: "scale-[0.34]",
-    folderSize: "md",
-    title: "text-sm mt-1",
-    sub: "text-xs mt-0.5",
-  },
   md: {
-    grid: "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-3",
-    item: "min-h-48 min-w-0 p-1 sm:min-h-56 sm:p-2",
-    folderSlot: "h-40 w-full sm:h-44",
-    folderScale: "scale-[0.44] sm:scale-[0.48]",
+    grid: "grid-cols-3 sm:grid-cols-3 xl:grid-cols-4 gap-x-2 gap-y-3 sm:gap-x-3",
+    item: "min-h-40 min-w-0 p-1 sm:min-h-56 sm:p-2",
+    folderSlot: "h-32 w-full sm:h-44",
+    folderScale: "scale-[0.36] sm:scale-[0.48]",
     folderSize: "md",
-    title: "text-sm mt-2 sm:mt-2 sm:text-lg",
-    sub: "text-xs mt-0.5 sm:text-sm",
+    title: "text-xs mt-1.5 sm:mt-2 sm:text-lg",
+    sub: "text-[10px] mt-0.5 sm:text-sm",
   },
   lg: {
-    grid: "grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-3 sm:gap-y-4",
-    item: "min-h-60 min-w-0 p-2 sm:min-h-64 sm:p-3",
-    folderSlot: "h-48 w-full sm:h-56",
-    folderScale: "scale-[0.52] sm:scale-[0.58]",
+    grid: "grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-x-2 gap-y-3 sm:gap-x-4 sm:gap-y-4",
+    item: "min-h-48 min-w-0 p-1.5 sm:min-h-64 sm:p-3",
+    folderSlot: "h-40 w-full sm:h-56",
+    folderScale: "scale-[0.42] sm:scale-[0.58]",
     folderSize: "lg",
-    title: "text-base mt-2 sm:mt-3 sm:text-xl",
-    sub: "text-sm mt-0.5",
+    title: "text-sm mt-1.5 sm:mt-3 sm:text-xl",
+    sub: "text-xs mt-0.5 sm:text-sm",
   },
 };
 
 export function FolderGrid({
   items,
-  mobileTwoColumns = false,
   sizeScale = "sm",
   onFolderMenu,
   onFolderOpen,
   onDropItem,
 }: {
   items: FolderItem[];
+  /** @deprecated No longer used; mobile grids are always 3 columns. */
   mobileTwoColumns?: boolean;
   sizeScale?: FolderSizeScale;
   onFolderMenu?: (event: MouseEvent<HTMLElement>, folder: FolderItem) => void;
@@ -92,13 +92,7 @@ export function FolderGrid({
 }) {
   const cfg = scaleConfig[sizeScale];
   return (
-    <div
-      className={cn(
-        "mt-0 grid",
-        cfg.grid,
-        mobileTwoColumns && sizeScale === "md" && "grid-cols-2",
-      )}
-    >
+    <div className={cn("mt-0 grid", cfg.grid)}>
       {items.map((folder) => (
         // biome-ignore lint/a11y/useSemanticElements: menu button is nested inside folder item
         <div

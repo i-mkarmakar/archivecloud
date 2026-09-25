@@ -21,16 +21,16 @@ export function SuggestedSection({
   className?: string;
 }) {
   return (
-    <section className={cn("mt-7 first:mt-4", className)}>
+    <section className={cn("mt-7 first:mt-5 sm:mt-8 sm:first:mt-6", className)}>
       <button
         type="button"
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
         className={cn(
-          "inline-flex items-center gap-1.5 text-sm font-medium transition",
+          "inline-flex items-center gap-1.5 text-xs font-medium transition sm:text-sm",
           variant === "pill"
-            ? "rounded-full border border-primary/40 bg-white px-3 py-2 text-primary hover:bg-primary/10 dark:border-primary/40 dark:bg-transparent dark:text-primary dark:hover:bg-primary/10"
-            : "my-1 rounded-lg px-1.5 py-2 text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+            ? "rounded-full border border-primary/40 bg-white px-2.5 py-1.5 text-primary hover:bg-primary/10 sm:px-3 sm:py-2 dark:border-primary/40 dark:bg-transparent dark:text-primary dark:hover:bg-primary/10"
+            : "my-1 rounded-lg px-1 py-2 text-foreground hover:bg-black/5 sm:my-1 sm:px-1.5 sm:py-2 dark:hover:bg-white/10",
         )}
       >
         {variant === "plain" ? (
@@ -51,7 +51,7 @@ export function SuggestedSection({
           />
         ) : null}
       </button>
-      {open ? <div className="mt-4">{children}</div> : null}
+      {open ? <div className="mt-4 sm:mt-5">{children}</div> : null}
     </section>
   );
 }

@@ -2,9 +2,9 @@
 
 import { CloudArrowUpIn, FolderPlus } from "@gravity-ui/icons";
 import { Popover } from "@heroui/react";
+import { useRouter } from "next/navigation";
 import type { ElementType } from "react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export type SidebarCreateAction = "upload" | "new-folder";
@@ -68,16 +68,20 @@ export function SidebarNewButton({
   onNavigate,
   className,
   iconOnly = false,
+  fab = false,
   disabled = false,
 }: {
   safePathname: string;
   onNavigate?: () => void;
   className?: string;
   iconOnly?: boolean;
+  /** Circular floating-action style (plus only). */
+  fab?: boolean;
   disabled?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const isIcon = iconOnly || fab;
 
   function runAction(action: SidebarCreateAction) {
     if (disabled) return;
@@ -91,21 +95,24 @@ export function SidebarNewButton({
   }
 
   const triggerClassName = cn(
-    iconOnly
-      ? "inline-flex h-12 w-12 items-center justify-center rounded-xl border-transparent transition-opacity"
-      : "inline-flex h-11 items-center gap-2.5 rounded-full px-6 text-[15px] font-semibold transition-shadow",
+    fab
+      ? "inline-flex h-14 w-14 items-center justify-center rounded-full border-transparent transition-opacity"
+      : iconOnly
+        ? "inline-flex h-12 w-12 items-center justify-center rounded-xl border-transparent transition-opacity"
+        : "inline-flex h-11 items-center gap-2.5 rounded-full px-6 text-[15px] font-semibold transition-shadow",
     disabled
-      ? iconOnly
+      ? isIcon
         ? "cursor-not-allowed bg-[#dbe3ee] text-[#6b768a]"
         : "cursor-not-allowed border border-[#e2e8f0] bg-[#f1f4f8] text-[#6b768a] shadow-none"
-      : iconOnly
-        ? "cursor-pointer bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] hover:opacity-90"
+      : isIcon
+        ? "cursor-pointer bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_8px_20px_-6px_color-mix(in_oklch,var(--primary)_45%,transparent)] hover:opacity-90"
         : "cursor-pointer bg-white text-foreground shadow-sm hover:shadow-md",
     className,
   );
 
   const disabledTitle =
     "Connect a cloud account to create folders or upload files";
+  const plusClassName = fab ? "h-7 w-7 shrink-0" : "h-5 w-5 shrink-0";
 
   if (disabled) {
     return (
@@ -117,8 +124,8 @@ export function SidebarNewButton({
         title={disabledTitle}
         className={triggerClassName}
       >
-        <PlusIcon className="h-5 w-5 shrink-0" />
-        {iconOnly ? null : <span>New</span>}
+        <PlusIcon className={plusClassName} />
+        {isIcon ? null : <span>New</span>}
       </button>
     );
   }
@@ -126,11 +133,11 @@ export function SidebarNewButton({
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
       <Popover.Trigger className={triggerClassName} aria-label="New">
-        <PlusIcon className="h-5 w-5 shrink-0" />
-        {iconOnly ? null : <span>New</span>}
+        <PlusIcon className={plusClassName} />
+        {isIcon ? null : <span>New</span>}
       </Popover.Trigger>
       <Popover.Content
-        placement="bottom start"
+        placement={fab ? "top" : "bottom start"}
         className="w-[21rem] rounded-2xl border border-[#e6ebf2] bg-white p-px shadow-lg"
       >
         <Popover.Dialog>

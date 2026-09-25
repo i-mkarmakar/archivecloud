@@ -17,11 +17,11 @@ import { FileTable } from "@/components/drive/FileTable";
 import { FileViewToggle } from "@/components/drive/FileViewToggle";
 import { FolderGrid } from "@/components/drive/FolderGrid";
 import { defaultFolderColor } from "@/components/drive/folder-colors";
+import { PageHeader } from "@/components/drive/PageHeader";
 import {
   FileGridSkeleton,
   FileListSkeleton,
 } from "@/components/drive/PageSkeletons";
-import { PageHeader } from "@/components/drive/PageHeader";
 import { SuggestedSection } from "@/components/drive/SuggestedSection";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { FileItem, FolderItem } from "@/data/drive-data";
@@ -563,20 +563,41 @@ export function SharedPage() {
   const showNoAccountSkeleton = !accountsLoaded;
 
   return (
-    <div className="min-h-[620px] w-full min-w-0">
+    <div className="min-h-0 w-full min-w-0 sm:min-h-[620px]">
       <PageHeader
         title="Shared with me"
+        mobileSearchEnd={
+          showNoAccountEmpty || showNoAccountSkeleton ? undefined : (
+            <Button
+              size="sm"
+              variant="outline"
+              isIconOnly
+              className="h-9 w-9 shrink-0 rounded-lg sm:h-10 sm:w-10 sm:rounded-xl"
+              aria-label={syncingDrive ? "Syncing" : "Sync"}
+              isDisabled={syncingDrive}
+              onPress={() => syncGoogleDrive().catch(() => undefined)}
+            >
+              <ArrowRotateRight
+                className={
+                  syncingDrive
+                    ? "h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4"
+                    : "h-3.5 w-3.5 sm:h-4 sm:w-4"
+                }
+              />
+            </Button>
+          )
+        }
         actions={
           showNoAccountEmpty || showNoAccountSkeleton ? (
             <FileViewToggle mode={viewMode} onChange={setViewMode} />
           ) : (
-            <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+            <div className="flex w-full max-w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2">
               <Popover
                 isOpen={accountFilterOpen}
                 onOpenChange={setAccountFilterOpen}
               >
-                <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
-                  <span className="flex min-w-0 items-center gap-2">
+                <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[9.5rem] sm:max-w-[12rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
+                  <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                     {selectedAccount ? (
                       <AccountProviderIcon
                         provider={selectedAccount.provider}
@@ -633,9 +654,9 @@ export function SharedPage() {
               </Popover>
 
               <Popover isOpen={sortFilterOpen} onOpenChange={setSortFilterOpen}>
-                <Popover.Trigger className="inline-flex h-10 min-w-[10rem] max-w-[13rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Sliders className="h-4 w-4 shrink-0 text-muted" />
+                <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[10rem] sm:max-w-[13rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
+                  <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                    <Sliders className="h-3.5 w-3.5 shrink-0 text-muted sm:h-4 sm:w-4" />
                     <span className="truncate">{activeSortLabel}</span>
                   </span>
                   <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
@@ -672,7 +693,7 @@ export function SharedPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-10"
+                className="hidden h-10 lg:inline-flex"
                 isDisabled={syncingDrive}
                 onPress={() => syncGoogleDrive().catch(() => undefined)}
               >

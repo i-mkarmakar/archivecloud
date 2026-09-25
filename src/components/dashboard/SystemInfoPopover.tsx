@@ -1,19 +1,16 @@
 "use client";
 
-import { CircleCheck } from "@gravity-ui/icons";
+import { Bell, CircleCheck } from "@gravity-ui/icons";
 import { Button, Popover, toast } from "@heroui/react";
-import { NotificationBell } from "@/components/ui/notification-bell";
 
 export function SystemInfoPopover() {
   return (
     <Popover>
       <Popover.Trigger
         aria-label="Notifications"
-        className="inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F4F4F9] text-[#868593] outline-none transition-transform active:scale-90 focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <NotificationBell asChild count={0} size={28} color="red">
-          <span />
-        </NotificationBell>
+        <Bell className="h-4 w-4" />
       </Popover.Trigger>
       <Popover.Content
         placement="bottom end"

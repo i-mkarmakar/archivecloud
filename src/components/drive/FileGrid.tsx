@@ -25,26 +25,26 @@ const scaleConfig: Record<
   }
 > = {
   xs: {
-    grid: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6",
-    preview: "aspect-[5/3]",
-    title: "text-xs",
-    icon: "h-3.5 w-3.5",
-    header: "gap-1.5 px-2 pt-2 pb-1.5",
-    body: "px-1.5 pb-1.5",
-    footer: "gap-1.5 px-2 pb-2 pt-0",
-    menu: "h-6 w-6",
-    placeholderIcon: "h-8 w-8 rounded-md p-1.5",
+    grid: "grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-1.5 gap-y-2 sm:gap-x-4 sm:gap-y-6",
+    preview: "aspect-[4/3] sm:aspect-[5/3]",
+    title: "text-[9px] sm:text-xs",
+    icon: "h-2.5 w-2.5 sm:h-3.5 sm:w-3.5",
+    header: "gap-0.5 px-1 pt-1 pb-0.5 sm:gap-1.5 sm:px-2 sm:pt-2 sm:pb-1.5",
+    body: "px-0.5 pb-0.5 sm:px-1.5 sm:pb-1.5",
+    footer: "gap-0.5 px-1 pb-1 pt-0 sm:gap-1.5 sm:px-2 sm:pb-2",
+    menu: "h-4 w-4 sm:h-6 sm:w-6",
+    placeholderIcon: "h-5 w-5 rounded p-1 sm:h-8 sm:w-8 sm:rounded-md sm:p-1.5",
   },
   sm: {
-    grid: "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5",
-    preview: "aspect-[16/10]",
-    title: "text-sm",
-    icon: "h-4 w-4",
-    header: "gap-2 px-3 pt-3 pb-2",
-    body: "px-2 pb-2",
-    footer: "gap-2 px-3 pb-3 pt-0.5",
-    menu: "h-8 w-8",
-    placeholderIcon: "h-10 w-10 rounded-md p-2 sm:h-12 sm:w-12 sm:p-2.5",
+    grid: "grid-cols-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1.5 sm:gap-2.5",
+    preview: "aspect-[4/3] sm:aspect-[16/10]",
+    title: "text-[10px] sm:text-sm",
+    icon: "h-3 w-3 sm:h-4 sm:w-4",
+    header: "gap-1 px-1.5 pt-1.5 pb-1 sm:gap-2 sm:px-3 sm:pt-3 sm:pb-2",
+    body: "px-1 pb-1 sm:px-2 sm:pb-2",
+    footer: "gap-1 px-1.5 pb-1.5 pt-0 sm:gap-2 sm:px-3 sm:pb-3 sm:pt-0.5",
+    menu: "h-5 w-5 sm:h-8 sm:w-8",
+    placeholderIcon: "h-7 w-7 rounded-md p-1.5 sm:h-12 sm:w-12 sm:p-2.5",
   },
   md: {
     grid: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4",
@@ -154,7 +154,13 @@ function DriveFileCard({
           }}
           aria-label={`Open ${file.name} menu`}
         >
-          <EllipsisVertical className="h-3.5 w-3.5" />
+          <EllipsisVertical
+            className={cn(
+              sizeScale === "xs" || sizeScale === "sm"
+                ? "h-3 w-3 sm:h-3.5 sm:w-3.5"
+                : "h-3.5 w-3.5",
+            )}
+          />
         </button>
       </div>
 
@@ -187,7 +193,11 @@ function DriveFileCard({
         <p
           className={cn(
             "min-w-0 truncate text-muted",
-            sizeScale === "xs" ? "text-[10px]" : "text-xs",
+            sizeScale === "xs"
+              ? "text-[8px] sm:text-[10px]"
+              : sizeScale === "sm"
+                ? "text-[9px] sm:text-xs"
+                : "text-xs",
           )}
           title={file.accountEmail ?? undefined}
         >
