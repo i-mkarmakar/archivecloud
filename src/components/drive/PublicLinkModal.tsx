@@ -171,9 +171,7 @@ export function PublicLinkModal({
       else toast.success("Public link deactivated.");
     } catch (error) {
       toast.danger(
-        error instanceof Error
-          ? error.message
-          : "Failed to update public link",
+        error instanceof Error ? error.message : "Failed to update public link",
       );
     } finally {
       setToggling(false);
@@ -222,7 +220,8 @@ export function PublicLinkModal({
     !loading &&
     (share.status === "none" ||
       (share.needsRegenerate && share.status !== "disabled"));
-  const showActive = !loading && share.status === "active" && Boolean(share.url);
+  const showActive =
+    !loading && share.status === "active" && Boolean(share.url);
   const showDisabled = !loading && share.status === "disabled";
 
   const qrImageUrl = share.url ? qrCodeImageUrl(share.url) : "";
@@ -263,7 +262,9 @@ export function PublicLinkModal({
               </div>
               <Button
                 isDisabled={generating}
-                onPress={() => void generateLink(Boolean(share.needsRegenerate))}
+                onPress={() =>
+                  void generateLink(Boolean(share.needsRegenerate))
+                }
               >
                 <Link className="h-4 w-4" />
                 {generating ? "Generating…" : "Generate Public Link"}

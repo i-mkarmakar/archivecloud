@@ -10,10 +10,7 @@ import {
   type PlanFeatureFlags,
   type PlanId,
 } from "@/lib/plans";
-import {
-  readUserPlanCache,
-  writeUserPlanCache,
-} from "@/lib/user-plan-cache";
+import { readUserPlanCache, writeUserPlanCache } from "@/lib/user-plan-cache";
 
 type BillingStatus = {
   planId: string;
@@ -135,11 +132,7 @@ export function resetUserPlanStore() {
 }
 
 export function useUserPlan() {
-  const state = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
+  const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
     void ensureBillingFetched();

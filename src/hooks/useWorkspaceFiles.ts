@@ -12,7 +12,10 @@ import {
 
 const DEFAULT_PAGE_SIZE = 40;
 
-export function useWorkspaceFiles(view: FileListView, limit = DEFAULT_PAGE_SIZE) {
+export function useWorkspaceFiles(
+  view: FileListView,
+  limit = DEFAULT_PAGE_SIZE,
+) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

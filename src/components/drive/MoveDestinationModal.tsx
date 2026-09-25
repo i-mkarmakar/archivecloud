@@ -81,8 +81,7 @@ export function MoveDestinationModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const sourceAccountId = source?.kind === "linked" ? source.accountId : null;
-  const sourceProviderId =
-    source?.kind === "linked" ? source.providerId : null;
+  const sourceProviderId = source?.kind === "linked" ? source.providerId : null;
 
   useEffect(() => {
     if (!open) return;
@@ -166,7 +165,8 @@ export function MoveDestinationModal({
           return;
         }
 
-        const browseParent = parentId && parentId !== "null" ? parentId : "root";
+        const browseParent =
+          parentId && parentId !== "null" ? parentId : "root";
         const data = await apiFetch<{
           folders: Array<{ id: string; name: string }>;
           breadcrumbs?: Array<{ id: string; name: string }>;
@@ -204,8 +204,7 @@ export function MoveDestinationModal({
             { id: "root", name: accountName },
             ...data.breadcrumbs
               .filter(
-                (crumb) =>
-                  crumb.id && crumb.id !== "root" && crumb.id !== "0",
+                (crumb) => crumb.id && crumb.id !== "root" && crumb.id !== "0",
               )
               .map((crumb) => ({ id: crumb.id, name: crumb.name })),
           ]);

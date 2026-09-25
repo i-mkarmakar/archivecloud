@@ -230,10 +230,7 @@ export function ManageTagsModal({ open, target, onClose, onSaved }: Props) {
             {selectedTags.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {selectedTags.map((tag) => (
-                  <ActionTooltip
-                    key={tag.id}
-                    label={`Remove “${tag.name}”`}
-                  >
+                  <ActionTooltip key={tag.id} label={`Remove “${tag.name}”`}>
                     <button
                       type="button"
                       onClick={() => toggleTag(tag.id)}

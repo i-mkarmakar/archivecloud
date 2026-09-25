@@ -22,15 +22,8 @@ import {
 import { formatBytes } from "@/lib/api";
 
 export function ArchivedPage() {
-  const {
-    files,
-    loading,
-    loadingMore,
-    nextCursor,
-    error,
-    reload,
-    loadMore,
-  } = useWorkspaceFiles("archived");
+  const { files, loading, loadingMore, nextCursor, error, reload, loadMore } =
+    useWorkspaceFiles("archived");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useFileViewMode("archivecloud:archived-view");
   const [pendingAction, setPendingAction] = useState<

@@ -209,7 +209,10 @@ export function DashboardNavbar({
                       thunder={hasThunder}
                     />
                   ) : (
-                    <span className="inline-block h-8 w-8 shrink-0" aria-hidden />
+                    <span
+                      className="inline-block h-8 w-8 shrink-0"
+                      aria-hidden
+                    />
                   )}
                   <span className="text-lg font-extrabold tracking-tight text-foreground">
                     Archive Cloud

@@ -29,9 +29,10 @@ type TagRow = {
 };
 
 function hasFolderTagDelegate() {
-  return typeof (
-    prisma as { folderTag?: { findMany?: unknown } }
-  ).folderTag?.findMany === "function";
+  return (
+    typeof (prisma as { folderTag?: { findMany?: unknown } }).folderTag
+      ?.findMany === "function"
+  );
 }
 
 async function assertFolderTagAccess(userId: string, folderKey: string) {
@@ -142,7 +143,8 @@ export async function setFolderTagsHandler(
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
   const folderKey = params?.id ? decodeURIComponent(params.id) : "";
-  if (!folderKey) return errorJson("FOLDER_NOT_FOUND", "Folder not found.", 404);
+  if (!folderKey)
+    return errorJson("FOLDER_NOT_FOUND", "Folder not found.", 404);
 
   const body = z
     .object({
@@ -177,7 +179,8 @@ export async function listFolderTagsHandler(
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
   const folderKey = params?.id ? decodeURIComponent(params.id) : "";
-  if (!folderKey) return errorJson("FOLDER_NOT_FOUND", "Folder not found.", 404);
+  if (!folderKey)
+    return errorJson("FOLDER_NOT_FOUND", "Folder not found.", 404);
 
   const allowed = await assertFolderTagAccess(user.id, folderKey);
   if (!allowed) return errorJson("FOLDER_NOT_FOUND", "Folder not found.", 404);

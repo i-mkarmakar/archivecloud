@@ -182,8 +182,12 @@ export function DashboardSidebar({
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
-  const { planId: currentPlanId, plan: currentPlan, hasThunder, loaded: planLoaded } =
-    useUserPlan();
+  const {
+    planId: currentPlanId,
+    plan: currentPlan,
+    hasThunder,
+    loaded: planLoaded,
+  } = useUserPlan();
   const [transferUsage, setTransferUsage] = useState<TransferUsage | null>(
     null,
   );
@@ -243,8 +247,7 @@ export function DashboardSidebar({
 
   function isAccountActive(accountId: string) {
     return (
-      safePathname === "/home" &&
-      searchParams.get("accountId") === accountId
+      safePathname === "/home" && searchParams.get("accountId") === accountId
     );
   }
 

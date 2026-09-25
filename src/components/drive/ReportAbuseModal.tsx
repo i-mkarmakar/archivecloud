@@ -24,12 +24,7 @@ type Props = {
 const fieldClass =
   "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20";
 
-export function ReportAbuseModal({
-  open,
-  onClose,
-  shareUrl,
-  fileName,
-}: Props) {
+export function ReportAbuseModal({ open, onClose, shareUrl, fileName }: Props) {
   const turnstileRef = useRef<TurnstileFieldHandle>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [comments, setComments] = useState("");
@@ -107,9 +102,9 @@ export function ReportAbuseModal({
           onSelectionChange={onCategoryChange}
           className="w-full"
         >
-                <Label className="text-sm font-semibold text-foreground">
-                  Category
-                </Label>
+          <Label className="text-sm font-semibold text-foreground">
+            Category
+          </Label>
           <Select.Trigger className="h-10 min-h-10 rounded-lg">
             <Select.Value />
             <Select.Indicator />
@@ -143,11 +138,15 @@ export function ReportAbuseModal({
           />
         </label>
 
-        <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        <label
+          htmlFor="report-abuse-email"
+          className="grid gap-1.5 text-sm font-semibold text-foreground"
+        >
           <span>
             Your email <span className="text-destructive">*</span>
           </span>
           <Input
+            id="report-abuse-email"
             type="email"
             required
             value={email}
