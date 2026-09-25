@@ -11,7 +11,7 @@ import {
 } from "@/server/modules/transfers/usage";
 import { createAuditLog } from "@/server/utils/audit";
 
-export async function processTransferJob(jobId: string) {
+async function processTransferJob(jobId: string) {
   const job = await prisma.transferJob.findUnique({
     where: { id: jobId },
     include: {

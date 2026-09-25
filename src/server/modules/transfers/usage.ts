@@ -4,7 +4,7 @@ import { getPlanById } from "@/lib/plans";
 import { prisma } from "@/server/config/prisma";
 import { getUserPlanId } from "@/server/modules/billing/plan-gate";
 
-export function currentYearMonth(date = new Date()) {
+function currentYearMonth(date = new Date()) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;

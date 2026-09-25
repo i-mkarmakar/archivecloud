@@ -81,14 +81,14 @@ function isHeicLike(mimeType: string, fileName: string) {
   );
 }
 
-export const GOOGLE_CONNECT_RETURN_COOKIE = "archivecloud_oauth_return";
+const GOOGLE_CONNECT_RETURN_COOKIE = "archivecloud_oauth_return";
 
 function safeAppPath(path: string | null | undefined): string | null {
   if (!path?.startsWith("/") || path.startsWith("//")) return null;
   return path;
 }
 
-export async function createGoogleConnectUrl(
+async function createGoogleConnectUrl(
   userId: string,
   request: Request,
   options?: { loginHint?: string },
@@ -188,7 +188,7 @@ export async function listConnectedAccountsHandler(request: Request) {
   });
 }
 
-export async function createOneDriveConnectUrl(
+async function createOneDriveConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalOneDriveProviderConfig();
@@ -372,7 +372,7 @@ export async function onedriveCallbackHandler(request: Request) {
   }
 }
 
-export async function createDropboxConnectUrl(
+async function createDropboxConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalDropboxProviderConfig();

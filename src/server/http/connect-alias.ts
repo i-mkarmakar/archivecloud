@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import type { NextResponse } from "next/server";
 
-export const CONNECT_ALIAS_COOKIE = "archivecloud_connect_alias";
+const CONNECT_ALIAS_COOKIE = "archivecloud_connect_alias";
 const MAX_ALIAS_LEN = 50;
 
 export function parseConnectAliasParam(request: Request): string | null {

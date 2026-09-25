@@ -10,7 +10,7 @@ function secretsEqual(provided: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-export function assertCronAuthorized(request: Request): Response | null {
+function assertCronAuthorized(request: Request): Response | null {
   const secret = env.CRON_SECRET?.trim();
   if (!secret || secret.startsWith("build-cron-secret")) {
     return errorJson(

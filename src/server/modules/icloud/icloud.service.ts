@@ -129,13 +129,13 @@ export async function syncICloudQuota(accountId: string) {
   });
 }
 
-export async function ensureICloudAppFolder(
+async function ensureICloudAppFolder(
   _account: ConnectedAccount,
 ): Promise<string> {
   return "root";
 }
 
-export async function browseICloudDriveFolder(
+async function browseICloudDriveFolder(
   accountId: string,
   userId: string,
   _parentId: string,
@@ -215,5 +215,3 @@ export async function deleteICloudFile(
 ): Promise<never> {
   throw new Error(ICLOUD_NOT_AVAILABLE_MSG);
 }
-
-export { getICloudCreds };

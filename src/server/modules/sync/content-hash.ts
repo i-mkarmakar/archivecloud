@@ -6,7 +6,7 @@ import { browseProviderFolder } from "@/server/modules/providers/operations";
 
 export const MAX_SYNC_FOLDERS = 200;
 
-export async function computeFolderTreeHash(
+async function computeFolderTreeHash(
   account: ConnectedAccount,
   userId: string,
   rootParentId: string,

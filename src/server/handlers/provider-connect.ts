@@ -96,7 +96,7 @@ async function validateOAuthCallbackSession(
   return sessionUser;
 }
 
-export async function createPCloudConnectUrl(
+async function createPCloudConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalPCloudProviderConfig();
@@ -289,7 +289,7 @@ export async function pcloudCallbackHandler(request: Request) {
   }
 }
 
-export async function createGooglePhotosConnectUrl(
+async function createGooglePhotosConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalGooglePhotosProviderConfig();
@@ -452,7 +452,7 @@ export async function googlePhotosCallbackHandler(request: Request) {
   }
 }
 
-export async function createGoogleSharedDriveConnectUrl(
+async function createGoogleSharedDriveConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalGoogleSharedDriveProviderConfig();

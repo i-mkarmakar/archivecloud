@@ -295,7 +295,7 @@ export async function pullProviderFile(
   }
 }
 
-export async function pushProviderFile(
+async function pushProviderFile(
   account: ConnectedAccount,
   pulled: PulledFile,
   destParentId?: string | null,
