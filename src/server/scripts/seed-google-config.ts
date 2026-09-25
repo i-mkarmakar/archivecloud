@@ -8,6 +8,7 @@ const scopes = [
 ];
 
 async function main() {
+  // Seed runs via tsx outside Next — keep raw process.env (not env.ts).
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri =
