@@ -5,7 +5,6 @@ import { toast } from "@heroui/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { AppPreloader } from "@/components/AppPreloader";
 import { GoogleLogo } from "@/components/auth/GoogleLogo";
 import {
   CAPTCHA_ERROR_MESSAGE,
@@ -34,17 +33,18 @@ type AuthMode = "signin" | "signup";
 export function LoginForm({
   mode,
   className,
+  onEnterApp,
+  onShowOverlay,
 }: {
   mode: AuthMode;
   className?: string;
+  /** Parent shows full-page AppPreloader and navigates into the app. */
+  onEnterApp: (path?: string) => void;
+  /** Full-page AppPreloader without navigating (e.g. Google OAuth handoff). */
+  onShowOverlay?: (show: boolean) => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const {
-    data: session,
-    isPending: sessionPending,
-    isRefetching: sessionRefetching,
-  } = authClient.useSession();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -53,7 +53,6 @@ export function LoginForm({
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [enteringApp, setEnteringApp] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileFieldHandle>(null);
 
@@ -66,26 +65,6 @@ export function LoginForm({
     turnstileRef.current?.reset();
   }
 
-  function enterApp(path: string = redirectPath) {
-    markAppBoot();
-    setEnteringApp(true);
-    router.replace(path);
-    router.refresh();
-  }
-
-  useEffect(() => {
-    // Wait out pending/refetch so a just-signed-out stale session does not
-    // immediately bounce us into the app preloader → /home loop.
-    if (sessionPending || sessionRefetching) return;
-    if (!session) {
-      if (enteringApp) setEnteringApp(false);
-      return;
-    }
-    if (enteringApp) return;
-    enterApp(redirectPath);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, sessionPending, sessionRefetching]);
-
   useEffect(() => {
     if (!isSignIn) return;
     if (searchParams.get("verified") !== "1") return;
@@ -95,9 +74,10 @@ export function LoginForm({
   }, [isSignIn, searchParams]);
 
   async function continueWithGoogle() {
-    if (loading || googleLoading || enteringApp) return;
+    if (loading || googleLoading) return;
     setGoogleLoading(true);
     markAppBoot();
+    onShowOverlay?.(true);
     try {
       await authClient.signIn.social({
         provider: "google",
@@ -105,13 +85,14 @@ export function LoginForm({
       });
     } catch {
       setGoogleLoading(false);
+      onShowOverlay?.(false);
       toast.danger("Google sign-in failed. Please try again.");
     }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (loading || googleLoading || enteringApp || !captchaReady) return;
+    if (loading || googleLoading || !captchaReady) return;
     setLoading(true);
 
     const fetchOptions = captchaFetchOptions(captchaToken);
@@ -140,7 +121,7 @@ export function LoginForm({
         return;
       }
       if (data) {
-        enterApp(redirectPath);
+        onEnterApp(redirectPath);
       }
       return;
     }
@@ -164,11 +145,8 @@ export function LoginForm({
       return;
     }
     toast.success("Check your email for a 6-digit verification code.");
+    onShowOverlay?.(true);
     router.push(verifyUrl);
-  }
-
-  if (enteringApp) {
-    return <AppPreloader />;
   }
 
   if (isSignIn && showForgotPassword) {

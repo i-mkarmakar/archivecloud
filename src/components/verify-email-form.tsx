@@ -26,7 +26,14 @@ import { maskEmail } from "@/lib/mask-email";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
 import { cn } from "@/lib/utils";
 
-export function VerifyEmailForm({ className }: { className?: string }) {
+export function VerifyEmailForm({
+  className,
+  onShowOverlay,
+}: {
+  className?: string;
+  /** Full-page AppPreloader while navigating away from AuthShell. */
+  onShowOverlay?: (show: boolean) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -116,6 +123,7 @@ export function VerifyEmailForm({ className }: { className?: string }) {
     }
 
     toast.success("Email verified. Sign in to continue.");
+    onShowOverlay?.(true);
     router.push(
       `/auth/sign-in?verified=1&email=${encodeURIComponent(email.trim())}&callbackUrl=${encodeURIComponent(redirectPath)}`,
     );

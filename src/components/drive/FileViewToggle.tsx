@@ -19,30 +19,27 @@ export function FileViewToggle({
   ];
 
   return (
-    <div className="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-border bg-white sm:h-10 sm:rounded-xl">
+    <div className="inline-flex h-9 shrink-0 overflow-hidden rounded-lg border border-border bg-white sm:h-10 sm:rounded-xl">
       {options.map((option, index) => {
         const Icon = option.icon;
         const active = mode === option.id;
         return (
-          <div key={option.id} className="flex items-stretch">
-            {index > 0 ? (
-              <span className="w-px self-stretch bg-border" aria-hidden />
-            ) : null}
-            <button
-              type="button"
-              aria-label={option.label}
-              aria-pressed={active}
-              onClick={() => onChange(option.id)}
-              className={cn(
-                "flex w-9 items-center justify-center transition sm:w-11 lg:w-12",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted hover:bg-black/5 hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
-          </div>
+          <button
+            key={option.id}
+            type="button"
+            aria-label={option.label}
+            aria-pressed={active}
+            onClick={() => onChange(option.id)}
+            className={cn(
+              "flex h-full items-center justify-center px-2.5 transition sm:px-3 lg:px-3.5",
+              index > 0 && "border-l border-border",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "bg-transparent text-muted hover:bg-black/5 hover:text-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          </button>
         );
       })}
     </div>

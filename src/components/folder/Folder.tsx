@@ -56,6 +56,12 @@ const sizeScales = {
 type FolderComponentProps = Omit<React.ComponentProps<"div">, "color"> & {
   color?: "black" | "white" | "blue";
   size?: "sm" | "md" | "lg";
+  /** Force open appearance (papers fanned out, flap lifted). */
+  open?: boolean;
+  /** When false, disables hover/click open animation. Default true. */
+  interactive?: boolean;
+  /** When false, snaps to pose with no spring motion. Default true. */
+  animated?: boolean;
 };
 
 const BASE_WIDTH = 321;
@@ -64,16 +70,29 @@ const BASE_HEIGHT = 270;
 const FLAP_PATH =
   "M0 25C0 11.1929 11.1929 0 25 0H136.084C143.044 0 149.689 2.90139 154.42 8.00608L178.08 33.5343C182.811 38.639 189.456 41.5404 196.416 41.5404H296C309.807 41.5404 321 52.7333 321 66.5404V216C321 229.807 309.807 241 296 241H25C11.1929 241 0 229.807 0 216V25Z";
 
+const springTransition = {
+  type: "spring" as const,
+  stiffness: 120,
+  damping: 13,
+};
+
 const FolderComponent = ({
   color = "black",
   size = "md",
+  open: openProp,
+  interactive = true,
+  animated = true,
   className,
   ...props
 }: FolderComponentProps) => {
   const theme = themes[color] ?? themes.black;
   const scale = sizeScales[size];
   const [isHovered, setIsHovered] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpenInternal, setIsOpenInternal] = useState(false);
+  const isOpen = openProp ?? isOpenInternal;
+  const motionTransition = animated
+    ? springTransition
+    : { duration: 0, ease: "linear" as const };
 
   return (
     <div
@@ -87,24 +106,36 @@ const FolderComponent = ({
       {/* biome-ignore lint/a11y/useSemanticElements: preserve folder layout from design component */}
       <div
         role="button"
-        tabIndex={0}
-        className="relative cursor-pointer select-none"
+        tabIndex={interactive ? 0 : -1}
+        aria-disabled={!interactive}
+        className={cn(
+          "relative select-none",
+          interactive ? "cursor-pointer" : "pointer-events-none",
+        )}
         style={{
           width: BASE_WIDTH * scale,
           height: BASE_HEIGHT * scale,
           touchAction: "manipulation",
           WebkitTapHighlightColor: "transparent",
         }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => {
-          setIsHovered(false);
-          setIsOpen(false);
+        onMouseEnter={() => {
+          if (!interactive) return;
+          setIsHovered(true);
         }}
-        onClick={() => setIsOpen((o) => !o)}
+        onMouseLeave={() => {
+          if (!interactive) return;
+          setIsHovered(false);
+          if (openProp === undefined) setIsOpenInternal(false);
+        }}
+        onClick={() => {
+          if (!interactive || openProp !== undefined) return;
+          setIsOpenInternal((o) => !o);
+        }}
         onKeyDown={(event) => {
+          if (!interactive || openProp !== undefined) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            setIsOpen((o) => !o);
+            setIsOpenInternal((o) => !o);
           }
         }}
       >
@@ -132,48 +163,45 @@ const FolderComponent = ({
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
             <motion.div
               className="absolute"
+              initial={false}
               animate={{
                 y: isOpen ? -160 : isHovered ? -30 : -10,
                 x: isOpen ? 70 : 40,
                 rotate: isOpen ? 18 : isHovered ? 14 : 10,
               }}
               transition={{
-                type: "spring",
-                stiffness: 120,
-                damping: 13,
-                delay: isOpen ? 0.1 : isHovered ? 0.12 : 0,
+                ...motionTransition,
+                delay: animated ? (isOpen ? 0.1 : isHovered ? 0.12 : 0) : 0,
               }}
             >
               <Card id={1} theme={theme} />
             </motion.div>
             <motion.div
               className="absolute"
+              initial={false}
               animate={{
                 y: isOpen ? -180 : isHovered ? -35 : -20,
                 x: isOpen ? 0 : 3,
                 rotate: isOpen ? -3 : isHovered ? -1 : 2,
               }}
               transition={{
-                type: "spring",
-                stiffness: 120,
-                damping: 13,
-                delay: isOpen ? 0.05 : isHovered ? 0.06 : 0,
+                ...motionTransition,
+                delay: animated ? (isOpen ? 0.05 : isHovered ? 0.06 : 0) : 0,
               }}
             >
               <Card id={2} theme={theme} />
             </motion.div>
             <motion.div
               className="absolute"
+              initial={false}
               animate={{
                 y: isOpen ? -170 : isHovered ? -44 : -22,
                 x: isOpen ? -65 : -40,
                 rotate: isOpen ? -14 : isHovered ? -9 : -5,
               }}
               transition={{
-                type: "spring",
-                stiffness: 120,
-                damping: 13,
-                delay: isOpen ? 0 : 0,
+                ...motionTransition,
+                delay: 0,
               }}
             >
               <Card id={3} theme={theme} />
@@ -188,8 +216,13 @@ const FolderComponent = ({
               width: 321,
               height: 241,
             }}
+            initial={false}
             animate={{ rotateX: isOpen ? -55 : isHovered ? -45 : -15 }}
-            transition={{ type: "spring", stiffness: 120, damping: 14 }}
+            transition={
+              animated
+                ? { type: "spring", stiffness: 120, damping: 14 }
+                : { duration: 0, ease: "linear" }
+            }
           >
             <div
               className="absolute inset-0"

@@ -45,7 +45,8 @@ const CLOUD_SERVICES = [
   {
     id: "google_photos",
     title: "Google Photos",
-    description: "Securely access, share & manage your Google Photos.",
+    description:
+      "Import selected photos and videos via the Google Photos Picker.",
     href: "/settings",
     keywords: ["photos", "google photos"],
   },

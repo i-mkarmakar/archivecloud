@@ -28,6 +28,42 @@ export const OAUTH_CONNECT_MESSAGE_HANDLERS: Record<
   },
 };
 
+/** Open a popup centered on the current browser window. */
+export function openCenteredPopup(
+  url: string,
+  name: string,
+  width = 540,
+  height = 720,
+): Window | null {
+  const dualScreenLeft = window.screenLeft ?? window.screenX ?? 0;
+  const dualScreenTop = window.screenTop ?? window.screenY ?? 0;
+  const viewportWidth =
+    window.innerWidth ||
+    document.documentElement.clientWidth ||
+    window.screen.width;
+  const viewportHeight =
+    window.innerHeight ||
+    document.documentElement.clientHeight ||
+    window.screen.height;
+  const left = Math.max(
+    0,
+    Math.round(dualScreenLeft + (viewportWidth - width) / 2),
+  );
+  const top = Math.max(
+    0,
+    Math.round(dualScreenTop + (viewportHeight - height) / 2),
+  );
+  const features = [
+    `width=${width}`,
+    `height=${height}`,
+    `left=${left}`,
+    `top=${top}`,
+    "resizable=yes",
+    "scrollbars=yes",
+  ].join(",");
+  return window.open(url, name, features);
+}
+
 export async function connectOAuthPopup(options: {
   connectUrlPath: string;
   popupName: string;
@@ -40,7 +76,7 @@ export async function connectOAuthPopup(options: {
   }
   const path = `${url.pathname}${url.search}`;
 
-  const popup = window.open(path, options.popupName, "width=540,height=720");
+  const popup = openCenteredPopup(path, options.popupName);
   if (!popup) {
     window.location.assign(path);
   }

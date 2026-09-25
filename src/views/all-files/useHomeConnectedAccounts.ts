@@ -1,7 +1,20 @@
 import { toast } from "@heroui/react";
 import { type Dispatch, type SetStateAction, useEffect, useRef } from "react";
 import { apiFetch, isAbortError, isNetworkError } from "@/lib/api";
+import { writeHasConnectedAccountsHint } from "@/lib/connected-accounts-hint";
 import type { ConnectedAccount } from "@/views/all-files/types";
+
+function applyAccounts(
+  accounts: ConnectedAccount[],
+  setConnectedAccounts: Dispatch<SetStateAction<ConnectedAccount[]>>,
+  setAccountsLoaded: Dispatch<SetStateAction<boolean>>,
+) {
+  setConnectedAccounts(accounts);
+  setAccountsLoaded(true);
+  writeHasConnectedAccountsHint(
+    accounts.some((account) => account.status === "connected"),
+  );
+}
 
 export function useHomeConnectedAccounts(args: {
   loadAll: () => Promise<void>;
@@ -27,8 +40,7 @@ export function useHomeConnectedAccounts(args: {
         );
         if (controller.signal.aborted) return;
         const accounts = data.accounts || [];
-        setConnectedAccounts(accounts);
-        setAccountsLoaded(true);
+        applyAccounts(accounts, setConnectedAccounts, setAccountsLoaded);
 
         const hasGoogleDrive = accounts.some(
           (account) =>
@@ -96,8 +108,11 @@ export function useHomeConnectedAccounts(args: {
         const data = await apiFetch<{ accounts: ConnectedAccount[] }>(
           "/connected-accounts",
         );
-        setConnectedAccounts(data.accounts || []);
-        setAccountsLoaded(true);
+        applyAccounts(
+          data.accounts || [],
+          setConnectedAccounts,
+          setAccountsLoaded,
+        );
       } catch (error) {
         console.warn("Failed to refresh connected accounts:", error);
       }

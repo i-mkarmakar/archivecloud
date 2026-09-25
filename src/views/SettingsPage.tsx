@@ -903,7 +903,7 @@ export function SettingsPage() {
                           : "bg-[#22c55e]",
                     )}
                   >
-                    {planLoaded ? (hasThunder ? "Thunder" : "Free") : "Free"}
+                    {planLoaded ? (hasThunder ? "Thunder" : "Free") : ""}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-muted">

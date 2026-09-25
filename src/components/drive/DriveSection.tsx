@@ -4,7 +4,7 @@ import { ChevronDown } from "@gravity-ui/icons";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function SuggestedSection({
+export function DriveSection({
   title,
   open,
   onOpenChange,
@@ -15,7 +15,6 @@ export function SuggestedSection({
   title: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-
   variant?: "plain" | "pill";
   children?: ReactNode;
   className?: string;

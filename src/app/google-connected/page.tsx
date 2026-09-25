@@ -1,15 +1,12 @@
 "use client";
+
 import { Suspense } from "react";
+import { AppPreloader } from "@/components/AppPreloader";
 import { GoogleConnectedPage } from "@/views/GoogleConnectedPage";
+
 export default function Page() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center p-5 text-sm text-muted">
-          Processing connection...
-        </main>
-      }
-    >
+    <Suspense fallback={<AppPreloader label="Connecting Google Drive" />}>
       <GoogleConnectedPage />
     </Suspense>
   );

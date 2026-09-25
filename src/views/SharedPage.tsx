@@ -21,8 +21,9 @@ import { PageHeader } from "@/components/drive/PageHeader";
 import {
   FileGridSkeleton,
   FileListSkeleton,
+  FolderGridSkeleton,
 } from "@/components/drive/PageSkeletons";
-import { SuggestedSection } from "@/components/drive/SuggestedSection";
+import { DriveSection } from "@/components/drive/DriveSection";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
@@ -719,14 +720,14 @@ export function SharedPage() {
         />
       ) : (
         <>
-          <SuggestedSection
-            title="Folders"
+          <DriveSection
+            title="All Folders"
             variant="plain"
             open={foldersOpen}
             onOpenChange={setFoldersOpen}
           >
             {loading ? (
-              <FileGridSkeleton count={4} label="Loading folders" />
+              <FolderGridSkeleton count={4} label="Loading folders" />
             ) : folders.length > 0 ? (
               <FolderGrid
                 items={folders}
@@ -741,10 +742,10 @@ export function SharedPage() {
                 </p>
               </div>
             )}
-          </SuggestedSection>
+          </DriveSection>
 
-          <SuggestedSection
-            title="Files"
+          <DriveSection
+            title="All files"
             variant="plain"
             open={filesOpen}
             onOpenChange={setFilesOpen}
@@ -789,7 +790,7 @@ export function SharedPage() {
             ) : (
               <FileTable files={files} mode="shared" />
             )}
-          </SuggestedSection>
+          </DriveSection>
         </>
       )}
     </div>

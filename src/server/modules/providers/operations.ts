@@ -295,6 +295,14 @@ export async function pullProviderFile(
   }
 }
 
+export async function pushPulledFileToProvider(
+  account: ConnectedAccount,
+  pulled: PulledFile,
+  destParentId?: string | null,
+): Promise<ProviderCopyResult> {
+  return pushProviderFile(account, pulled, destParentId);
+}
+
 async function pushProviderFile(
   account: ConnectedAccount,
   pulled: PulledFile,

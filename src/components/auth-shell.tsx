@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/drive/BrandLogo";
 import Grainient from "@/components/Grainient";
+import { cn } from "@/lib/utils";
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
+  const [grainReady, setGrainReady] = useState(false);
+
   return (
-    <div className="grid min-h-svh lg:grid-cols-[40%_60%]">
+    <div className="grid min-h-svh bg-white lg:grid-cols-[40%_60%]">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <Link
@@ -21,8 +25,19 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <div className="w-full max-w-xs">{children}</div>
         </div>
       </div>
-      <div className="relative hidden overflow-hidden bg-[#0b3a66] lg:block">
-        <div className="absolute inset-0">
+      <div
+        className={cn(
+          "relative hidden overflow-hidden lg:block",
+          // Stay white until Grainient paints — avoids a solid navy flash.
+          grainReady ? "bg-[#0b3a66]" : "bg-white",
+        )}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            grainReady ? "opacity-100" : "opacity-0",
+          )}
+        >
           <Grainient
             color1="#6dc4fb"
             color2="#1e9df1"
@@ -46,9 +61,15 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             centerX={0.0}
             centerY={0.0}
             zoom={0.9}
+            onReady={() => setGrainReady(true)}
           />
         </div>
-        <div className="absolute inset-x-0 bottom-0 z-10 flex justify-center px-8 pb-16 md:px-12 md:pb-20 lg:justify-end lg:pb-24 lg:pr-16">
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-0 z-10 flex justify-center px-8 pb-16 transition-opacity duration-300 md:px-12 md:pb-20 lg:justify-end lg:pb-24 lg:pr-16",
+            grainReady ? "opacity-100" : "opacity-0",
+          )}
+        >
           <div className="flex max-w-md flex-col gap-3 text-center lg:text-right">
             <p className="text-2xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-3xl">
               Your storage
