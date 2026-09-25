@@ -1,8 +1,10 @@
+import "server-only";
+
 import { normalizePlanId, type PlanId } from "@/lib/plans";
 import { env } from "@/server/config/env";
 import { isPolarConfigured } from "@/server/modules/billing/polar";
 
-export function getAdminEmails(): string[] {
+function getAdminEmails(): string[] {
   const raw = env.ADMIN_EMAIL?.trim();
   if (!raw) return [];
   return raw

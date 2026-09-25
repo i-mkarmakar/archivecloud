@@ -1,12 +1,14 @@
+import "server-only";
+
 import {
   getPlanById,
-  planHasFeature,
   type PlanFeatureFlags,
   type PlanId,
+  planHasFeature,
 } from "@/lib/plans";
-import { resolveEffectivePlanId } from "@/server/modules/billing/admin";
 import { prisma } from "@/server/config/prisma";
 import { errorJson } from "@/server/http/responses";
+import { resolveEffectivePlanId } from "@/server/modules/billing/admin";
 
 export async function getUserPlanId(userId: string): Promise<PlanId> {
   const user = await prisma.user.findUnique({

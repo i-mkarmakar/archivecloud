@@ -5,11 +5,11 @@ import { Button, toast } from "@heroui/react";
 import { useEffect, useMemo, useState } from "react";
 import { FileGrid } from "@/components/drive/FileGrid";
 import { FileViewToggle } from "@/components/drive/FileViewToggle";
+import { PageHeader } from "@/components/drive/PageHeader";
 import {
   FileGridSkeleton,
   FileListSkeleton,
 } from "@/components/drive/PageSkeletons";
-import { PageHeader } from "@/components/drive/PageHeader";
 import type { FileItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import { apiFetch, formatBytes, formatDate } from "@/lib/api";
@@ -111,7 +111,7 @@ export function TrashPage() {
   async function handleRestore(ids: string[]) {
     if (ids.length === 0 || busy) return;
     setPendingAction("restore");
-    setPendingFileId(ids.length === 1 ? ids[0]! : null);
+    setPendingFileId(ids.length === 1 ? (ids[0] ?? null) : null);
     try {
       await apiFetch("/files/batch/restore", {
         method: "POST",
@@ -144,7 +144,7 @@ export function TrashPage() {
     )
       return;
     setPendingAction("delete");
-    setPendingFileId(ids.length === 1 ? ids[0]! : null);
+    setPendingFileId(ids.length === 1 ? (ids[0] ?? null) : null);
     try {
       await apiFetch("/files/batch/permanent", {
         method: "DELETE",

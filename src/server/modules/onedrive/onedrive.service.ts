@@ -1,8 +1,10 @@
+import "server-only";
+
+import { Readable } from "node:stream";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
@@ -50,6 +52,7 @@ export async function ensureGlobalOneDriveProviderConfig(): Promise<ProviderConf
     "build-onedrive-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "onedrive", status: "active" },
@@ -60,8 +63,8 @@ export async function ensureGlobalOneDriveProviderConfig(): Promise<ProviderConf
     data: {
       userId: null,
       provider: "onedrive",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: onedriveOAuthScopes,
       status: "active",
@@ -93,6 +96,26 @@ type OneDriveTokenResponse = {
   token_type?: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseOneDriveTokenResponse(data: unknown): OneDriveTokenResponse {
+  if (!isRecord(data) || typeof data.access_token !== "string") {
+    throw new Error("OneDrive token response was missing access_token.");
+  }
+  return {
+    access_token: data.access_token,
+    refresh_token:
+      typeof data.refresh_token === "string" ? data.refresh_token : undefined,
+    expires_in:
+      typeof data.expires_in === "number" ? data.expires_in : undefined,
+    scope: typeof data.scope === "string" ? data.scope : undefined,
+    token_type:
+      typeof data.token_type === "string" ? data.token_type : undefined,
+  };
+}
+
 export async function exchangeOneDriveCode(params: {
   config: ProviderConfig;
   code: string;
@@ -112,7 +135,7 @@ export async function exchangeOneDriveCode(params: {
   if (!response.ok) {
     throw new Error(`OneDrive token exchange failed: ${await response.text()}`);
   }
-  return (await response.json()) as OneDriveTokenResponse;
+  return parseOneDriveTokenResponse(await response.json());
 }
 
 async function refreshOneDriveAccessToken(account: ConnectedAccount) {
@@ -136,7 +159,7 @@ async function refreshOneDriveAccessToken(account: ConnectedAccount) {
   if (!response.ok) {
     throw new Error(`OneDrive token refresh failed: ${await response.text()}`);
   }
-  const tokens = (await response.json()) as OneDriveTokenResponse;
+  const tokens = parseOneDriveTokenResponse(await response.json());
   if (!tokens.access_token) {
     throw new Error("OneDrive refresh did not return access_token.");
   }

@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import {
@@ -72,7 +74,8 @@ async function syncOneDirection(params: {
       );
     }
 
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (!current) break;
     foldersVisited += 1;
 
     const sourceBrowse = await browseProviderFolder(

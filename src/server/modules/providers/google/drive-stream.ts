@@ -1,7 +1,9 @@
+import "server-only";
+
 import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";
-import { getAuthedGoogleClient } from "../google/google.service";
+import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
 type StreamOptions = { disposition?: "inline" | "attachment" };
@@ -11,32 +13,6 @@ export type GoogleProviderFile = {
   mimeType: string;
   name: string;
 };
-
-const browserInlineImageMimeTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "image/bmp",
-]);
-
-export function isBrowserInlineImageMimeType(
-  mimeType: string,
-  fileName: string,
-) {
-  if (browserInlineImageMimeTypes.has(mimeType)) return true;
-  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(fileName);
-}
-
-export function isHeicLike(mimeType: string, fileName: string) {
-  return (
-    mimeType === "image/heic" ||
-    mimeType === "image/heif" ||
-    /\.heic$/i.test(fileName) ||
-    /\.heif$/i.test(fileName)
-  );
-}
 
 export const googleDownloadExportMimeTypes: Record<
   string,
@@ -72,10 +48,6 @@ const googlePreviewExportMimeTypes: Record<
   },
 };
 
-function contentDisposition(type: "inline" | "attachment", fileName: string) {
-  return `${type}; filename="${fileName.replaceAll('"', "")}"`;
-}
-
 export function withExtension(fileName: string, extension: string) {
   return fileName.toLowerCase().endsWith(extension)
     ? fileName
@@ -106,6 +78,10 @@ export function normalizeHeaders(
   }
 
   return headers as Record<string, string>;
+}
+
+function contentDisposition(type: "inline" | "attachment", fileName: string) {
+  return `${type}; filename="${fileName.replaceAll('"', "")}"`;
 }
 
 export async function streamGoogleFileResponse(
@@ -258,4 +234,28 @@ export async function streamGoogleDriveThumbnailResponse(
   );
   outHeaders.set("Cache-Control", "private, max-age=300");
   return new Response(response.body, { status: 200, headers: outHeaders });
+}
+
+/** Fetch Drive file bytes (exporting Google Docs types when needed). */
+export async function fetchGoogleDriveFileMedia(
+  account: ConnectedAccount,
+  params: {
+    providerFileId: string;
+    mimeType: string;
+    name: string;
+  },
+): Promise<{ response: Response; fileName: string } | null> {
+  const auth = await getAuthedGoogleClient(account);
+  const headers = normalizeHeaders(await auth.getRequestHeaders());
+  const exportTarget = googleDownloadExportMimeTypes[params.mimeType];
+  let fileName = params.name;
+  const url = exportTarget
+    ? `https://www.googleapis.com/drive/v3/files/${params.providerFileId}/export?mimeType=${encodeURIComponent(exportTarget.mimeType)}`
+    : `https://www.googleapis.com/drive/v3/files/${params.providerFileId}?alt=media`;
+  if (exportTarget) {
+    fileName = withExtension(params.name, exportTarget.extension);
+  }
+  const response = await fetch(url, { headers });
+  if (!response.ok || !response.body) return null;
+  return { response, fileName };
 }

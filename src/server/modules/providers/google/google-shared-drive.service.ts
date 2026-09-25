@@ -1,17 +1,19 @@
+import "server-only";
+
+import type { Readable } from "node:stream";
+import { google } from "googleapis";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { google } from "googleapis";
-import type { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
-import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import {
   createOAuthClient,
   getAuthedGoogleClient,
   googleDriveOAuthScopes,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
+import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { encryptText } from "@/server/utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
@@ -20,10 +22,7 @@ const appFolderName = "archivecloud";
 export const googleSharedDriveOAuthScopes = [...googleDriveOAuthScopes];
 
 function resolveGoogleSharedDriveRedirectUri(): string {
-  return (
-    process.env.GOOGLE_SHARED_DRIVE_REDIRECT_URI ??
-    `${env.APP_URL}/connected-accounts/google-shared-drive/callback`
-  );
+  return env.GOOGLE_SHARED_DRIVE_REDIRECT_URI;
 }
 
 function isConfiguredEnvValue(
@@ -76,6 +75,7 @@ export async function ensureGlobalGoogleSharedDriveProviderConfig(): Promise<Pro
     "build-google-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "google_shared_drive", status: "active" },
@@ -86,8 +86,8 @@ export async function ensureGlobalGoogleSharedDriveProviderConfig(): Promise<Pro
     data: {
       userId: null,
       provider: "google_shared_drive",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: googleSharedDriveOAuthScopes,
       status: "active",
@@ -137,6 +137,35 @@ export async function listSharedDrives(account: ConnectedAccount) {
     pageToken = response.data.nextPageToken ?? undefined;
   } while (pageToken);
   return drives.filter((item) => item.id && item.name);
+}
+
+export async function listSharedDrivesWithTokens(
+  config: ProviderConfig,
+  tokens: {
+    access_token?: string | null;
+    refresh_token?: string | null;
+    expiry_date?: number | null;
+  },
+) {
+  const client = createOAuthClient(config);
+  client.setCredentials(tokens);
+  const drive = google.drive({ version: "v3", auth: client });
+  const drives: Array<{ id: string; name: string }> = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await drive.drives.list({
+      pageSize: 100,
+      pageToken,
+      fields: "nextPageToken,drives(id,name)",
+    });
+    for (const item of response.data.drives ?? []) {
+      if (item.id && item.name) {
+        drives.push({ id: item.id, name: item.name });
+      }
+    }
+    pageToken = response.data.nextPageToken ?? undefined;
+  } while (pageToken);
+  return drives;
 }
 
 export async function connectSharedDriveFromGoogleAccount(params: {

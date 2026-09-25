@@ -29,11 +29,7 @@ export function QrCodeWithLogo({
       {/* No overflow clip — keep full finder corners visible */}
       <div className={cn("relative", sizeClassName)}>
         {/* biome-ignore lint/performance/noImgElement: external QR image */}
-        <img
-          src={src}
-          alt={alt}
-          className="h-full w-full object-contain"
-        />
+        <img src={src} alt={alt} className="h-full w-full object-contain" />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white shadow-[0_2px_8px_rgba(15,23,42,0.12)]">
             <BrandLogo className="h-7 w-7" />

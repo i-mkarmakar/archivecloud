@@ -1,10 +1,12 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { browseProviderFolder } from "@/server/modules/providers/operations";
 
 export const MAX_SYNC_FOLDERS = 200;
 
-export async function computeFolderTreeHash(
+async function computeFolderTreeHash(
   account: ConnectedAccount,
   userId: string,
   rootParentId: string,
@@ -20,7 +22,8 @@ export async function computeFolderTreeHash(
   while (queue.length > 0) {
     if (foldersVisited >= MAX_SYNC_FOLDERS) break;
 
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (!current) break;
     foldersVisited += 1;
 
     const browse = await browseProviderFolder(

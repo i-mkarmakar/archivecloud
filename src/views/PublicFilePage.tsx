@@ -104,13 +104,7 @@ function UnsupportedPreview({
   );
 }
 
-function StatusScreen({
-  title,
-  message,
-}: {
-  title: string;
-  message: string;
-}) {
+function StatusScreen({ title, message }: { title: string; message: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted p-6 text-foreground">
       <div className="max-w-md rounded-2xl border border-border bg-background p-6 text-center shadow-sm">
@@ -141,15 +135,10 @@ export function PublicFilePage({
   const downloadUrl = `${API_URL}/public/files/${token}/download`;
   const kind = getPreviewKind(file?.mimeType, file?.name);
 
-  const qrImageUrl = useMemo(
-    () => qrCodeImageUrl(shareUrl),
-    [shareUrl],
-  );
+  const qrImageUrl = useMemo(() => qrCodeImageUrl(shareUrl), [shareUrl]);
 
   useEffect(() => {
-    setShareUrl(
-      `${window.location.origin}/public/files/${token}`,
-    );
+    setShareUrl(`${window.location.origin}/public/files/${token}`);
   }, [token]);
 
   useEffect(() => {
@@ -339,215 +328,220 @@ export function PublicFilePage({
       <div className="flex min-h-[calc(100vh-3rem)] items-center justify-center px-4 py-6 sm:px-5 sm:py-8">
         <div className="mx-auto grid w-full max-w-4xl gap-4 lg:grid-cols-2 lg:gap-4">
           <section className="rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            {fileGlyph(kind, file.mimeType, "h-6 w-6")}
-          </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              {fileGlyph(kind, file.mimeType, "h-6 w-6")}
+            </div>
 
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary">
-              {typeLabel}
-            </span>
-            {file.provider ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground">
-                {providerLogo ? (
-                  <img
-                    src={providerLogo}
-                    alt=""
-                    className="h-3 w-3 object-contain"
-                  />
-                ) : null}
-                {providerName}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary">
+                {typeLabel}
               </span>
-            ) : null}
-          </div>
+              {file.provider ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground">
+                  {providerLogo ? (
+                    <img
+                      src={providerLogo}
+                      alt=""
+                      className="h-3 w-3 object-contain"
+                    />
+                  ) : null}
+                  {providerName}
+                </span>
+              ) : null}
+            </div>
 
-          <h1 className="mt-3 break-all text-base font-bold tracking-tight text-foreground sm:text-lg">
-            {file.name}
-          </h1>
-          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-            {formatBytes(file.sizeBytes)}
-          </p>
-
-          <div className="my-3.5 border-t border-border" />
-
-          <div className="flex items-center gap-2.5">
-            {file.sharedBy?.image ? (
-              <img
-                src={file.sharedBy.image}
-                alt=""
-                className="h-7 w-7 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                {sharedByInitial}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Shared by{" "}
-              <span className="font-bold text-foreground">{sharedByName}</span>
+            <h1 className="mt-3 break-all text-base font-bold tracking-tight text-foreground sm:text-lg">
+              {file.name}
+            </h1>
+            <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+              {formatBytes(file.sizeBytes)}
             </p>
-          </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setViewing(true)}
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/15"
-            >
-              <ArrowUpRightFromSquare className="h-3.5 w-3.5" />
-              Open File
-            </button>
-            <button
-              type="button"
-              onClick={() => setQrOpen(true)}
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/15"
-            >
-              <QrCode className="h-3.5 w-3.5" />
-              QR Code
-            </button>
-          </div>
+            <div className="my-3.5 border-t border-border" />
 
-          <p className="mt-5 text-[10px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
-            Share with friends
-          </p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                window.open(
-                  `https://wa.me/?text=${encodeURIComponent(shareUrl)}`,
-                  "_blank",
-                  "noopener,noreferrer",
-                )
-              }
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted"
-            >
-              <ShareBrandLogo name="whatsapp" className="h-5 w-5" />
-              WhatsApp
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                window.open(
-                  `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(file.name)}`,
-                  "_blank",
-                  "noopener,noreferrer",
-                )
-              }
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted"
-            >
-              <ShareBrandLogo name="telegram" className="h-4 w-4" />
-              Telegram
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = `mailto:?subject=${encodeURIComponent(`Shared file: ${file.name}`)}&body=${encodeURIComponent(shareUrl)}`;
-              }}
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted"
-            >
-              <ShareBrandLogo name="email" className="h-4 w-4" />
-              Email
-            </button>
-          </div>
-        </section>
+            <div className="flex items-center gap-2.5">
+              {file.sharedBy?.image ? (
+                <img
+                  src={file.sharedBy.image}
+                  alt=""
+                  className="h-7 w-7 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                  {sharedByInitial}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Shared by{" "}
+                <span className="font-bold text-foreground">
+                  {sharedByName}
+                </span>
+              </p>
+            </div>
 
-        <section className="flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
-          <div className="flex items-center gap-2">
-            <BrandLogo className="h-7 w-7" />
-            <span className="text-[15px] font-bold tracking-tight text-foreground">
-              Archive Cloud
-            </span>
-          </div>
-
-          <h2 className="mt-4 text-xl font-bold leading-snug tracking-tight text-foreground sm:text-[1.35rem]">
-            All your clouds. One hub.
-          </h2>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
-            Connect Drive, Dropbox, OneDrive, and more in one place.
-          </p>
-
-          <ul className="mt-4 grid gap-2.5">
-            <li className="flex gap-2.5">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <ArrowRotateLeft className="h-3.5 w-3.5" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-foreground sm:text-[13px]">
-                  Unified management
-                </p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                  Search and organize files across every cloud.
-                </p>
-              </div>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Thunderbolt className="h-3.5 w-3.5" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-foreground sm:text-[13px]">
-                  Fast streaming
-                </p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                  Preview files without using download quota.
-                </p>
-              </div>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <LinkIcon className="h-3.5 w-3.5" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-foreground sm:text-[13px]">
-                  Cross-cloud moves
-                </p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                  Transfer between providers with no local bandwidth.
-                </p>
-              </div>
-            </li>
-          </ul>
-
-          <div className="mt-5 grid gap-2">
-            <Link
-              href="/auth/sign-up"
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90 sm:text-sm"
-            >
-              Create Free Account
-            </Link>
-            <Link
-              href="/auth/sign-in"
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-primary/30 bg-background px-3 text-xs font-semibold text-primary transition hover:bg-primary/5 sm:text-sm"
-            >
-              Log In
-            </Link>
-          </div>
-
-          <div className="mt-auto pt-5">
-            <p className="flex items-center justify-center gap-1 text-center text-[11px] text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              This file is securely shared via Archive Cloud.
-            </p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-muted-foreground">
-              <Link href="/privacy-policy" className="hover:text-foreground">
-                Privacy Policy
-              </Link>
-              <span aria-hidden>·</span>
-              <Link href="/terms-of-service" className="hover:text-foreground">
-                Terms of Service
-              </Link>
-              <span aria-hidden>·</span>
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setReportOpen(true)}
-                className="cursor-pointer text-destructive underline underline-offset-2 hover:opacity-80"
+                onClick={() => setViewing(true)}
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/15"
               >
-                Report Abuse
+                <ArrowUpRightFromSquare className="h-3.5 w-3.5" />
+                Open File
+              </button>
+              <button
+                type="button"
+                onClick={() => setQrOpen(true)}
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/15"
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                QR Code
               </button>
             </div>
-          </div>
-        </section>
+
+            <p className="mt-5 text-[10px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
+              Share with friends
+            </p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  window.open(
+                    `https://wa.me/?text=${encodeURIComponent(shareUrl)}`,
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                }
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted"
+              >
+                <ShareBrandLogo name="whatsapp" className="h-5 w-5" />
+                WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  window.open(
+                    `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(file.name)}`,
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                }
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted"
+              >
+                <ShareBrandLogo name="telegram" className="h-4 w-4" />
+                Telegram
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `mailto:?subject=${encodeURIComponent(`Shared file: ${file.name}`)}&body=${encodeURIComponent(shareUrl)}`;
+                }}
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted"
+              >
+                <ShareBrandLogo name="email" className="h-4 w-4" />
+                Email
+              </button>
+            </div>
+          </section>
+
+          <section className="flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
+            <div className="flex items-center gap-2">
+              <BrandLogo className="h-7 w-7" />
+              <span className="text-[15px] font-bold tracking-tight text-foreground">
+                Archive Cloud
+              </span>
+            </div>
+
+            <h2 className="mt-4 text-xl font-bold leading-snug tracking-tight text-foreground sm:text-[1.35rem]">
+              All your clouds. One hub.
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+              Connect Drive, Dropbox, OneDrive, and more in one place.
+            </p>
+
+            <ul className="mt-4 grid gap-2.5">
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <ArrowRotateLeft className="h-3.5 w-3.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-foreground sm:text-[13px]">
+                    Unified management
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                    Search and organize files across every cloud.
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Thunderbolt className="h-3.5 w-3.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-foreground sm:text-[13px]">
+                    Fast streaming
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                    Preview files without using download quota.
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <LinkIcon className="h-3.5 w-3.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-foreground sm:text-[13px]">
+                    Cross-cloud moves
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                    Transfer between providers with no local bandwidth.
+                  </p>
+                </div>
+              </li>
+            </ul>
+
+            <div className="mt-5 grid gap-2">
+              <Link
+                href="/auth/sign-up"
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90 sm:text-sm"
+              >
+                Create Free Account
+              </Link>
+              <Link
+                href="/auth/sign-in"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-primary/30 bg-background px-3 text-xs font-semibold text-primary transition hover:bg-primary/5 sm:text-sm"
+              >
+                Log In
+              </Link>
+            </div>
+
+            <div className="mt-auto pt-5">
+              <p className="flex items-center justify-center gap-1 text-center text-[11px] text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                This file is securely shared via Archive Cloud.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-muted-foreground">
+                <Link href="/privacy-policy" className="hover:text-foreground">
+                  Privacy Policy
+                </Link>
+                <span aria-hidden>·</span>
+                <Link
+                  href="/terms-of-service"
+                  className="hover:text-foreground"
+                >
+                  Terms of Service
+                </Link>
+                <span aria-hidden>·</span>
+                <button
+                  type="button"
+                  onClick={() => setReportOpen(true)}
+                  className="cursor-pointer text-destructive underline underline-offset-2 hover:opacity-80"
+                >
+                  Report Abuse
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 

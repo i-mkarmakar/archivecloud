@@ -3,8 +3,8 @@
 import { Folder, Magnifier } from "@gravity-ui/icons";
 import { Button, toast } from "@heroui/react";
 import { useEffect, useMemo, useState } from "react";
-import { DummyModal } from "@/components/drive/DummyModal";
 import { ActionTooltip } from "@/components/drive/ActionTooltip";
+import { DummyModal } from "@/components/drive/DummyModal";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { FolderItem } from "@/data/drive-data";
 import { apiFetch } from "@/lib/api";
@@ -81,8 +81,7 @@ export function MoveDestinationModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const sourceAccountId = source?.kind === "linked" ? source.accountId : null;
-  const sourceProviderId =
-    source?.kind === "linked" ? source.providerId : null;
+  const sourceProviderId = source?.kind === "linked" ? source.providerId : null;
 
   useEffect(() => {
     if (!open) return;
@@ -114,14 +113,14 @@ export function MoveDestinationModal({
 
           // Root of All Files: Archive Cloud folders + each cloud's root folders.
           const archiveRows: BrowseFolder[] = archiveFolders
-            .filter((folder) => {
+            .filter((folder): folder is typeof folder & { id: string } => {
               if (!folder.id) return false;
               if (excludeArchiveFolderIds?.has(folder.id)) return false;
               return (folder.parentId ?? null) === null;
             })
             .map((folder) => ({
-              id: folder.id!,
-              targetId: folder.id!,
+              id: folder.id,
+              targetId: folder.id,
               name: folder.name,
               badge: "ARCHIVE CLOUD",
               linked: false,
@@ -166,7 +165,8 @@ export function MoveDestinationModal({
           return;
         }
 
-        const browseParent = parentId && parentId !== "null" ? parentId : "root";
+        const browseParent =
+          parentId && parentId !== "null" ? parentId : "root";
         const data = await apiFetch<{
           folders: Array<{ id: string; name: string }>;
           breadcrumbs?: Array<{ id: string; name: string }>;
@@ -204,8 +204,7 @@ export function MoveDestinationModal({
             { id: "root", name: accountName },
             ...data.breadcrumbs
               .filter(
-                (crumb) =>
-                  crumb.id && crumb.id !== "root" && crumb.id !== "0",
+                (crumb) => crumb.id && crumb.id !== "root" && crumb.id !== "0",
               )
               .map((crumb) => ({ id: crumb.id, name: crumb.name })),
           ]);
@@ -242,14 +241,14 @@ export function MoveDestinationModal({
     // Nested Archive Cloud browsing when user opened an AC folder from All Files.
     if (parentId === null) return [];
     return archiveFolders
-      .filter((folder) => {
+      .filter((folder): folder is typeof folder & { id: string } => {
         if (!folder.id) return false;
         if (excludeArchiveFolderIds?.has(folder.id)) return false;
         return (folder.parentId ?? null) === parentId;
       })
       .map((folder) => ({
-        id: folder.id!,
-        targetId: folder.id!,
+        id: folder.id,
+        targetId: folder.id,
         name: folder.name,
         badge: "ARCHIVE CLOUD",
         linked: false as const,

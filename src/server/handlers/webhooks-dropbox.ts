@@ -1,17 +1,34 @@
+import { z } from "zod";
+import { errorJson, json } from "@/server/http/responses";
 import {
   handleDropboxAccountNotifications,
   isDropboxWebhookConfigured,
   verifyDropboxSignature,
 } from "@/server/modules/webhooks/dropbox-notify";
-import { errorJson, json } from "@/server/http/responses";
+
+const dropboxWebhookBodySchema = z.object({
+  list_folder: z
+    .object({
+      accounts: z.array(z.string()).optional(),
+    })
+    .optional(),
+  delta: z
+    .object({
+      users: z.array(z.union([z.string(), z.number()])).optional(),
+    })
+    .optional(),
+});
 
 export async function dropboxWebhookGetHandler(request: Request) {
   const url = new URL(request.url);
-  const challenge = url.searchParams.get("challenge");
-  if (!challenge) {
+  const challenge = z
+    .string()
+    .min(1)
+    .safeParse(url.searchParams.get("challenge"));
+  if (!challenge.success) {
     return errorJson("VALIDATION_ERROR", "Missing challenge.", 400);
   }
-  return new Response(challenge, {
+  return new Response(challenge.data, {
     status: 200,
     headers: {
       "Content-Type": "text/plain",
@@ -36,19 +53,21 @@ export async function dropboxWebhookPostHandler(request: Request) {
     return errorJson("UNAUTHORIZED", "Invalid Dropbox signature.", 403);
   }
 
-  let parsed: {
-    list_folder?: { accounts?: string[] };
-    delta?: { users?: Array<string | number> };
-  };
+  let jsonBody: unknown;
   try {
-    parsed = JSON.parse(rawBody) as typeof parsed;
+    jsonBody = JSON.parse(rawBody) as unknown;
   } catch {
     return errorJson("VALIDATION_ERROR", "Invalid JSON body.", 400);
   }
 
+  const parsed = dropboxWebhookBodySchema.safeParse(jsonBody);
+  if (!parsed.success) {
+    return errorJson("VALIDATION_ERROR", "Invalid webhook payload.", 400);
+  }
+
   const accountIds = [
-    ...(parsed.list_folder?.accounts ?? []),
-    ...(parsed.delta?.users ?? []).map(String),
+    ...(parsed.data.list_folder?.accounts ?? []),
+    ...(parsed.data.delta?.users ?? []).map(String),
   ];
 
   const result = await handleDropboxAccountNotifications(accountIds);

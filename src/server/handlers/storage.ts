@@ -6,7 +6,7 @@ import { requirePlanFeature } from "@/server/modules/billing/plan-gate";
 import {
   syncGoogleDriveBreakdown,
   syncGoogleQuota,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
 
 const breakdownStaleMs = 60 * 60 * 1000;
 

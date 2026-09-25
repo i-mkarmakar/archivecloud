@@ -1,8 +1,10 @@
+import "server-only";
+
+import { Readable } from "node:stream";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
@@ -83,6 +85,7 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     "build-pcloud-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   const existing = await prisma.providerConfig.findFirst({
     where: { userId: null, provider: "pcloud", status: "active" },
@@ -100,8 +103,8 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     await prisma.providerConfig.update({
       where: { id: existing.id },
       data: {
-        clientIdEncrypted: encryptText(clientId!),
-        clientSecretEncrypted: encryptText(clientSecret!),
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
         redirectUri,
         status: "active",
       },
@@ -120,8 +123,8 @@ export async function ensureGlobalPCloudProviderConfig(): Promise<ProviderConfig
     data: {
       userId: null,
       provider: "pcloud",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: [],
       status: "active",
@@ -153,6 +156,36 @@ type PCloudTokenResponse = {
   error?: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parsePCloudTokenJson(data: unknown): PCloudTokenResponse {
+  if (!isRecord(data) || typeof data.result !== "number") {
+    throw new Error("pCloud token response was malformed.");
+  }
+  return {
+    result: data.result,
+    access_token:
+      typeof data.access_token === "string" ? data.access_token : undefined,
+    refresh_token:
+      typeof data.refresh_token === "string" ? data.refresh_token : undefined,
+    expires_in:
+      typeof data.expires_in === "number" ? data.expires_in : undefined,
+    token_type:
+      typeof data.token_type === "string" ? data.token_type : undefined,
+    uid:
+      typeof data.uid === "number" || typeof data.uid === "string"
+        ? data.uid
+        : undefined,
+    userid:
+      typeof data.userid === "number" || typeof data.userid === "string"
+        ? data.userid
+        : undefined,
+    error: typeof data.error === "string" ? data.error : undefined,
+  };
+}
+
 type PCloudApiResponse<T> = {
   result: number;
   error?: string;
@@ -170,7 +203,7 @@ export function resolvePCloudUserId(tokens: {
 async function parsePCloudTokenResponse(
   response: Response,
 ): Promise<PCloudTokenResponse> {
-  const data = (await response.json()) as PCloudTokenResponse;
+  const data = parsePCloudTokenJson(await response.json());
   if (!response.ok || data.result !== 0 || !data.access_token) {
     throw new Error(
       `pCloud token request failed: ${data.error ?? JSON.stringify(data)}`,

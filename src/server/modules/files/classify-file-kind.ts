@@ -1,3 +1,5 @@
+import "server-only";
+
 export type FileKindBucket = "photo" | "video" | "document";
 
 export function classifyFileKind(mimeType: string): FileKindBucket {

@@ -36,7 +36,9 @@ export async function getGithubStars(): Promise<number | null> {
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "archivecloud",
     };
-    const token = process.env.GITHUB_TOKEN?.trim();
+    // Dynamic import keeps formatGithubStars client-safe (this module is shared).
+    const { env } = await import("@/server/config/env");
+    const token = env.GITHUB_TOKEN?.trim();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }

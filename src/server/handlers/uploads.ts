@@ -1,6 +1,5 @@
 import { Readable, Transform } from "node:stream";
 import Busboy from "busboy";
-import { google } from "googleapis";
 import { z } from "zod";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
@@ -8,9 +7,14 @@ import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
 import {
   ensureGoogleAppFolder,
-  getAuthedGoogleClient,
   syncGoogleQuota,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
+import {
+  initGoogleDriveResumableUpload,
+  putGoogleDriveResumableChunk,
+  queryGoogleDriveResumableStatus,
+  uploadGoogleDriveMediaFile,
+} from "@/server/modules/providers/google-drive-upload";
 import { createAuditLog } from "@/server/utils/audit";
 
 type UploadMeta = {
@@ -361,8 +365,6 @@ export async function handleUploadRequest(
         let providerFileId = "";
         let uploadedName = fileName;
         let uploadedMimeType = meta.mimeType;
-        const auth = await getAuthedGoogleClient(account);
-        const drive = google.drive({ version: "v3", auth });
         const appFolderId = await ensureGoogleAppFolder(account);
         let targetParentId = appFolderId;
         if (folderId) {
@@ -373,14 +375,16 @@ export async function handleUploadRequest(
             targetParentId = folderRecord.providerFolderId;
           }
         }
-        const uploaded = await drive.files.create({
-          requestBody: { name: fileName, parents: [targetParentId] },
-          media: { mimeType: meta.mimeType, body: countingStream },
-          fields: "id,name,mimeType,size",
+        const uploaded = await uploadGoogleDriveMediaFile({
+          account,
+          fileName,
+          mimeType: meta.mimeType,
+          parentId: targetParentId,
+          body: countingStream,
         });
-        providerFileId = uploaded.data.id ?? "";
-        uploadedName = uploaded.data.name ?? fileName;
-        uploadedMimeType = uploaded.data.mimeType ?? meta.mimeType;
+        providerFileId = uploaded.id;
+        uploadedName = uploaded.name;
+        uploadedMimeType = uploaded.mimeType;
         logUpload("google upload completed", {
           sessionId: session.id,
           accountId: account.id,
@@ -571,7 +575,6 @@ export async function resumableInitHandler(request: Request) {
     );
   }
 
-  const auth = await getAuthedGoogleClient(account);
   const appFolderId = await ensureGoogleAppFolder(account);
   let targetParentId = appFolderId;
   if (folderId) {
@@ -583,33 +586,23 @@ export async function resumableInitHandler(request: Request) {
     }
   }
 
-  const headers = new Headers();
-  const token = await auth.getAccessToken();
-  headers.set("Authorization", `Bearer ${token.token}`);
-  headers.set("Content-Type", "application/json");
-  headers.set("X-Upload-Content-Type", body.mimeType);
-  headers.set("X-Upload-Content-Length", sizeBytes.toString());
-
-  const initRes = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        name: body.fileName,
-        parents: [targetParentId],
-      }),
-    },
-  );
-
-  if (!initRes.ok) {
-    const errText = await initRes.text();
-    throw new Error(`Google API Init Error: ${errText}`);
+  let sessionUri: string;
+  try {
+    sessionUri = await initGoogleDriveResumableUpload({
+      account,
+      fileName: body.fileName,
+      mimeType: body.mimeType,
+      sizeBytes,
+      parentId: targetParentId,
+    });
+  } catch (error) {
+    console.error(error);
+    return errorJson(
+      "UPLOAD_FAILED",
+      "Could not start the upload. Please try again.",
+      400,
+    );
   }
-
-  const sessionUri = initRes.headers.get("location");
-  if (!sessionUri)
-    throw new Error("Google API did not return Location header.");
 
   const session = await prisma.uploadSession.create({
     data: {
@@ -657,16 +650,10 @@ export async function resumableStatusHandler(
     const account = await prisma.connectedAccount.findFirstOrThrow({
       where: { id: session.targetConnectedAccountId, userId: user.id },
     });
-    const auth = await getAuthedGoogleClient(account);
-    const token = await auth.getAccessToken();
-
-    const queryHeaders = new Headers();
-    queryHeaders.set("Authorization", `Bearer ${token.token}`);
-    queryHeaders.set("Content-Range", `bytes */${session.sizeBytes}`);
-
-    const queryRes = await fetch(session.googleSessionUri, {
-      method: "PUT",
-      headers: queryHeaders,
+    const queryRes = await queryGoogleDriveResumableStatus({
+      account,
+      sessionUri: session.googleSessionUri,
+      sizeBytes: session.sizeBytes,
     });
 
     if (queryRes.status === 308) {
@@ -736,21 +723,13 @@ export async function resumableChunkHandler(
   const account = await prisma.connectedAccount.findFirstOrThrow({
     where: { id: session.targetConnectedAccountId, userId: user.id },
   });
-  const auth = await getAuthedGoogleClient(account);
-  const _drive = google.drive({ version: "v3", auth });
-  const token = await auth.getAccessToken();
-
-  const putHeaders = new Headers();
-  putHeaders.set("Authorization", `Bearer ${token.token}`);
-  putHeaders.set("Content-Range", rangeHeader);
-  putHeaders.set("Content-Length", (endByte - startByte + 1n).toString());
-
-  const putRes = await fetch(session.googleSessionUri, {
-    method: "PUT",
-    headers: putHeaders,
+  const putRes = await putGoogleDriveResumableChunk({
+    account,
+    sessionUri: session.googleSessionUri,
+    contentRange: rangeHeader,
+    contentLength: (endByte - startByte + 1n).toString(),
     body: request.body,
-    duplex: "half",
-  } as RequestInit);
+  });
 
   if (putRes.status === 308) {
     return json({ status: "uploading", offset: (endByte + 1n).toString() });

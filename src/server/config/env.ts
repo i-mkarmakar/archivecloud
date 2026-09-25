@@ -108,6 +108,9 @@ const envSchema = z.object({
 
   /** Cloudflare Turnstile secret (server-only). When unset, captcha is disabled. */
   TURNSTILE_SECRET_KEY: optionalNonEmptyString,
+
+  /** Optional GitHub PAT for star-count API rate limits (server-only). */
+  GITHUB_TOKEN: optionalNonEmptyString,
 });
 
 const isNextBuild =

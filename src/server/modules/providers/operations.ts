@@ -1,6 +1,8 @@
-import type { ConnectedAccount } from "@/generated/prisma/client";
-import { google } from "googleapis";
+import "server-only";
+
 import type { Readable } from "node:stream";
+import { google } from "googleapis";
+import type { ConnectedAccount } from "@/generated/prisma/client";
 import {
   browseDropboxFolder,
   deleteDropboxFile,
@@ -13,29 +15,6 @@ import {
   syncDropboxQuota,
   uploadDropboxFileFromStream,
 } from "@/server/modules/dropbox/dropbox.service";
-import {
-  browseGooglePhotosFolder,
-  deleteGooglePhotosFile,
-  downloadGooglePhotosFileStream,
-  getGooglePhotosFileMetadata,
-  syncGooglePhotosQuota,
-  uploadGooglePhotosFileFromStream,
-} from "@/server/modules/google/google-photos.service";
-import {
-  browseGoogleSharedDriveFolder,
-  deleteGoogleSharedDriveFile,
-  downloadGoogleSharedDriveFileStream,
-  getGoogleSharedDriveFileMetadata,
-  syncGoogleSharedDriveQuota,
-  uploadGoogleSharedDriveFileFromStream,
-} from "@/server/modules/google/google-shared-drive.service";
-import { copyGoogleDriveFile } from "@/server/modules/google/google-transfer";
-import {
-  browseGoogleDriveFolder,
-  ensureGoogleAppFolder,
-  getAuthedGoogleClient,
-  syncGoogleQuota,
-} from "@/server/modules/google/google.service";
 import {
   browseICloudFolder,
   deleteICloudFile,
@@ -67,7 +46,30 @@ import {
 import {
   googleDownloadExportMimeTypes,
   withExtension,
-} from "@/server/modules/files/stream-google-file";
+} from "@/server/modules/providers/google/drive-stream";
+import {
+  browseGoogleDriveFolder,
+  ensureGoogleAppFolder,
+  getAuthedGoogleClient,
+  syncGoogleQuota,
+} from "@/server/modules/providers/google/google.service";
+import {
+  browseGooglePhotosFolder,
+  deleteGooglePhotosFile,
+  downloadGooglePhotosFileStream,
+  getGooglePhotosFileMetadata,
+  syncGooglePhotosQuota,
+  uploadGooglePhotosFileFromStream,
+} from "@/server/modules/providers/google/google-photos.service";
+import {
+  browseGoogleSharedDriveFolder,
+  deleteGoogleSharedDriveFile,
+  downloadGoogleSharedDriveFileStream,
+  getGoogleSharedDriveFileMetadata,
+  syncGoogleSharedDriveQuota,
+  uploadGoogleSharedDriveFileFromStream,
+} from "@/server/modules/providers/google/google-shared-drive.service";
+import { copyGoogleDriveFile } from "@/server/modules/providers/google/google-transfer";
 import type {
   ProviderBrowseResult,
   ProviderCopyResult,
@@ -293,7 +295,7 @@ export async function pullProviderFile(
   }
 }
 
-export async function pushProviderFile(
+async function pushProviderFile(
   account: ConnectedAccount,
   pulled: PulledFile,
   destParentId?: string | null,

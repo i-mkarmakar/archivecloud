@@ -1,8 +1,10 @@
-import { getPlanById } from "@/lib/plans";
-import { getUserPlanId } from "@/server/modules/billing/plan-gate";
-import { prisma } from "@/server/config/prisma";
+import "server-only";
 
-export function currentYearMonth(date = new Date()) {
+import { getPlanById } from "@/lib/plans";
+import { prisma } from "@/server/config/prisma";
+import { getUserPlanId } from "@/server/modules/billing/plan-gate";
+
+function currentYearMonth(date = new Date()) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;

@@ -102,11 +102,7 @@ export function FolderContextMenu({
           label="Details"
           onClick={() => run(onDetails)}
         />
-        <MenuItem
-          icon={FolderOpen}
-          label="Open"
-          onClick={() => run(onOpen)}
-        />
+        <MenuItem icon={FolderOpen} label="Open" onClick={() => run(onOpen)} />
         <MenuItem
           icon={ArrowUpRightFromSquare}
           label={goToDriveLabel}

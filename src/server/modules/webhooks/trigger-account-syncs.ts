@@ -1,3 +1,5 @@
+import "server-only";
+
 import { prisma } from "@/server/config/prisma";
 import { runFolderSync } from "@/server/modules/sync/run-folder-sync";
 import { createAuditLog } from "@/server/utils/audit";

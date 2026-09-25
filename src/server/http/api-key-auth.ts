@@ -1,9 +1,9 @@
 import { prisma } from "@/server/config/prisma";
-import { hashToken, randomToken } from "@/server/utils/crypto";
+import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import { errorJson } from "@/server/http/responses";
-import { requireAuthUser, type AuthUser } from "@/server/http/auth";
+import { hashToken, randomToken } from "@/server/utils/crypto";
 
-export const API_KEY_SCOPES = [
+const API_KEY_SCOPES = [
   "accounts:read",
   "transfers:read",
   "transfers:write",
@@ -30,7 +30,7 @@ export function generateApiKeySecret(): {
   return { rawKey, keyPrefix, keyHash: hashToken(rawKey) };
 }
 
-export async function resolveApiKeyFromRequest(
+async function resolveApiKeyFromRequest(
   request: Request,
 ): Promise<AuthedPrincipal | null> {
   const header = request.headers.get("authorization") ?? "";

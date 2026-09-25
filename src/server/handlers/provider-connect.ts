@@ -1,4 +1,3 @@
-import { google } from "googleapis";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { env } from "@/server/config/env";
@@ -15,22 +14,6 @@ import {
 } from "@/server/http/connect-alias";
 import { oauthConnectStartResponse } from "@/server/http/oauth-connect-response";
 import { errorJson, json } from "@/server/http/responses";
-import { createOAuthClient } from "@/server/modules/google/google.service";
-import {
-  buildGooglePhotosAuthUrl,
-  ensureGlobalGooglePhotosProviderConfig,
-  exchangeGooglePhotosCode,
-  getGooglePhotosProfileWithTokens,
-  syncGooglePhotosQuota,
-} from "@/server/modules/google/google-photos.service";
-import {
-  buildGoogleSharedDriveAuthUrl,
-  connectSharedDriveFromGoogleAccount,
-  ensureGlobalGoogleSharedDriveProviderConfig,
-  exchangeGoogleSharedDriveCode,
-  getGoogleSharedDriveProfileWithTokens,
-  syncGoogleSharedDriveQuota,
-} from "@/server/modules/google/google-shared-drive.service";
 import {
   connectICloudAccount,
   syncICloudQuota,
@@ -44,6 +27,22 @@ import {
   resolvePCloudUserId,
   syncPCloudQuota,
 } from "@/server/modules/pcloud/pcloud.service";
+import {
+  buildGooglePhotosAuthUrl,
+  ensureGlobalGooglePhotosProviderConfig,
+  exchangeGooglePhotosCode,
+  getGooglePhotosProfileWithTokens,
+  syncGooglePhotosQuota,
+} from "@/server/modules/providers/google/google-photos.service";
+import {
+  buildGoogleSharedDriveAuthUrl,
+  connectSharedDriveFromGoogleAccount,
+  ensureGlobalGoogleSharedDriveProviderConfig,
+  exchangeGoogleSharedDriveCode,
+  getGoogleSharedDriveProfileWithTokens,
+  listSharedDrivesWithTokens,
+  syncGoogleSharedDriveQuota,
+} from "@/server/modules/providers/google/google-shared-drive.service";
 import { ensureGoogleDriveWatch } from "@/server/modules/webhooks/google-drive-watch";
 import {
   decryptText,
@@ -97,7 +96,7 @@ async function validateOAuthCallbackSession(
   return sessionUser;
 }
 
-export async function createPCloudConnectUrl(
+async function createPCloudConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalPCloudProviderConfig();
@@ -290,7 +289,7 @@ export async function pcloudCallbackHandler(request: Request) {
   }
 }
 
-export async function createGooglePhotosConnectUrl(
+async function createGooglePhotosConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalGooglePhotosProviderConfig();
@@ -453,7 +452,7 @@ export async function googlePhotosCallbackHandler(request: Request) {
   }
 }
 
-export async function createGoogleSharedDriveConnectUrl(
+async function createGoogleSharedDriveConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalGoogleSharedDriveProviderConfig();
@@ -489,35 +488,6 @@ export async function googleSharedDriveConnectUrlHandler(request: Request) {
     state: oauthStateFromAuthUrl(url),
     alias,
   });
-}
-
-async function listSharedDrivesWithTokens(
-  config: Parameters<typeof createOAuthClient>[0],
-  tokens: {
-    access_token?: string | null;
-    refresh_token?: string | null;
-    expiry_date?: number | null;
-  },
-) {
-  const client = createOAuthClient(config);
-  client.setCredentials(tokens);
-  const drive = google.drive({ version: "v3", auth: client });
-  const drives: Array<{ id: string; name: string }> = [];
-  let pageToken: string | undefined;
-  do {
-    const response = await drive.drives.list({
-      pageSize: 100,
-      pageToken,
-      fields: "nextPageToken,drives(id,name)",
-    });
-    for (const item of response.data.drives ?? []) {
-      if (item.id && item.name) {
-        drives.push({ id: item.id, name: item.name });
-      }
-    }
-    pageToken = response.data.nextPageToken ?? undefined;
-  } while (pageToken);
-  return drives;
 }
 
 export async function googleSharedDriveCallbackHandler(request: Request) {

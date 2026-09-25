@@ -1,13 +1,7 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import {
-  Archive,
-  FileText,
-  Picture,
-  Play,
-  Xmark,
-} from "@gravity-ui/icons";
+import { Archive, FileText, Picture, Play, Xmark } from "@gravity-ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import { SectionSkeleton } from "@/components/drive/PageSkeletons";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
@@ -130,35 +124,45 @@ function FileTypePreview({
           <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#7c3aed] text-2xl font-extrabold tracking-wide text-white shadow-sm">
             ZIP
           </span>
-          <span className="text-sm font-medium text-[#7b879c]">{typeLabel}</span>
+          <span className="text-sm font-medium text-[#7b879c]">
+            {typeLabel}
+          </span>
         </div>
       ) : previewKind === "pdf" ? (
         <div className="flex flex-col items-center gap-2">
           <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#ef4444] text-white shadow-sm">
             <Archive className="h-9 w-9" />
           </span>
-          <span className="text-sm font-medium text-[#7b879c]">{typeLabel}</span>
+          <span className="text-sm font-medium text-[#7b879c]">
+            {typeLabel}
+          </span>
         </div>
       ) : previewKind === "video" ? (
         <div className="flex flex-col items-center gap-2">
           <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-white shadow-sm">
             <Play className="h-9 w-9" />
           </span>
-          <span className="text-sm font-medium text-[#7b879c]">{typeLabel}</span>
+          <span className="text-sm font-medium text-[#7b879c]">
+            {typeLabel}
+          </span>
         </div>
       ) : previewKind === "image" ? (
         <div className="flex flex-col items-center gap-2">
           <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#22c55e] text-white shadow-sm">
             <Picture className="h-9 w-9" />
           </span>
-          <span className="text-sm font-medium text-[#7b879c]">{typeLabel}</span>
+          <span className="text-sm font-medium text-[#7b879c]">
+            {typeLabel}
+          </span>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2">
           <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#64748b] text-white shadow-sm">
             <FileText className="h-9 w-9" />
           </span>
-          <span className="text-sm font-medium text-[#7b879c]">{typeLabel}</span>
+          <span className="text-sm font-medium text-[#7b879c]">
+            {typeLabel}
+          </span>
         </div>
       )}
     </button>
@@ -429,7 +433,9 @@ export function FileDetailsDrawer({
                             {selectedTags.length > 4 ? "…" : ""}
                           </p>
                         ) : (
-                          <p className="text-xs text-muted">No tags selected.</p>
+                          <p className="text-xs text-muted">
+                            No tags selected.
+                          </p>
                         )}
                       </div>
                     </>

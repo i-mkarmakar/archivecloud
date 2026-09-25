@@ -31,7 +31,7 @@ function getDefaultUserAvatarColor(
 ): DefaultUserAvatarColor {
   const key = seed?.trim().toLowerCase() || "user";
   const index = hashSeed(key) % DEFAULT_USER_AVATAR_COLORS.length;
-  return DEFAULT_USER_AVATAR_COLORS[index]!;
+  return DEFAULT_USER_AVATAR_COLORS[index] ?? DEFAULT_USER_AVATAR_COLORS[0];
 }
 
 function getDefaultUserAvatarSrc(seed?: string | null): string {
@@ -43,8 +43,10 @@ function getUserInitials(name?: string | null, email?: string | null): string {
   const trimmedName = name?.trim();
   if (trimmedName) {
     const parts = trimmedName.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return `${parts[0]!.charAt(0)}${parts[1]!.charAt(0)}`.toUpperCase();
+    const first = parts[0];
+    const second = parts[1];
+    if (first && second) {
+      return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase();
     }
     return trimmedName.slice(0, 2).toUpperCase();
   }

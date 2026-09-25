@@ -1,3 +1,5 @@
+import "server-only";
+
 import { prisma } from "@/server/config/prisma";
 import { enqueueTransferJob } from "@/server/modules/transfers/process-job";
 import { createAuditLog } from "@/server/utils/audit";

@@ -1,24 +1,16 @@
 "use client";
 import {
-  ArrowDownToLine,
   ArrowRotateRight,
-  ArrowUpFromLine,
   ChevronsExpandVertical,
   CopyCheck,
-  EllipsisVertical,
-  FolderArrowRight,
-  Link,
-  PersonPlus,
   Sliders,
   TrashBin,
-  Xmark,
 } from "@gravity-ui/icons";
 import { Button, Input, Popover, Skeleton, toast } from "@heroui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   type DragEvent,
   type FormEvent,
-  type MouseEvent,
   useEffect,
   useMemo,
   useRef,
@@ -30,217 +22,77 @@ import {
   NoConnectedAccountsEmptyStateSkeleton,
 } from "@/components/dashboard/NoConnectedAccountsEmptyState";
 import {
-  SIDEBAR_CREATE_EVENT,
-  type SidebarCreateAction,
-} from "@/components/dashboard/SidebarNewButton";
+  AddToVirtualFolderModal,
+  type AddToVirtualFolderTarget,
+} from "@/components/drive/AddToVirtualFolderModal";
 import { DummyModal } from "@/components/drive/DummyModal";
 import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
 import { FileContextMenu } from "@/components/drive/FileContextMenu";
 import { FileDetailsDrawer } from "@/components/drive/FileDetailsDrawer";
-import {
-  MoveDestinationModal,
-  type MoveSource,
-} from "@/components/drive/MoveDestinationModal";
-import { ManageTagsModal } from "@/components/drive/ManageTagsModal";
-import type { ManageTagsTarget } from "@/components/drive/ManageTagsModal";
-import {
-  AddToVirtualFolderModal,
-  type AddToVirtualFolderTarget,
-} from "@/components/drive/AddToVirtualFolderModal";
-import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
-import { FolderDetailsDrawer } from "@/components/drive/FolderDetailsDrawer";
 import { FileGrid } from "@/components/drive/FileGrid";
 import { FileTable } from "@/components/drive/FileTable";
 import { FileViewToggle } from "@/components/drive/FileViewToggle";
 import { FolderContextMenu } from "@/components/drive/FolderContextMenu";
+import { FolderDetailsDrawer } from "@/components/drive/FolderDetailsDrawer";
 import { FolderGrid } from "@/components/drive/FolderGrid";
 import {
   defaultFolderColor,
-  folderColorOptions,
   normalizeFolderColor,
 } from "@/components/drive/folder-colors";
 import { ImageLightbox } from "@/components/drive/ImageLightbox";
+import type { ManageTagsTarget } from "@/components/drive/ManageTagsModal";
+import { ManageTagsModal } from "@/components/drive/ManageTagsModal";
+import {
+  MoveDestinationModal,
+  type MoveSource,
+} from "@/components/drive/MoveDestinationModal";
 import { PageHeader } from "@/components/drive/PageHeader";
+import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
 import { SuggestedSection } from "@/components/drive/SuggestedSection";
-import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { useUpload } from "@/context/UploadContext";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import { updateFilesMetadata } from "@/hooks/useWorkspaceFiles";
-import {
-  API_URL,
-  apiFetch,
-  formatBytes,
-  formatDate,
-  isAbortError,
-  isNetworkError,
-} from "@/lib/api";
+import { API_URL, apiFetch, formatDate } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
-import { type ApiFile, mapApiFileToItem } from "@/lib/files";
+import { mapApiFileToItem } from "@/lib/files";
 import { getFirstName, getTimeGreeting } from "@/lib/greeting";
-import { createPlyr, ensurePlyr } from "@/lib/plyr";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
 import { providerLabel } from "@/lib/providers";
 import { cn } from "@/lib/utils";
-
-type BackendFile = ApiFile;
-type BackendFolder = {
-  id: string;
-  name: string;
-  color: string;
-  parentId?: string | null;
-  providerFolderId?: string | null;
-  updatedAt: string;
-};
-type ConnectedAccount = {
-  id: string;
-  provider: string;
-  email: string;
-  displayName?: string | null;
-  avatarUrl?: string | null;
-  status: string;
-};
-
-type ProviderBrowseFolder = {
-  id: string;
-  name: string;
-  modifiedTime: string;
-};
-
-type ProviderBrowseFile = {
-  id: string;
-  name: string;
-  mimeType: string;
-  sizeBytes: string;
-  modifiedTime: string;
-  dbFileId?: string | null;
-};
-
-type ProviderBrowseResult = {
-  folders: ProviderBrowseFolder[];
-  files: ProviderBrowseFile[];
-  breadcrumbs?: Array<{ id: string; name: string }>;
-};
-
-const ACCOUNT_FOLDER_PREFIX = "account:";
-const LINKED_FOLDER_PREFIX = "linked:";
-const LINKED_FILE_PREFIX = "linked:";
-const MAX_RENAME_LENGTH = 100;
-const FILES_PAGE_SIZE = 40;
-const LINKED_BROWSE_LIMIT = 40;
-
-function isAccountFolderId(id: string | undefined | null) {
-  return Boolean(id?.startsWith(ACCOUNT_FOLDER_PREFIX));
-}
-
-function isLinkedFolderId(id: string | undefined | null) {
-  return Boolean(id?.startsWith(LINKED_FOLDER_PREFIX));
-}
-
-function isLinkedFileId(id: string | undefined | null) {
-  return Boolean(id?.startsWith(LINKED_FILE_PREFIX));
-}
-
-function parseLinkedRef(id: string) {
-  const rest = id.slice(LINKED_FOLDER_PREFIX.length);
-  const splitAt = rest.indexOf(":");
-  if (splitAt <= 0) return null;
-  return {
-    accountId: rest.slice(0, splitAt),
-    providerId: rest.slice(splitAt + 1),
-  };
-}
-
-type FileSort =
-  | "created_desc"
-  | "created_asc"
-  | "name_asc"
-  | "name_desc"
-  | "size_desc"
-  | "updated_desc";
-
-const FILE_SORT_OPTIONS: { value: FileSort; label: string }[] = [
-  { value: "created_desc", label: "Created (Newest)" },
-  { value: "created_asc", label: "Created (Oldest)" },
-  { value: "updated_desc", label: "Modified (Newest)" },
-  { value: "name_asc", label: "Name (A–Z)" },
-  { value: "name_desc", label: "Name (Z–A)" },
-  { value: "size_desc", label: "Size (Largest)" },
-];
-
-function AccountProviderIcon({ provider }: { provider: string }) {
-  return (
-    <ProviderBrandIcon
-      name={provider}
-      className="h-5 w-5 shrink-0"
-      fallback={
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-[10px] font-bold text-primary">
-          {providerLabel(provider).charAt(0)}
-        </span>
-      }
-    />
-  );
-}
-
-function accountTitle(account: ConnectedAccount) {
-  const name = account.displayName?.trim();
-  if (name) return name;
-  return `My ${providerLabel(account.provider)}`;
-}
-
-function mapFile(file: BackendFile): FileItem {
-  return mapApiFileToItem(file);
-}
-
-function mapFolder(folder: BackendFolder): FolderItem {
-  return {
-    id: folder.id,
-    name: folder.name,
-    color: folder.color,
-    parentId: folder.parentId,
-    providerFolderId: folder.providerFolderId,
-    updated: `Updated ${formatDate(folder.updatedAt)}`,
-  };
-}
-
-function FolderColorFields({
-  color,
-  onColorChange,
-}: {
-  color: string;
-  onColorChange: (color: string) => void;
-}) {
-  const normalizedColor = normalizeFolderColor(color);
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-2 text-sm font-semibold">
-        Folder Color
-        <Input
-          type="color"
-          value={normalizedColor}
-          onChange={(event) => onColorChange(event.target.value)}
-          className="h-12 p-1"
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {folderColorOptions.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onColorChange(option)}
-            className={
-              normalizedColor === option
-                ? "h-8 w-8 rounded-lg border-2 border-border"
-                : "h-8 w-8 rounded-lg border border-border"
-            }
-            style={{ backgroundColor: option }}
-            aria-label={`Use ${option} folder color`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+import { AccountProviderIcon } from "@/views/all-files/AccountProviderIcon";
+import { AllFilesSelectionBar } from "@/views/all-files/AllFilesSelectionBar";
+import { AllFilesUploadModal } from "@/views/all-files/AllFilesUploadModal";
+import { FolderColorFields } from "@/views/all-files/FolderColorFields";
+import {
+  ACCOUNT_FOLDER_PREFIX,
+  FILES_PAGE_SIZE,
+  isAccountFolderId,
+  isLinkedFileId,
+  isLinkedFolderId,
+  LINKED_BROWSE_LIMIT,
+  LINKED_FILE_PREFIX,
+  LINKED_FOLDER_PREFIX,
+  MAX_RENAME_LENGTH,
+  parseLinkedRef,
+} from "@/views/all-files/linked-ids";
+import { accountTitle, mapFile, mapFolder } from "@/views/all-files/mappers";
+import {
+  type BackendFile,
+  type BackendFolder,
+  type ConnectedAccount,
+  FILE_SORT_OPTIONS,
+  type FileSort,
+  type ProviderBrowseFile,
+  type ProviderBrowseFolder,
+  type ProviderBrowseResult,
+} from "@/views/all-files/types";
+import { useAllFilesContextMenus } from "@/views/all-files/useAllFilesContextMenus";
+import { useAllFilesShortcuts } from "@/views/all-files/useAllFilesShortcuts";
+import { useAllFilesSidebarActions } from "@/views/all-files/useAllFilesSidebarActions";
+import { useFilePreview } from "@/views/all-files/useFilePreview";
+import { useFileSelection } from "@/views/all-files/useFileSelection";
+import { useHomeConnectedAccounts } from "@/views/all-files/useHomeConnectedAccounts";
 
 export function AllFilesPage() {
   const sp = useSearchParams() ?? new URLSearchParams();
@@ -315,27 +167,20 @@ export function AllFilesPage() {
   const [activeFile, setActiveFile] = useState<FileItem | null>(null);
   const [activeFolderForMenu, setActiveFolderForMenu] =
     useState<FolderItem | null>(null);
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(
-    new Set(),
-  );
   const [suggestedFoldersOpen, setSuggestedFoldersOpen] = useState(true);
   const [suggestedFilesOpen, setSuggestedFilesOpen] = useState(true);
   const [cutFolder, setCutFolder] = useState<FolderItem | null>(null);
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    file: FileItem | null;
-  }>({ x: 0, y: 0, file: null });
-  const [folderContextMenu, setFolderContextMenu] = useState<{
-    x: number;
-    y: number;
-    folder: FolderItem | null;
-  }>({ x: 0, y: 0, folder: null });
-  const [emptyContextMenu, setEmptyContextMenu] = useState<{
-    x: number;
-    y: number;
-    open: boolean;
-  }>({ x: 0, y: 0, open: false });
+  const {
+    contextMenu,
+    setContextMenu,
+    folderContextMenu,
+    setFolderContextMenu,
+    emptyContextMenu,
+    setEmptyContextMenu,
+    openContext,
+    openFolderMenu,
+    openEmptyContextMenu,
+  } = useAllFilesContextMenus(setActiveFile, setActiveFolderForMenu);
   const [loading, setLoading] = useState(false);
   const [syncingDrive, setSyncingDrive] = useState(false);
   const [fileViewMode, changeFileViewMode] = useFileViewMode(
@@ -368,6 +213,54 @@ export function AllFilesPage() {
   const [linkedLoading, setLinkedLoading] = useState(false);
   const [accountFilterOpen, setAccountFilterOpen] = useState(false);
   const [sortFilterOpen, setSortFilterOpen] = useState(false);
+
+  const displayFolders = useMemo(() => {
+    if (activeFolderId || searchQuery) return folders;
+    // Nested cloud folder view: show only that folder's children.
+    if (cloudFolderId) return linkedFolders;
+    const byId = new Map<string, FolderItem>();
+    for (const folder of folders) {
+      if (folder.id) byId.set(folder.id, folder);
+    }
+    for (const folder of linkedFolders) {
+      if (folder.id && !byId.has(folder.id)) byId.set(folder.id, folder);
+    }
+    return Array.from(byId.values());
+  }, [activeFolderId, searchQuery, cloudFolderId, folders, linkedFolders]);
+
+  const displayFiles = useMemo(() => {
+    if (activeFolderId || searchQuery) return files;
+    if (cloudFolderId) return linkedFiles;
+    const byId = new Map<string, FileItem>();
+    for (const file of files) {
+      if (file.id) byId.set(file.id, file);
+    }
+    for (const file of linkedFiles) {
+      if (file.id && !byId.has(file.id)) byId.set(file.id, file);
+    }
+    return Array.from(byId.values());
+  }, [activeFolderId, searchQuery, cloudFolderId, files, linkedFiles]);
+
+  const filesByDay = useMemo(() => {
+    const groups = new Map<string, FileItem[]>();
+    for (const file of displayFiles) {
+      const key = formatDate(
+        file.updatedAt ?? file.createdAt ?? new Date().toISOString(),
+      );
+      const list = groups.get(key) ?? [];
+      list.push(file);
+      groups.set(key, list);
+    }
+    return Array.from(groups.entries());
+  }, [displayFiles]);
+
+  const {
+    selectedFileIds,
+    setSelectedFileIds,
+    toggleFileSelection,
+    toggleAllVisibleFiles,
+    clearSelection,
+  } = useFileSelection(displayFiles);
 
   async function loadFiles(cursor?: string | null) {
     const isMore = Boolean(cursor);
@@ -633,109 +526,12 @@ export function AllFilesPage() {
     }
   }
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
-    const AUTO_SYNC_STORAGE_KEY = "archivecloud:last-drive-auto-sync";
-
-    async function loadConnectedAccountsAndSync() {
-      try {
-        const data = await apiFetch<{ accounts: ConnectedAccount[] }>(
-          "/connected-accounts",
-          { signal: controller.signal },
-        );
-        if (controller.signal.aborted) return;
-        const accounts = data.accounts || [];
-        setConnectedAccounts(accounts);
-        setAccountsLoaded(true);
-
-        const hasGoogleDrive = accounts.some(
-          (account) =>
-            account.provider === "google_drive" &&
-            account.status === "connected",
-        );
-        if (!hasGoogleDrive) return;
-
-        const lastSyncAt = Number(
-          sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY) ?? "0",
-        );
-        if (
-          Number.isFinite(lastSyncAt) &&
-          Date.now() - lastSyncAt < AUTO_SYNC_COOLDOWN_MS
-        ) {
-          return;
-        }
-
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 750);
-        });
-        if (controller.signal.aborted) return;
-
-        setSyncingDrive(true);
-        try {
-          const response = await apiFetch<{
-            results: { created: number; updated: number; deleted: number }[];
-          }>("/files/sync-google", {
-            method: "POST",
-            body: JSON.stringify({}),
-            signal: controller.signal,
-          });
-          if (controller.signal.aborted) return;
-
-          sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, String(Date.now()));
-
-          let created = 0;
-          for (const res of response.results) created += res.created;
-          await loadAll();
-          window.dispatchEvent(new Event("archivecloud:storage-changed"));
-          if (created > 0) {
-            toast.success(
-              `Imported ${created} file${created === 1 ? "" : "s"} from Google Drive.`,
-            );
-          }
-        } catch (error) {
-          if (isAbortError(error)) return;
-          if (isNetworkError(error)) {
-            console.warn("Auto sync Google Drive skipped (network).");
-            return;
-          }
-          console.warn("Auto sync Google Drive failed:", error);
-        } finally {
-          if (!controller.signal.aborted) setSyncingDrive(false);
-        }
-      } catch (error) {
-        if (isAbortError(error)) return;
-        setAccountsLoaded(true);
-        console.warn("Failed to load connected accounts:", error);
-      }
-    }
-
-    async function refreshConnectedAccounts() {
-      try {
-        const data = await apiFetch<{ accounts: ConnectedAccount[] }>(
-          "/connected-accounts",
-        );
-        setConnectedAccounts(data.accounts || []);
-        setAccountsLoaded(true);
-      } catch (error) {
-        console.warn("Failed to refresh connected accounts:", error);
-      }
-    }
-
-    function onStorageChanged() {
-      void refreshConnectedAccounts();
-    }
-
-    window.addEventListener("archivecloud:storage-changed", onStorageChanged);
-    void loadConnectedAccountsAndSync();
-    return () => {
-      controller.abort();
-      window.removeEventListener(
-        "archivecloud:storage-changed",
-        onStorageChanged,
-      );
-    };
-  }, []);
+  const { syncGoogleDrive } = useHomeConnectedAccounts({
+    loadAll,
+    setConnectedAccounts,
+    setAccountsLoaded,
+    setSyncingDrive,
+  });
 
   useEffect(() => {
     loadAll().catch((error) =>
@@ -787,111 +583,32 @@ export function AllFilesPage() {
     FILE_SORT_OPTIONS.find((option) => option.value === activeSort)?.label ??
     "Created (Newest)";
 
-  const displayFolders = useMemo(() => {
-    if (activeFolderId || searchQuery) return folders;
-    // Nested cloud folder view: show only that folder's children.
-    if (cloudFolderId) return linkedFolders;
-    const byId = new Map<string, FolderItem>();
-    for (const folder of folders) {
-      if (folder.id) byId.set(folder.id, folder);
-    }
-    for (const folder of linkedFolders) {
-      if (folder.id && !byId.has(folder.id)) byId.set(folder.id, folder);
-    }
-    return Array.from(byId.values());
-  }, [activeFolderId, searchQuery, cloudFolderId, folders, linkedFolders]);
+  useAllFilesShortcuts({
+    activeFolderForMenu,
+    cutFolder,
+    activeFolderId,
+    cutSelectedFolder,
+    pasteFolder,
+    openMoveForFiles,
+    setContextMenu,
+    setFolderContextMenu,
+    setFolderDetailOpen,
+    setEmptyContextMenu,
+    setActiveFile,
+  });
 
-  const displayFiles = useMemo(() => {
-    if (activeFolderId || searchQuery) return files;
-    if (cloudFolderId) return linkedFiles;
-    const byId = new Map<string, FileItem>();
-    for (const file of files) {
-      if (file.id) byId.set(file.id, file);
-    }
-    for (const file of linkedFiles) {
-      if (file.id && !byId.has(file.id)) byId.set(file.id, file);
-    }
-    return Array.from(byId.values());
-  }, [activeFolderId, searchQuery, cloudFolderId, files, linkedFiles]);
-
-  const filesByDay = useMemo(() => {
-    const groups = new Map<string, FileItem[]>();
-    for (const file of displayFiles) {
-      const key = formatDate(
-        file.updatedAt ?? file.createdAt ?? new Date().toISOString(),
-      );
-      const list = groups.get(key) ?? [];
-      list.push(file);
-      groups.set(key, list);
-    }
-    return Array.from(groups.entries());
-  }, [displayFiles]);
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setContextMenu({ x: 0, y: 0, file: null });
-      if (event.key === "Escape")
-        setFolderContextMenu({ x: 0, y: 0, folder: null });
-      if (event.key === "Escape") setFolderDetailOpen(false);
-      if (event.key === "Escape")
-        setEmptyContextMenu({ x: 0, y: 0, open: false });
-      if (
-        event.ctrlKey &&
-        event.key.toLowerCase() === "x" &&
-        activeFolderForMenu
-      ) {
-        event.preventDefault();
-        cutSelectedFolder(activeFolderForMenu);
-      }
-      if (event.ctrlKey && event.key.toLowerCase() === "v" && cutFolder) {
-        event.preventDefault();
-        pasteFolder().catch((error) =>
-          toast.danger(
-            error instanceof Error ? error.message : "Failed to paste folder",
-          ),
-        );
-      }
-    }
-
-    function onOpenMoveShortcut(e: Event) {
-      const file = (e as CustomEvent).detail as FileItem;
-      setActiveFile(file);
-      openMoveForFiles([file]);
-    }
-
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("archivecloud:open-move-modal", onOpenMoveShortcut);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener(
-        "archivecloud:open-move-modal",
-        onOpenMoveShortcut,
-      );
-    };
-  }, [activeFolderForMenu, cutFolder, activeFolderId]);
-
-  useEffect(() => {
-    if (
-      !previewOpen ||
-      !activeFile?.mimeType?.startsWith("video/") ||
-      !previewVideoRef.current
-    )
-      return undefined;
-    let disposed = false;
-    let player: { destroy: () => void } | null = null;
-
-    ensurePlyr()
-      .then(() => {
-        if (disposed || !previewVideoRef.current) return;
-        player = createPlyr(previewVideoRef.current);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      disposed = true;
-      player?.destroy();
-    };
-  }, [previewOpen, activeFile?.mimeType, previewUrl]);
+  const { openFilePreview, closePreview } = useFilePreview({
+    previewOpen,
+    activeFile,
+    previewUrl,
+    previewVideoRef,
+    setActiveFile,
+    setPreviewUrl,
+    setPreviewError,
+    setPreviewLoading,
+    setPreviewOpen,
+    setContextMenu,
+  });
 
   async function createFolder(event: FormEvent) {
     event.preventDefault();
@@ -922,41 +639,15 @@ export function AllFilesPage() {
     setFolderOpen(true);
   }
 
-  function runSidebarCreateAction(action: SidebarCreateAction) {
-    if (action === "upload") {
-      setUploadOpen(true);
-      return;
-    }
-    openNewFolderModal();
-  }
-
-  useEffect(() => {
-    const action = sp.get("action");
-    if (action === "upload" || action === "new-folder") {
-      const params = new URLSearchParams(sp.toString());
-      params.delete("action");
-      const qs = params.toString();
-      router.replace(qs ? `/home?${qs}` : "/home");
-      runSidebarCreateAction(action);
-    }
-  }, [sp, router]);
-
-  useEffect(() => {
-    function onSidebarCreate(event: Event) {
-      const action = (event as CustomEvent<{ action: SidebarCreateAction }>)
-        .detail?.action;
-      if (action === "upload") {
-        setUploadOpen(true);
-      } else if (action === "new-folder") {
-        setFolderName("New Folder");
-        setFolderColor(defaultFolderColor);
-        setFolderOpen(true);
-      }
-    }
-    window.addEventListener(SIDEBAR_CREATE_EVENT, onSidebarCreate);
-    return () =>
-      window.removeEventListener(SIDEBAR_CREATE_EVENT, onSidebarCreate);
-  }, []);
+  useAllFilesSidebarActions({
+    sp,
+    router,
+    setUploadOpen,
+    openNewFolderModal,
+    setFolderName,
+    setFolderColor,
+    setFolderOpen,
+  });
 
   async function uploadFile(event: FormEvent) {
     event.preventDefault();
@@ -978,37 +669,6 @@ export function AllFilesPage() {
       console.error("Upload initiation failed:", err);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function syncGoogleDrive() {
-    setSyncingDrive(true);
-    try {
-      const response = await apiFetch<{
-        results: { created: number; updated: number; deleted: number }[];
-      }>("/files/sync-google", { method: "POST", body: JSON.stringify({}) });
-
-      let created = 0,
-        updated = 0,
-        deleted = 0;
-      for (const res of response.results) {
-        created += res.created;
-        updated += res.updated;
-        deleted += res.deleted;
-      }
-      const accounts = response.results.length;
-
-      toast.success(
-        `Google Drive synced. ${created} added, ${updated} updated, ${deleted} removed across ${accounts} account${accounts === 1 ? "" : "s"}.`,
-      );
-      await loadAll();
-      window.dispatchEvent(new Event("archivecloud:storage-changed"));
-    } catch (error) {
-      toast.danger(
-        error instanceof Error ? error.message : "Failed to sync Google Drive",
-      );
-    } finally {
-      setSyncingDrive(false);
     }
   }
 
@@ -1035,53 +695,6 @@ export function AllFilesPage() {
     if (event.type === "drop") selectUploadFiles(event.dataTransfer.files);
   }
 
-  function openContext(event: MouseEvent<HTMLElement>, file: FileItem) {
-    event.preventDefault();
-    event.stopPropagation();
-    setActiveFile(file);
-    setContextMenu({ x: event.clientX, y: event.clientY, file });
-  }
-
-  function toggleFileSelection(file: FileItem) {
-    if (!file.id) return;
-    setSelectedFileIds((current) => {
-      const next = new Set(current);
-      if (next.has(file.id!)) next.delete(file.id!);
-      else next.add(file.id!);
-      return next;
-    });
-  }
-
-  function toggleAllVisibleFiles() {
-    const visibleIds = displayFiles
-      .map((file) => file.id)
-      .filter(Boolean) as string[];
-    const allSelected =
-      visibleIds.length > 0 &&
-      visibleIds.every((id) => selectedFileIds.has(id));
-    setSelectedFileIds(allSelected ? new Set() : new Set(visibleIds));
-  }
-
-  function clearSelection() {
-    setSelectedFileIds(new Set());
-  }
-
-  function openFolderMenu(event: MouseEvent<HTMLElement>, folder: FolderItem) {
-    event.preventDefault();
-    event.stopPropagation();
-    setActiveFolderForMenu(folder);
-    if (event.type === "contextmenu") {
-      setFolderContextMenu({ x: event.clientX, y: event.clientY, folder });
-      return;
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    setFolderContextMenu({
-      x: Math.max(12, rect.right - 224),
-      y: rect.bottom + 4,
-      folder,
-    });
-  }
-
   function folderMenuAccount(folder: FolderItem | null) {
     if (!folder?.id) return null;
     if (folder.connectedAccountId) {
@@ -1093,7 +706,9 @@ export function AllFilesPage() {
     }
     if (isAccountFolderId(folder.id)) {
       const accountId = folder.id.slice(ACCOUNT_FOLDER_PREFIX.length);
-      return connectedAccounts.find((account) => account.id === accountId) ?? null;
+      return (
+        connectedAccounts.find((account) => account.id === accountId) ?? null
+      );
     }
     if (isLinkedFolderId(folder.id)) {
       const ref = parseLinkedRef(folder.id);
@@ -1126,7 +741,11 @@ export function AllFilesPage() {
         return;
       }
       if (provider.includes("dropbox")) {
-        window.open("https://www.dropbox.com/home", "_blank", "noopener,noreferrer");
+        window.open(
+          "https://www.dropbox.com/home",
+          "_blank",
+          "noopener,noreferrer",
+        );
         return;
       }
       if (provider.includes("onedrive") || provider.includes("microsoft")) {
@@ -1220,11 +839,6 @@ export function AllFilesPage() {
     });
   }
 
-  function openEmptyContextMenu(event: MouseEvent<HTMLElement>) {
-    event.preventDefault();
-    setEmptyContextMenu({ x: event.clientX, y: event.clientY, open: true });
-  }
-
   function closeFolder() {
     if (cloudFolderId || (filterAccountId && !activeFolderId)) {
       patchHomeParams({
@@ -1240,42 +854,6 @@ export function AllFilesPage() {
   async function _viewFile() {
     if (!activeFile?.id) return;
     await openFilePreview(activeFile);
-  }
-
-  async function openFilePreview(file: FileItem) {
-    if (!file.id) return;
-    setActiveFile(file);
-    setPreviewUrl("");
-    setPreviewError("");
-    setPreviewLoading(true);
-    setPreviewOpen(true);
-    setContextMenu({ x: 0, y: 0, file: null });
-    try {
-      if (isLinkedFileId(file.id)) {
-        const accountId = file.connectedAccountId;
-        const providerFileId = file.providerFileId;
-        if (!accountId || !providerFileId) {
-          throw new Error("Linked file is missing account details.");
-        }
-        setPreviewUrl(
-          `${API_URL}/connected-accounts/${accountId}/files/${encodeURIComponent(providerFileId)}/preview`,
-        );
-        return;
-      }
-
-      const data = await apiFetch<{ path?: string; url: string }>(
-        `/files/${file.id}/preview-token`,
-        { method: "POST" },
-      );
-      const previewPath = data.path ?? new URL(data.url).pathname;
-      setPreviewUrl(`${API_URL}${previewPath}`);
-    } catch (error) {
-      setPreviewError(
-        error instanceof Error ? error.message : "Failed to load preview",
-      );
-    } finally {
-      setPreviewLoading(false);
-    }
   }
 
   async function downloadFile() {
@@ -1351,7 +929,9 @@ export function AllFilesPage() {
     if (ids.length === 0) return;
 
     // If every file is a linked provider item from the same account, move in-cloud.
-    const linked = filesToMove.filter((file) => file.id && isLinkedFileId(file.id));
+    const linked = filesToMove.filter(
+      (file) => file.id && isLinkedFileId(file.id),
+    );
     if (linked.length === filesToMove.length) {
       const accountId = linked[0]?.connectedAccountId;
       const providerId = linked[0]?.providerFileId;
@@ -1360,7 +940,8 @@ export function AllFilesPage() {
         providerId &&
         linked.every(
           (file) =>
-            file.connectedAccountId === accountId && Boolean(file.providerFileId),
+            file.connectedAccountId === accountId &&
+            Boolean(file.providerFileId),
         )
       ) {
         if (linked.length > 1) {
@@ -1379,8 +960,10 @@ export function AllFilesPage() {
     }
 
     const archiveIds = filesToMove
-      .filter((file) => file.id && !isLinkedFileId(file.id))
-      .map((file) => file.id!) ;
+      .filter((file): file is typeof file & { id: string } =>
+        Boolean(file.id && !isLinkedFileId(file.id)),
+      )
+      .map((file) => file.id);
     if (archiveIds.length === 0) {
       toast.danger("These items cannot be moved here yet.");
       return;
@@ -1529,7 +1112,11 @@ export function AllFilesPage() {
     let accountId = folder.connectedAccountId ?? null;
     let providerId = folder.providerFolderId ?? null;
 
-    if ((!accountId || !providerId) && folder.id && isLinkedFolderId(folder.id)) {
+    if (
+      (!accountId || !providerId) &&
+      folder.id &&
+      isLinkedFolderId(folder.id)
+    ) {
       const parsed = parseLinkedRef(folder.id);
       if (parsed) {
         accountId = accountId ?? parsed.accountId;
@@ -1556,9 +1143,7 @@ export function AllFilesPage() {
 
     const target = resolveVirtualFolderTargetFromFile(targetFile);
     if (!target) {
-      toast.danger(
-        "This file cannot be added to a virtual folder yet.",
-      );
+      toast.danger("This file cannot be added to a virtual folder yet.");
       return;
     }
     setVirtualFolderTarget(target);
@@ -1579,9 +1164,7 @@ export function AllFilesPage() {
 
     const target = resolveVirtualFolderTargetFromFolder(targetFolder);
     if (!target) {
-      toast.danger(
-        "This folder cannot be added to a virtual folder yet.",
-      );
+      toast.danger("This folder cannot be added to a virtual folder yet.");
       return;
     }
     setVirtualFolderTarget(target);
@@ -1617,8 +1200,9 @@ export function AllFilesPage() {
         await navigator.clipboard.writeText(shareData.url);
         toast.success("Share link copied to clipboard!");
       }
-    } catch (err: any) {
-      toast.danger(`Failed to copy link: ${err.message || err}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.danger(`Failed to copy link: ${message}`);
     }
     setContextMenu({ x: 0, y: 0, file: null });
   }
@@ -1745,16 +1329,17 @@ export function AllFilesPage() {
       }
 
       if (isLinkedFolderId(folder.id)) {
+        const folderId = folder.id;
         const account =
           folderMenuAccount(folder) ??
           (() => {
-            const ref = parseLinkedRef(folder.id!);
+            const ref = parseLinkedRef(folderId);
             return ref
               ? connectedAccounts.find((item) => item.id === ref.accountId)
               : null;
           })();
         const providerId =
-          folder.providerFolderId ?? parseLinkedRef(folder.id)?.providerId;
+          folder.providerFolderId ?? parseLinkedRef(folderId)?.providerId;
         if (!account || !providerId) {
           throw new Error("Missing cloud account details for this folder.");
         }
@@ -1801,13 +1386,6 @@ export function AllFilesPage() {
     toast.success(`Folder "${cutFolder.name}" moved.`);
     setCutFolder(null);
     await loadFolders();
-  }
-
-  function closePreview() {
-    setPreviewUrl("");
-    setPreviewError("");
-    setPreviewLoading(false);
-    setPreviewOpen(false);
   }
 
   useEffect(() => {
@@ -1989,100 +1567,101 @@ export function AllFilesPage() {
               actions={
                 <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
                   {!isCloudFolderView ? (
-                  <Popover
-                    isOpen={accountFilterOpen}
-                    onOpenChange={setAccountFilterOpen}
-                  >
-                    <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
-                      <span className="flex min-w-0 items-center gap-2">
-                        {selectedAccount ? (
-                          <AccountProviderIcon
-                            provider={selectedAccount.provider}
-                          />
-                        ) : null}
-                        <span className="truncate">
-                          {selectedAccount
-                            ? accountTitle(selectedAccount)
-                            : "All Accounts"}
+                    <Popover
+                      isOpen={accountFilterOpen}
+                      onOpenChange={setAccountFilterOpen}
+                    >
+                      <Popover.Trigger className="inline-flex h-10 min-w-[9.5rem] max-w-[12rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-foreground shadow-sm">
+                        <span className="flex min-w-0 items-center gap-2">
+                          {selectedAccount ? (
+                            <AccountProviderIcon
+                              provider={selectedAccount.provider}
+                            />
+                          ) : null}
+                          <span className="truncate">
+                            {selectedAccount
+                              ? accountTitle(selectedAccount)
+                              : "All Accounts"}
+                          </span>
                         </span>
-                      </span>
-                      <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
-                    </Popover.Trigger>
-                    <Popover.Content className="w-72 p-1.5">
-                      <Popover.Dialog>
-                        <button
-                          type="button"
-                          className={cn(
-                            "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                            !filterAccountId
-                              ? "bg-primary/10 font-semibold text-primary"
-                              : "font-medium text-foreground hover:bg-black/5",
-                          )}
-                          onClick={() => {
-                            setAccountFilterOpen(false);
-                            patchHomeParams({
-                              accountId: null,
-                              cloudFolder: null,
-                              folderId: null,
-                            });
-                          }}
-                        >
-                          All Accounts
-                        </button>
-                        {accountFilterOptions.map((account) => {
-                          const email = account.email?.trim();
-                          const showEmail =
-                            Boolean(email) &&
-                            (selectedAccount
-                              ? accountFilterOptions.length > 1
-                              : connectedAccounts.filter(
-                                  (item) => item.provider === account.provider,
-                                ).length > 1);
-                          return (
-                            <button
-                              key={account.id}
-                              type="button"
-                              className={cn(
-                                "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                                filterAccountId === account.id
-                                  ? "bg-primary/10 font-semibold text-primary"
-                                  : "font-medium text-foreground hover:bg-black/5",
-                              )}
-                              onClick={() => {
-                                setAccountFilterOpen(false);
-                                patchHomeParams({
-                                  accountId: account.id,
-                                  cloudFolder: null,
-                                  folderId: null,
-                                });
-                              }}
-                            >
-                              <AccountProviderIcon
-                                provider={account.provider}
-                              />
-                              <span className="min-w-0 flex-1 overflow-hidden">
-                                <span className="block truncate">
-                                  {accountTitle(account)}
-                                </span>
-                                {showEmail ? (
-                                  <span
-                                    className={cn(
-                                      "mt-0.5 block truncate text-[11px] font-normal",
-                                      filterAccountId === account.id
-                                        ? "text-primary/80"
-                                        : "text-muted",
-                                    )}
-                                  >
-                                    {email}
+                        <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
+                      </Popover.Trigger>
+                      <Popover.Content className="w-72 p-1.5">
+                        <Popover.Dialog>
+                          <button
+                            type="button"
+                            className={cn(
+                              "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                              !filterAccountId
+                                ? "bg-primary/10 font-semibold text-primary"
+                                : "font-medium text-foreground hover:bg-black/5",
+                            )}
+                            onClick={() => {
+                              setAccountFilterOpen(false);
+                              patchHomeParams({
+                                accountId: null,
+                                cloudFolder: null,
+                                folderId: null,
+                              });
+                            }}
+                          >
+                            All Accounts
+                          </button>
+                          {accountFilterOptions.map((account) => {
+                            const email = account.email?.trim();
+                            const showEmail =
+                              Boolean(email) &&
+                              (selectedAccount
+                                ? accountFilterOptions.length > 1
+                                : connectedAccounts.filter(
+                                    (item) =>
+                                      item.provider === account.provider,
+                                  ).length > 1);
+                            return (
+                              <button
+                                key={account.id}
+                                type="button"
+                                className={cn(
+                                  "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                                  filterAccountId === account.id
+                                    ? "bg-primary/10 font-semibold text-primary"
+                                    : "font-medium text-foreground hover:bg-black/5",
+                                )}
+                                onClick={() => {
+                                  setAccountFilterOpen(false);
+                                  patchHomeParams({
+                                    accountId: account.id,
+                                    cloudFolder: null,
+                                    folderId: null,
+                                  });
+                                }}
+                              >
+                                <AccountProviderIcon
+                                  provider={account.provider}
+                                />
+                                <span className="min-w-0 flex-1 overflow-hidden">
+                                  <span className="block truncate">
+                                    {accountTitle(account)}
                                   </span>
-                                ) : null}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </Popover.Dialog>
-                    </Popover.Content>
-                  </Popover>
+                                  {showEmail ? (
+                                    <span
+                                      className={cn(
+                                        "mt-0.5 block truncate text-[11px] font-normal",
+                                        filterAccountId === account.id
+                                          ? "text-primary/80"
+                                          : "text-muted",
+                                      )}
+                                    >
+                                      {email}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </Popover.Dialog>
+                      </Popover.Content>
+                    </Popover>
                   ) : null}
 
                   <Popover
@@ -2195,112 +1774,17 @@ export function AllFilesPage() {
                 />
               </SuggestedSection>
             ) : null}
-            {selectedFileIds.size > 0 ? (
-              <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-                  <div className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-border/80 bg-white py-1 pl-2 pr-1.5 shadow-sm dark:bg-surface">
-                    <button
-                      type="button"
-                      onClick={clearSelection}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                      aria-label="Clear selection"
-                    >
-                      <Xmark className="h-5 w-5" />
-                    </button>
-                    <span className="mr-1 shrink-0 whitespace-nowrap pr-2 text-sm font-medium text-foreground">
-                      {selectedFileIds.size} selected
-                    </span>
-                    <div className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:block" />
-                    {selectedFileIds.size === 1 ? (
-                      <>
-                        <button
-                          type="button"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                          aria-label="Share"
-                          title="Share"
-                          onClick={() => {
-                            const id = [...selectedFileIds][0];
-                            const file = displayFiles.find(
-                              (item) => item.id === id,
-                            );
-                            if (!file) return;
-                            void shareFile(file);
-                          }}
-                        >
-                          <PersonPlus className="h-5 w-5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                          aria-label="Copy link"
-                          title="Copy link"
-                          onClick={() => {
-                            const id = [...selectedFileIds][0];
-                            const file = displayFiles.find(
-                              (item) => item.id === id,
-                            );
-                            if (!file) return;
-                            void copyShareLinkDirect(file);
-                          }}
-                        >
-                          <Link className="h-5 w-5" />
-                        </button>
-                      </>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                      aria-label="Download as ZIP"
-                      title="Download ZIP"
-                      onClick={downloadBatchAsZip}
-                    >
-                      <ArrowDownToLine className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                      aria-label="Move"
-                      title="Move"
-                      onClick={() => {
-                        const selected = displayFiles.filter(
-                          (file) => file.id && selectedFileIds.has(file.id),
-                        );
-                        openMoveForFiles(selected);
-                      }}
-                    >
-                      <FolderArrowRight className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                      aria-label="Delete"
-                      title="Delete"
-                      onClick={() => setDeleteOpen(true)}
-                    >
-                      <TrashBin className="h-5 w-5" />
-                    </button>
-                    {selectedFileIds.size === 1 ? (
-                      <button
-                        type="button"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                        aria-label="More actions"
-                        title="More"
-                        onClick={(event) => {
-                          const id = [...selectedFileIds][0];
-                          const file = displayFiles.find(
-                            (item) => item.id === id,
-                          );
-                          if (!file) return;
-                          openContext(event, file);
-                        }}
-                      >
-                        <EllipsisVertical className="h-5 w-5" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : null}
+            <AllFilesSelectionBar
+              selectedFileIds={selectedFileIds}
+              displayFiles={displayFiles}
+              clearSelection={clearSelection}
+              shareFile={shareFile}
+              copyShareLinkDirect={copyShareLinkDirect}
+              downloadBatchAsZip={downloadBatchAsZip}
+              openMoveForFiles={openMoveForFiles}
+              setDeleteOpen={setDeleteOpen}
+              openContext={openContext}
+            />
             {cutFolder ? (
               <p className="mt-3 rounded-xl bg-surface-secondary p-3 text-sm font-semibold text-foreground">
                 <CopyCheck className="mr-2 inline h-4 w-4" />
@@ -2487,11 +1971,12 @@ export function AllFilesPage() {
         x={folderContextMenu.x}
         y={folderContextMenu.y}
         folder={folderContextMenu.folder}
-        goToDriveLabel={
-          folderMenuAccount(folderContextMenu.folder)
-            ? `Go to ${providerLabel(folderMenuAccount(folderContextMenu.folder)!.provider)}`
-            : "Go to Drive"
-        }
+        goToDriveLabel={(() => {
+          const account = folderMenuAccount(folderContextMenu.folder);
+          return account
+            ? `Go to ${providerLabel(account.provider)}`
+            : "Go to Drive";
+        })()}
         onClose={() => setFolderContextMenu({ x: 0, y: 0, folder: null })}
         onDetails={() => {
           if (!activeFolderForMenu) return;
@@ -2562,9 +2047,10 @@ export function AllFilesPage() {
             ? {
                 folder: activeFolderForMenu,
                 provider: folderMenuAccount(activeFolderForMenu)?.provider,
-                accountName: folderMenuAccount(activeFolderForMenu)
-                  ? accountTitle(folderMenuAccount(activeFolderForMenu)!)
-                  : "Archive Cloud",
+                accountName: (() => {
+                  const account = folderMenuAccount(activeFolderForMenu);
+                  return account ? accountTitle(account) : "Archive Cloud";
+                })(),
                 owner: "You",
                 modified: activeFolderForMenu.updated || null,
                 mimeType: null,
@@ -2579,147 +2065,28 @@ export function AllFilesPage() {
         }}
       />
 
-      <DummyModal
+      <AllFilesUploadModal
         open={uploadOpen}
-        title="Upload File"
-        description="Stream file directly to selected Google Drive account."
         onClose={() => setUploadOpen(false)}
-      >
-        <form onSubmit={uploadFile} className="grid gap-4">
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop upload target */}
-          <div
-            onDragEnter={handleUploadDrag}
-            onDragOver={handleUploadDrag}
-            onDragLeave={handleUploadDrag}
-            onDrop={handleUploadDrag}
-            className={
-              isUploadDragging
-                ? "grid cursor-pointer gap-3 rounded-2xl border-2 border-dashed border-border bg-surface-secondary p-4 text-center transition sm:p-6"
-                : "grid cursor-pointer gap-3 rounded-2xl border-2 border-dashed border-border bg-background-secondary p-4 text-center transition hover:border-border hover:bg-surface-secondary/50 sm:p-6"
-            }
-          >
-            <ArrowUpFromLine
-              className={
-                isUploadDragging
-                  ? "mx-auto h-8 w-8 text-foreground"
-                  : "mx-auto h-8 w-8 text-muted"
-              }
-            />
-            <span className="text-sm font-extrabold text-foreground">
-              Drop file here or click to browse
-            </span>
-            <span className="text-xs text-muted">
-              Metadata is sent before the file so upload can stream directly to
-              Google Drive.
-            </span>
-            <Input
-              type="file"
-              className="sr-only"
-              multiple
-              onChange={(event) => selectUploadFiles(event.target.files)}
-              required={selectedFiles.length === 0}
-            />
-          </div>
-          <label className="grid gap-2 text-sm font-semibold text-foreground">
-            Target Storage Account
-            <select
-              className="h-11 rounded-xl border border-border bg-white px-3 text-sm text-foreground"
-              value={selectedTargetAccountId}
-              onChange={(event) =>
-                setSelectedTargetAccountId(event.target.value)
-              }
-            >
-              <option value="">Automatic (Default)</option>
-              {connectedAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.email || account.displayName || account.id} (
-                  {account.provider === "s3" ? "S3" : "Google Drive"})
-                </option>
-              ))}
-            </select>
-          </label>
-          {activeFolder ? (
-            <p className="rounded-xl bg-background-secondary p-3 text-sm text-muted">
-              Uploading to:{" "}
-              <b className="text-foreground">{activeFolder.name}</b>
-            </p>
-          ) : (
-            <label className="grid gap-2 text-sm font-semibold text-foreground">
-              Virtual Folder
-              <select
-                className="h-11 rounded-xl border border-border bg-white px-3 text-sm text-foreground"
-                value={selectedFolderId}
-                onChange={(event) => setSelectedFolderId(event.target.value)}
-              >
-                <option value="">No folder</option>
-                {allFolders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {selectedFiles.length > 0 ? (
-            <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl bg-background-secondary p-3 text-sm text-muted">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-bold text-foreground">
-                  {selectedFiles.length} selected
-                </span>
-                <span className="shrink-0">
-                  {formatBytes(
-                    selectedFiles.reduce((total, file) => total + file.size, 0),
-                  )}
-                </span>
-              </div>
-              {selectedFiles.map((file, index) => (
-                <div
-                  key={`${file.name}-${file.size}-${file.lastModified}`}
-                  className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-white px-3 py-2"
-                >
-                  <span className="min-w-0 flex-1 truncate" title={file.name}>
-                    {file.name}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted">
-                    {formatBytes(file.size)}
-                  </span>
-                  <button
-                    type="button"
-                    className="shrink-0 text-muted hover:text-danger"
-                    onClick={() => removeUploadFile(index)}
-                    aria-label={`Remove ${file.name}`}
-                  >
-                    <Xmark className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <div className="grid gap-3 sm:flex sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setUploadOpen(false)}
-              isDisabled={loading}
-              className={
-                loading
-                  ? "border-border text-foreground opacity-50"
-                  : "border-border text-foreground"
-              }
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              isDisabled={loading || selectedFiles.length === 0}
-            >
-              {loading
-                ? "Uploading..."
-                : `Upload${selectedFiles.length > 1 ? ` ${selectedFiles.length} files` : ""}`}
-            </Button>
-          </div>
-        </form>
-      </DummyModal>
+        onSubmit={uploadFile}
+        loading={loading}
+        isUploadDragging={isUploadDragging}
+        onUploadDrag={handleUploadDrag}
+        selectedFiles={selectedFiles}
+        onSelectUploadFiles={selectUploadFiles}
+        onRemoveUploadFile={removeUploadFile}
+        accountSelect={{
+          value: selectedTargetAccountId,
+          onChange: setSelectedTargetAccountId,
+          accounts: connectedAccounts,
+        }}
+        folderSelect={{
+          activeFolder,
+          value: selectedFolderId,
+          onChange: setSelectedFolderId,
+          folders: allFolders,
+        }}
+      />
       <DummyModal
         open={folderOpen}
         title="New Folder"
@@ -2913,20 +2280,22 @@ export function AllFilesPage() {
                 &apos;{activeFolderForMenu?.name ?? "folder"}&apos;
               </span>{" "}
               folder
-              {folderMenuAccount(activeFolderForMenu) ? (
-                <>
-                  {" "}
-                  from{" "}
-                  <span className="font-extrabold">
-                    &apos;
-                    {accountTitle(folderMenuAccount(activeFolderForMenu)!)}
-                    &apos;
-                  </span>
-                </>
-              ) : (
-                <> from Archive Cloud</>
-              )}
-              ?
+              {(() => {
+                const account = folderMenuAccount(activeFolderForMenu);
+                return account ? (
+                  <>
+                    {" "}
+                    from{" "}
+                    <span className="font-extrabold">
+                      &apos;
+                      {accountTitle(account)}
+                      &apos;
+                    </span>
+                  </>
+                ) : (
+                  <> from Archive Cloud</>
+                );
+              })()}?
             </p>
             <p className="text-sm font-semibold text-amber-600">
               All contents will be deleted permanently.

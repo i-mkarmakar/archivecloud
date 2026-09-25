@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
@@ -10,6 +11,8 @@ import {
   resolveWebhookBaseUrl,
 } from "@/server/modules/webhooks/google-drive-watch";
 import { ensureOneDriveSubscription } from "@/server/modules/webhooks/onedrive-subscription";
+
+const accountIdSchema = z.string().min(1);
 
 export async function enableAccountWebhooksHandler(
   request: Request,
@@ -26,10 +29,11 @@ export async function enableAccountWebhooksHandler(
   );
   if (gated) return gated;
 
-  const accountId = params?.id;
-  if (!accountId) {
+  const accountIdParsed = accountIdSchema.safeParse(params?.id);
+  if (!accountIdParsed.success) {
     return errorJson("VALIDATION_ERROR", "Account id required.", 400);
   }
+  const accountId = accountIdParsed.data;
 
   const account = await prisma.connectedAccount.findFirst({
     where: { id: accountId, userId: user.id, status: "connected" },

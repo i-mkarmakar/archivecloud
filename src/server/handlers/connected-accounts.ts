@@ -1,5 +1,4 @@
 import { Readable } from "node:stream";
-import { google } from "googleapis";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -25,24 +24,23 @@ import {
   syncDropboxQuota,
 } from "@/server/modules/dropbox/dropbox.service";
 import {
-  isBrowserInlineImageMimeType,
-  isHeicLike,
-  streamGoogleDriveThumbnailResponse,
-  streamGoogleProviderFileResponse,
-} from "@/server/modules/files/stream-google-file";
-import {
-  createOAuthClient,
-  ensureGlobalGoogleProviderConfig,
-  getAuthedGoogleClient,
-  syncGoogleQuota,
-} from "@/server/modules/google/google.service";
-import {
   buildOneDriveAuthUrl,
   ensureGlobalOneDriveProviderConfig,
   exchangeOneDriveCode,
   getOneDriveProfileWithToken,
   syncOneDriveQuota,
 } from "@/server/modules/onedrive/onedrive.service";
+import {
+  streamGoogleDriveThumbnailResponse,
+  streamGoogleProviderFileResponse,
+} from "@/server/modules/providers/google/drive-stream";
+import {
+  createOAuthClient,
+  ensureGlobalGoogleProviderConfig,
+  fetchGoogleOAuthUserInfo,
+  getGoogleDriveFileBasicMeta,
+  syncGoogleQuota,
+} from "@/server/modules/providers/google/google.service";
 import {
   browseProviderFolder,
   ensureProviderChildFolder,
@@ -60,14 +58,37 @@ import {
   randomToken,
 } from "@/server/utils/crypto";
 
-export const GOOGLE_CONNECT_RETURN_COOKIE = "archivecloud_oauth_return";
+const browserInlineImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/bmp",
+]);
+
+function isBrowserInlineImageMimeType(mimeType: string, fileName: string) {
+  if (browserInlineImageMimeTypes.has(mimeType)) return true;
+  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(fileName);
+}
+
+function isHeicLike(mimeType: string, fileName: string) {
+  return (
+    mimeType === "image/heic" ||
+    mimeType === "image/heif" ||
+    /\.heic$/i.test(fileName) ||
+    /\.heif$/i.test(fileName)
+  );
+}
+
+const GOOGLE_CONNECT_RETURN_COOKIE = "archivecloud_oauth_return";
 
 function safeAppPath(path: string | null | undefined): string | null {
   if (!path?.startsWith("/") || path.startsWith("//")) return null;
   return path;
 }
 
-export async function createGoogleConnectUrl(
+async function createGoogleConnectUrl(
   userId: string,
   request: Request,
   options?: { loginHint?: string },
@@ -167,7 +188,7 @@ export async function listConnectedAccountsHandler(request: Request) {
   });
 }
 
-export async function createOneDriveConnectUrl(
+async function createOneDriveConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalOneDriveProviderConfig();
@@ -351,7 +372,7 @@ export async function onedriveCallbackHandler(request: Request) {
   }
 }
 
-export async function createDropboxConnectUrl(
+async function createDropboxConnectUrl(
   userId: string,
 ): Promise<string | Response> {
   const config = await ensureGlobalDropboxProviderConfig();
@@ -644,8 +665,7 @@ export async function googleCallbackHandler(request: Request) {
         400,
       );
     client.setCredentials(tokens);
-    const oauth2 = google.oauth2({ version: "v2", auth: client });
-    const profile = await oauth2.userinfo.get();
+    const profile = await fetchGoogleOAuthUserInfo(client);
     const providerAccountId = profile.data.id;
     const email = profile.data.email;
     if (!providerAccountId || !email)
@@ -1024,19 +1044,13 @@ export async function previewConnectedAccountFileHandler(
     account.provider === "google_drive" ||
     account.provider === "google_shared_drive"
   ) {
-    const auth = await getAuthedGoogleClient(account);
-    const drive = google.drive({ version: "v3", auth });
-    const metadata = await drive.files.get({
-      fileId: providerFileId,
-      fields: "id,name,mimeType",
-      supportsAllDrives: true,
-    });
-    if (!metadata.data.id || !metadata.data.name) {
+    const metadata = await getGoogleDriveFileBasicMeta(account, providerFileId);
+    if (!metadata) {
       return errorJson("FILE_NOT_FOUND", "File not found on this drive.", 404);
     }
 
-    const mimeType = metadata.data.mimeType ?? "application/octet-stream";
-    const name = metadata.data.name;
+    const mimeType = metadata.mimeType;
+    const name = metadata.name;
     const range = request.headers.get("range") ?? undefined;
 
     if (
@@ -1109,18 +1123,12 @@ export async function downloadConnectedAccountFileHandler(
     account.provider === "google_drive" ||
     account.provider === "google_shared_drive"
   ) {
-    const auth = await getAuthedGoogleClient(account);
-    const drive = google.drive({ version: "v3", auth });
-    const metadata = await drive.files.get({
-      fileId: providerFileId,
-      fields: "id,name,mimeType",
-      supportsAllDrives: true,
-    });
-    if (!metadata.data.id || !metadata.data.name) {
+    const metadata = await getGoogleDriveFileBasicMeta(account, providerFileId);
+    if (!metadata) {
       return errorJson("FILE_NOT_FOUND", "File not found on this drive.", 404);
     }
-    const mimeType = metadata.data.mimeType ?? "application/octet-stream";
-    const name = metadata.data.name;
+    const mimeType = metadata.mimeType;
+    const name = metadata.name;
     const range = request.headers.get("range") ?? undefined;
     return streamGoogleProviderFileResponse(
       account,
@@ -1251,10 +1259,15 @@ export async function renameConnectedAccountItemHandler(
       return json({ item: moved });
     }
 
+    const newName = body.name;
+    if (!newName) {
+      return errorJson("VALIDATION_ERROR", "Provide name or parentId.", 400);
+    }
+
     const renamed = await renameProviderFile({
       account,
       providerFileId,
-      newName: body.name!,
+      newName,
     });
 
     // Keep local folder/file rows in sync when this provider item is tracked.
@@ -1266,7 +1279,7 @@ export async function renameConnectedAccountItemHandler(
           providerFolderId: providerFileId,
           deletedAt: null,
         },
-        data: { name: body.name! },
+        data: { name: newName },
       }),
       prisma.file.updateMany({
         where: {
@@ -1275,7 +1288,7 @@ export async function renameConnectedAccountItemHandler(
           providerFileId,
           deletedAt: null,
         },
-        data: { name: body.name! },
+        data: { name: newName },
       }),
     ]);
 

@@ -1,9 +1,14 @@
+import "server-only";
+
 import { randomUUID } from "node:crypto";
-import { google } from "googleapis";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
-import { getAuthedGoogleClient } from "@/server/modules/google/google.service";
+import {
+  getGoogleDriveChangesStartPageToken,
+  stopGoogleDriveChannel,
+  watchGoogleDriveChanges,
+} from "@/server/modules/providers/google/google-drive-changes";
 
 const GOOGLE_PROVIDERS = new Set(["google_drive", "google_shared_drive"]);
 
@@ -51,38 +56,19 @@ export async function ensureGoogleDriveWatch(
     return { registered: true, reason: "already_active" };
   }
 
-  const auth = await getAuthedGoogleClient(account);
-  const drive = google.drive({ version: "v3", auth });
-
-  const startPage = await drive.changes.getStartPageToken({
-    supportsAllDrives: true,
-  });
-  const pageToken = startPage.data.startPageToken;
-  if (!pageToken) {
-    throw new Error("Google Drive did not return a start page token.");
-  }
+  const pageToken = await getGoogleDriveChangesStartPageToken(account);
 
   const channelId = randomUUID();
   const channelToken = randomUUID();
   const expirationMs = Date.now() + WATCH_TTL_MS;
 
-  const watch = await drive.changes.watch({
+  const watch = await watchGoogleDriveChanges(account, {
     pageToken,
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-    requestBody: {
-      id: channelId,
-      type: "web_hook",
-      address: `${baseUrl}/webhooks/google-drive`,
-      token: channelToken,
-      expiration: String(expirationMs),
-    },
+    channelId,
+    channelToken,
+    address: `${baseUrl}/webhooks/google-drive`,
+    expirationMs,
   });
-
-  const resourceId = watch.data.resourceId ?? null;
-  const expirationAt = watch.data.expiration
-    ? new Date(Number(watch.data.expiration))
-    : new Date(expirationMs);
 
   if (existing) {
     await prisma.providerWebhookChannel.update({
@@ -91,11 +77,9 @@ export async function ensureGoogleDriveWatch(
     });
     if (existing.resourceId) {
       try {
-        await drive.channels.stop({
-          requestBody: {
-            id: existing.channelId,
-            resourceId: existing.resourceId,
-          },
+        await stopGoogleDriveChannel(account, {
+          channelId: existing.channelId,
+          resourceId: existing.resourceId,
         });
       } catch {}
     }
@@ -106,10 +90,10 @@ export async function ensureGoogleDriveWatch(
       connectedAccountId: account.id,
       provider: account.provider,
       channelId,
-      resourceId,
+      resourceId: watch.resourceId,
       channelToken,
       pageToken,
-      expirationAt,
+      expirationAt: watch.expirationAt,
       status: "active",
       lastError: null,
     },
@@ -134,13 +118,9 @@ export async function stopGoogleDriveWatches(accountId: string): Promise<void> {
         channel.resourceId &&
         channel.connectedAccount.status === "connected"
       ) {
-        const auth = await getAuthedGoogleClient(channel.connectedAccount);
-        const drive = google.drive({ version: "v3", auth });
-        await drive.channels.stop({
-          requestBody: {
-            id: channel.channelId,
-            resourceId: channel.resourceId,
-          },
+        await stopGoogleDriveChannel(channel.connectedAccount, {
+          channelId: channel.channelId,
+          resourceId: channel.resourceId,
         });
       }
     } catch {}

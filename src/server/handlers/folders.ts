@@ -1,13 +1,17 @@
-import { google } from "googleapis";
 import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
 import {
+  createGoogleDriveFolder,
   ensureGoogleAppFolder,
-  getAuthedGoogleClient,
   syncGoogleQuota,
-} from "@/server/modules/google/google.service";
+} from "@/server/modules/providers/google/google.service";
+import {
+  deleteProviderFile,
+  moveProviderItem,
+  renameProviderFile,
+} from "@/server/modules/providers/operations";
 import { createAuditLog } from "@/server/utils/audit";
 
 const defaultFolderColor = "#1e9df1";
@@ -57,8 +61,6 @@ async function ensureProviderFolderIds(
   if (!connectedAccount) return;
 
   try {
-    const auth = await getAuthedGoogleClient(connectedAccount);
-    const drive = google.drive({ version: "v3", auth });
     const appFolderId = await ensureGoogleAppFolder(connectedAccount);
 
     for (const folder of foldersWithoutId) {
@@ -73,16 +75,10 @@ async function ensureProviderFolderIds(
           }
         }
 
-        const driveFolder = await drive.files.create({
-          requestBody: {
-            name: folder.name,
-            mimeType: "application/vnd.google-apps.folder",
-            parents: [parentGoogleId],
-          },
-          fields: "id",
+        const gId = await createGoogleDriveFolder(connectedAccount, {
+          name: folder.name,
+          parentId: parentGoogleId,
         });
-
-        const gId = driveFolder.data.id ?? null;
         if (gId) {
           await prisma.folder.update({
             where: { id: folder.id },
@@ -184,23 +180,15 @@ export async function createFolderHandler(request: Request) {
   let providerFolderId: string | null = null;
   if (connectedAccount) {
     try {
-      const auth = await getAuthedGoogleClient(connectedAccount);
-      const drive = google.drive({ version: "v3", auth });
-
       let googleParentId = await ensureGoogleAppFolder(connectedAccount);
       if (parentFolder?.providerFolderId) {
         googleParentId = parentFolder.providerFolderId;
       }
 
-      const driveFolder = await drive.files.create({
-        requestBody: {
-          name: body.name,
-          mimeType: "application/vnd.google-apps.folder",
-          parents: [googleParentId],
-        },
-        fields: "id",
+      providerFolderId = await createGoogleDriveFolder(connectedAccount, {
+        name: body.name,
+        parentId: googleParentId,
       });
-      providerFolderId = driveFolder.data.id ?? null;
     } catch (error) {
       console.error("Failed to create folder on Google Drive:", error);
     }
@@ -290,11 +278,10 @@ export async function updateFolderHandler(
     folderRecord.connectedAccount
   ) {
     try {
-      const auth = await getAuthedGoogleClient(folderRecord.connectedAccount);
-      const drive = google.drive({ version: "v3", auth });
-      await drive.files.update({
-        fileId: folderRecord.providerFolderId,
-        requestBody: { name: body.name },
+      await renameProviderFile({
+        account: folderRecord.connectedAccount,
+        providerFileId: folderRecord.providerFolderId,
+        newName: body.name,
       });
     } catch (error) {
       console.error("Failed to rename folder on Google Drive:", error);
@@ -307,9 +294,6 @@ export async function updateFolderHandler(
     folderRecord.connectedAccount
   ) {
     try {
-      const auth = await getAuthedGoogleClient(folderRecord.connectedAccount);
-      const drive = google.drive({ version: "v3", auth });
-
       let newGoogleParentId = await ensureGoogleAppFolder(
         folderRecord.connectedAccount,
       );
@@ -322,17 +306,10 @@ export async function updateFolderHandler(
         }
       }
 
-      const fileInfo = await drive.files.get({
-        fileId: folderRecord.providerFolderId,
-        fields: "parents",
-      });
-      const previousParents = fileInfo.data.parents?.join(",");
-
-      await drive.files.update({
-        fileId: folderRecord.providerFolderId,
-        addParents: newGoogleParentId,
-        removeParents: previousParents,
-        fields: "id, parents",
+      await moveProviderItem({
+        account: folderRecord.connectedAccount,
+        providerItemId: folderRecord.providerFolderId,
+        destParentId: newGoogleParentId,
       });
     } catch (error) {
       console.error("Failed to move folder on Google Drive:", error);
@@ -411,9 +388,10 @@ export async function deleteFolderHandler(
   const syncedAccountIds = new Set<string>();
   for (const file of files) {
     try {
-      const auth = await getAuthedGoogleClient(file.connectedAccount);
-      const drive = google.drive({ version: "v3", auth });
-      await drive.files.delete({ fileId: file.providerFileId });
+      await deleteProviderFile({
+        account: file.connectedAccount,
+        providerFileId: file.providerFileId,
+      });
       syncedAccountIds.add(file.connectedAccountId);
     } catch {}
   }
@@ -425,9 +403,10 @@ export async function deleteFolderHandler(
   for (const f of foldersToDelete) {
     if (f.providerFolderId && f.connectedAccount) {
       try {
-        const auth = await getAuthedGoogleClient(f.connectedAccount);
-        const drive = google.drive({ version: "v3", auth });
-        await drive.files.delete({ fileId: f.providerFolderId });
+        await deleteProviderFile({
+          account: f.connectedAccount,
+          providerFileId: f.providerFolderId,
+        });
         if (f.connectedAccountId) syncedAccountIds.add(f.connectedAccountId);
       } catch {}
     }

@@ -1,17 +1,19 @@
+import "server-only";
+
+import { Readable } from "node:stream";
+import { google } from "googleapis";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { google } from "googleapis";
-import { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
-import type { ProviderBrowseResult } from "@/server/modules/providers/types";
+import { normalizeHeaders } from "@/server/modules/providers/google/drive-stream";
 import {
   createOAuthClient,
   getAuthedGoogleClient,
-} from "@/server/modules/google/google.service";
-import { normalizeHeaders } from "@/server/modules/files/stream-google-file";
+} from "@/server/modules/providers/google/google.service";
+import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
 const PHOTOS_API = "https://photoslibrary.googleapis.com/v1";
@@ -48,6 +50,7 @@ export async function ensureGlobalGooglePhotosProviderConfig(): Promise<Provider
     "build-google-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   const existing = await prisma.providerConfig.findFirst({
     where: { userId: null, provider: "google_photos", status: "active" },
@@ -62,8 +65,8 @@ export async function ensureGlobalGooglePhotosProviderConfig(): Promise<Provider
         where: { id: existing.id },
         data: {
           redirectUri,
-          clientIdEncrypted: encryptText(clientId!),
-          clientSecretEncrypted: encryptText(clientSecret!),
+          clientIdEncrypted: encryptText(clientId),
+          clientSecretEncrypted: encryptText(clientSecret),
           scopes: googlePhotosOAuthScopes,
         },
       });
@@ -80,8 +83,8 @@ export async function ensureGlobalGooglePhotosProviderConfig(): Promise<Provider
     data: {
       userId: null,
       provider: "google_photos",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: googlePhotosOAuthScopes,
       status: "active",

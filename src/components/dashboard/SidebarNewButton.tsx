@@ -104,7 +104,8 @@ export function SidebarNewButton({
     className,
   );
 
-  const disabledTitle = "Connect a cloud account to create folders or upload files";
+  const disabledTitle =
+    "Connect a cloud account to create folders or upload files";
 
   if (disabled) {
     return (

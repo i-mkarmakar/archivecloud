@@ -1,5 +1,7 @@
+import "server-only";
+
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
-import { streamGoogleFileResponse } from "./stream-google-file";
+import { streamGoogleFileResponse } from "@/server/modules/providers/google/drive-stream";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
 type StreamOptions = { disposition?: "inline" | "attachment" };

@@ -1,15 +1,17 @@
+import "server-only";
+
 import { google } from "googleapis";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { env } from "../../config/env";
-import { prisma } from "../../config/prisma";
+import { env } from "@/server/config/env";
+import { prisma } from "@/server/config/prisma";
 import {
   classifyFileKind,
   classifyFileName,
-} from "../files/classify-file-kind";
-import { decryptText, encryptText } from "../../utils/crypto";
+} from "@/server/modules/files/classify-file-kind";
+import { decryptText, encryptText } from "@/server/utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
 const appFolderName = "archivecloud";
@@ -50,6 +52,7 @@ export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig
   ]);
 
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "google_drive", status: "active" },
@@ -60,8 +63,8 @@ export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig
     data: {
       userId: null,
       provider: "google_drive",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: googleDriveOAuthScopes,
       status: "active",
@@ -375,7 +378,13 @@ export async function browseGoogleDriveFolder(
     let pageToken: string | undefined;
     do {
       const pageSize = maxItems
-        ? Math.min(100, Math.max(1, maxItems - (collectFolders ? folders.length : files.length)))
+        ? Math.min(
+            100,
+            Math.max(
+              1,
+              maxItems - (collectFolders ? folders.length : files.length),
+            ),
+          )
         : 100;
       if (pageSize <= 0) return;
 
@@ -417,7 +426,9 @@ export async function browseGoogleDriveFolder(
         if (maxItems && files.length >= maxItems) return;
       }
 
-      pageToken = maxItems ? undefined : (response.data.nextPageToken ?? undefined);
+      pageToken = maxItems
+        ? undefined
+        : (response.data.nextPageToken ?? undefined);
     } while (pageToken);
   }
 
@@ -602,4 +613,76 @@ export async function syncGoogleAppFolderFiles(
 
   await syncGoogleQuota(account.id).catch(() => undefined);
   return { accountId: account.id, created, updated, deleted };
+}
+
+export async function fetchGoogleOAuthUserInfo(
+  client: ReturnType<typeof createOAuthClient>,
+) {
+  const oauth2 = google.oauth2({ version: "v2", auth: client });
+  return oauth2.userinfo.get();
+}
+
+export async function createGoogleDriveFolder(
+  account: ConnectedAccount,
+  params: { name: string; parentId: string },
+): Promise<string | null> {
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+  const driveFolder = await drive.files.create({
+    requestBody: {
+      name: params.name,
+      mimeType: googleDriveFolderMimeType,
+      parents: [params.parentId],
+    },
+    fields: "id",
+  });
+  return driveFolder.data.id ?? null;
+}
+
+export async function getGoogleDriveFileBasicMeta(
+  account: ConnectedAccount,
+  providerFileId: string,
+): Promise<{ id: string; name: string; mimeType: string } | null> {
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+  const metadata = await drive.files.get({
+    fileId: providerFileId,
+    fields: "id,name,mimeType",
+    supportsAllDrives: true,
+  });
+  if (!metadata.data.id || !metadata.data.name) return null;
+  return {
+    id: metadata.data.id,
+    name: metadata.data.name,
+    mimeType: metadata.data.mimeType ?? "application/octet-stream",
+  };
+}
+
+export async function getGoogleDriveWebLinks(
+  account: ConnectedAccount,
+  providerFileId: string,
+) {
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+  const metadata = await drive.files.get({
+    fileId: providerFileId,
+    fields: "webViewLink,webContentLink",
+  });
+  return {
+    webViewLink: metadata.data.webViewLink ?? null,
+    webContentLink: metadata.data.webContentLink ?? null,
+  };
+}
+
+export async function makeGoogleDriveFilePublicReader(
+  account: ConnectedAccount,
+  providerFileId: string,
+) {
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+  await drive.permissions.create({
+    fileId: providerFileId,
+    requestBody: { role: "reader", type: "anyone" },
+  });
+  return getGoogleDriveWebLinks(account, providerFileId);
 }

@@ -1,14 +1,16 @@
-import type { ConnectedAccount } from "@/generated/prisma/client";
+import "server-only";
+
 import { google } from "googleapis";
-import type { ProviderCopyResult } from "@/server/modules/providers/types";
-import {
-  getAuthedGoogleClient,
-  ensureGoogleAppFolder,
-} from "@/server/modules/google/google.service";
+import type { ConnectedAccount } from "@/generated/prisma/client";
 import {
   googleDownloadExportMimeTypes,
   withExtension,
-} from "@/server/modules/files/stream-google-file";
+} from "@/server/modules/providers/google/drive-stream";
+import {
+  ensureGoogleAppFolder,
+  getAuthedGoogleClient,
+} from "@/server/modules/providers/google/google.service";
+import type { ProviderCopyResult } from "@/server/modules/providers/types";
 
 const GOOGLE_APPS_PREFIX = "application/vnd.google-apps.";
 

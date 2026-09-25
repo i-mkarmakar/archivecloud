@@ -68,12 +68,13 @@ export const auth = betterAuth({
       create: {
         after: async (user) => {
           const admin = isAdminEmail(user.email);
+          const adminName = getAdminName();
           try {
             await prisma.user.update({
               where: { id: user.id },
               data: {
                 planId: admin ? "thunder" : getDefaultUserPlan(),
-                ...(admin && getAdminName() ? { name: getAdminName()! } : {}),
+                ...(admin && adminName ? { name: adminName } : {}),
               },
             });
           } catch (error) {

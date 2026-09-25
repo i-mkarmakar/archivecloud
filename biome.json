@@ -26,7 +26,15 @@
       },
       "style": {
         "noNonNullAssertion": "off",
-        "noParameterAssign": "off"
+        "noParameterAssign": "off",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "googleapis": "Import googleapis only from src/server/modules/providers/**."
+            }
+          }
+        }
       },
       "correctness": {
         "useExhaustiveDependencies": "off",
@@ -36,7 +44,7 @@
         "noForEach": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off",
+        "noExplicitAny": "warn",
         "noArrayIndexKey": "warn",
         "useIterableCallbackReturn": "off"
       }
@@ -50,5 +58,85 @@
     "clientKind": "git",
     "useIgnoreFile": true
   },
-  "overrides": []
+  "overrides": [
+    {
+      "includes": ["src/server/modules/providers/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/views/**",
+        "src/components/**",
+        "src/hooks/**",
+        "src/context/**",
+        "src/layouts/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "googleapis": "UI code must not import googleapis.",
+                  "@/server/config/prisma": "UI code must not import Prisma.",
+                  "@/lib/auth": "Use @/lib/auth-client in UI components."
+                },
+                "patterns": [
+                  {
+                    "group": ["@/server", "@/server/**"],
+                    "message": "UI layers must not import @/server/*."
+                  },
+                  {
+                    "group": ["@/generated/prisma", "@/generated/prisma/**"],
+                    "message": "UI layers must not import the Prisma client."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/app/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "googleapis": "Keep Route Handlers thin; call handlers instead of googleapis.",
+                  "@/server/config/prisma": "Do not use Prisma in route.ts; move logic into handlers."
+                },
+                "patterns": [
+                  {
+                    "group": ["@/generated/prisma", "@/generated/prisma/**"],
+                    "message": "Do not use Prisma in Route Handlers."
+                  },
+                  {
+                    "group": [
+                      "@/server/modules/providers/google/**",
+                      "@/server/modules/onedrive/**",
+                      "@/server/modules/dropbox/**",
+                      "@/server/modules/pcloud/**",
+                      "@/server/modules/icloud/**"
+                    ],
+                    "message": "Route Handlers should call handlers/*, not provider services directly."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

@@ -142,10 +142,7 @@ export function FolderDetailsDrawer({
                   value={details?.modified || folder.updated || "—"}
                 />
                 <InfoRow label="Owner" value={details?.owner || "You"} />
-                <InfoRow
-                  label="Account"
-                  value={details?.accountName || "—"}
-                />
+                <InfoRow label="Account" value={details?.accountName || "—"} />
                 <InfoRow
                   label="MIME TYPE"
                   value={folderMimeLabel(provider, details?.mimeType)}

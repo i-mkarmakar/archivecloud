@@ -1,8 +1,10 @@
+import "server-only";
+
+import { Readable } from "node:stream";
 import type {
   ConnectedAccount,
   ProviderConfig,
 } from "@/generated/prisma/client";
-import { Readable } from "node:stream";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
@@ -45,6 +47,7 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     "build-dropbox-client-secret",
   ]);
   if (!hasClientId || !hasClientSecret) return null;
+  if (!clientId || !clientSecret) return null;
 
   const existing = await prisma.providerConfig.findFirst({
     where: { userId: null, provider: "dropbox", status: "active" },
@@ -63,8 +66,8 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     await prisma.providerConfig.update({
       where: { id: existing.id },
       data: {
-        clientIdEncrypted: encryptText(clientId!),
-        clientSecretEncrypted: encryptText(clientSecret!),
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
         redirectUri,
         scopes: dropboxOAuthScopes,
         status: "active",
@@ -84,8 +87,8 @@ export async function ensureGlobalDropboxProviderConfig(): Promise<ProviderConfi
     data: {
       userId: null,
       provider: "dropbox",
-      clientIdEncrypted: encryptText(clientId!),
-      clientSecretEncrypted: encryptText(clientSecret!),
+      clientIdEncrypted: encryptText(clientId),
+      clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
       scopes: dropboxOAuthScopes,
       status: "active",
@@ -119,6 +122,29 @@ type DropboxTokenResponse = {
   scope?: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseDropboxTokenResponse(data: unknown): DropboxTokenResponse {
+  if (!isRecord(data) || typeof data.access_token !== "string") {
+    throw new Error("Dropbox token response was missing access_token.");
+  }
+  return {
+    access_token: data.access_token,
+    refresh_token:
+      typeof data.refresh_token === "string" ? data.refresh_token : undefined,
+    expires_in:
+      typeof data.expires_in === "number" ? data.expires_in : undefined,
+    token_type:
+      typeof data.token_type === "string" ? data.token_type : undefined,
+    account_id:
+      typeof data.account_id === "string" ? data.account_id : undefined,
+    uid: typeof data.uid === "string" ? data.uid : undefined,
+    scope: typeof data.scope === "string" ? data.scope : undefined,
+  };
+}
+
 export async function exchangeDropboxCode(params: {
   config: ProviderConfig;
   code: string;
@@ -139,7 +165,7 @@ export async function exchangeDropboxCode(params: {
     const text = await response.text();
     throw new Error(`Dropbox token exchange failed: ${text}`);
   }
-  return (await response.json()) as DropboxTokenResponse;
+  return parseDropboxTokenResponse(await response.json());
 }
 
 async function refreshDropboxAccessToken(account: ConnectedAccount) {
@@ -164,7 +190,7 @@ async function refreshDropboxAccessToken(account: ConnectedAccount) {
     const text = await response.text();
     throw new Error(`Dropbox token refresh failed: ${text}`);
   }
-  const tokens = (await response.json()) as DropboxTokenResponse;
+  const tokens = parseDropboxTokenResponse(await response.json());
   if (!tokens.access_token) {
     throw new Error("Dropbox refresh did not return access_token.");
   }
