@@ -6,6 +6,10 @@ export type FolderItem = {
   parentId?: string | null;
   providerFolderId?: string | null;
   connectedAccountId?: string | null;
+  /** Provider id (e.g. onedrive) — shown as brand logo next to the folder name. */
+  accountProvider?: string;
+  /** Connected account email shown under the folder name. */
+  accountEmail?: string;
 };
 
 export type FileItem = {

@@ -16,6 +16,10 @@ import { apiFetch } from "@/lib/api";
 import { clearAppBoot } from "@/lib/app-boot";
 import { authClient } from "@/lib/auth-client";
 import { type AuthUser, sessionUserToAuthUser } from "@/lib/auth-user";
+import {
+  clearHasConnectedAccountsHint,
+  writeHasConnectedAccountsHint,
+} from "@/lib/connected-accounts-hint";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { clearUserPlanCache } from "@/lib/user-plan-cache";
 import { cn } from "@/lib/utils";
@@ -140,6 +144,9 @@ export function DriveLayout({ children }: { children: ReactNode }) {
         "/connected-accounts",
       );
       setAccounts(data.accounts);
+      writeHasConnectedAccountsHint(
+        data.accounts.some((account) => account.status === "connected"),
+      );
     } catch (e) {
       console.error("Failed to load accounts for filter dropdown", e);
     }
@@ -178,6 +185,7 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   async function logout() {
     clearAppBoot();
     clearUserPlanCache();
+    clearHasConnectedAccountsHint();
     resetUserPlanStore();
     await authClient.signOut();
     // Full navigation clears the client session atom so LoginForm does not

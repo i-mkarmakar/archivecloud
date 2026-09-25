@@ -2,6 +2,7 @@
 
 import { Card, Skeleton } from "@heroui/react";
 import type { ReactNode } from "react";
+import { Folder } from "@/components/folder/Folder";
 import { cn } from "@/lib/utils";
 
 function Shimmer({
@@ -36,21 +37,92 @@ export function FileGridSkeleton({
 }) {
   return (
     <Shimmer className={className} label={label}>
-      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5">
+      <div className="grid grid-cols-3 gap-x-1.5 gap-y-2 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 md:grid-cols-4 lg:grid-cols-5">
         {Array.from({ length: count }, (_, i) => (
           <div
             key={`grid-${i}`}
-            className="rounded-xl border border-border bg-white p-3"
+            className="flex flex-col overflow-hidden rounded-lg border border-transparent bg-[#f0f4f9] sm:rounded-xl dark:bg-surface-secondary"
           >
+            <div className="flex items-center gap-0.5 px-1 pt-1 pb-0.5 sm:gap-1.5 sm:px-2 sm:pt-2 sm:pb-1.5">
+              <Skeleton
+                animationType="none"
+                className="h-2.5 w-2.5 shrink-0 rounded-sm sm:h-3.5 sm:w-3.5"
+              />
+              <Skeleton
+                animationType="none"
+                className="h-2.5 min-w-0 flex-1 rounded sm:h-3"
+              />
+              <Skeleton
+                animationType="none"
+                className="h-4 w-4 shrink-0 rounded-full sm:h-6 sm:w-6"
+              />
+            </div>
+            <div className="px-0.5 pb-0.5 sm:px-1.5 sm:pb-1.5">
+              <Skeleton
+                animationType="none"
+                className="aspect-[4/3] w-full rounded-md sm:aspect-[5/3] sm:rounded-lg"
+              />
+            </div>
+            <div className="flex items-center gap-0.5 px-1 pb-1 pt-0 sm:gap-1.5 sm:px-2 sm:pb-2">
+              <Skeleton
+                animationType="none"
+                className="h-3 w-3 shrink-0 rounded-sm sm:h-3.5 sm:w-3.5"
+              />
+              <Skeleton
+                animationType="none"
+                className="h-2 w-16 max-w-[70%] rounded sm:h-2.5 sm:w-20"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Shimmer>
+  );
+}
+
+/** Same structure as `FolderGrid` xs items — real `Folder` icon + text placeholders. */
+export function FolderGridSkeleton({
+  count = 10,
+  className,
+  label = "Loading folders",
+}: {
+  count?: number;
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <Shimmer className={className} label={label}>
+      <div className="grid grid-cols-3 gap-x-0.5 gap-y-0 sm:grid-cols-3 sm:gap-x-1 md:grid-cols-4 xl:grid-cols-5">
+        {Array.from({ length: count }, (_, i) => (
+          <div
+            key={`folder-${i}`}
+            className="flex min-h-0 min-w-0 flex-col items-center justify-start overflow-hidden bg-transparent px-0.5 py-0 sm:px-1.5"
+          >
+            <div className="pointer-events-none flex h-14 w-full shrink-0 items-end justify-center overflow-hidden sm:h-[5.5rem]">
+              <div className="origin-bottom scale-[0.22] opacity-40 sm:scale-[0.3]">
+                <Folder
+                  color="blue"
+                  size="sm"
+                  open
+                  interactive={false}
+                  animated={false}
+                />
+              </div>
+            </div>
+            <div className="mt-0 flex w-full min-w-0 items-center justify-center gap-1 text-center leading-tight">
+              <Skeleton
+                animationType="none"
+                className="h-3.5 w-3.5 shrink-0 rounded-sm sm:h-4 sm:w-4"
+              />
+              <Skeleton
+                animationType="none"
+                className="h-2.5 w-16 max-w-[60%] rounded sm:h-3.5 sm:w-24"
+              />
+            </div>
             <Skeleton
               animationType="none"
-              className="aspect-square w-full rounded-lg"
+              className="mt-0.5 h-1.5 w-20 max-w-[75%] rounded sm:h-2 sm:w-28"
             />
-            <Skeleton
-              animationType="none"
-              className="mt-3 h-3.5 w-4/5 rounded"
-            />
-            <Skeleton animationType="none" className="mt-2 h-3 w-1/2 rounded" />
           </div>
         ))}
       </div>

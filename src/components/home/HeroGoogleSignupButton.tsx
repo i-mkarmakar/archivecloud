@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppPreloader } from "@/components/AppPreloader";
 import { authClient } from "@/lib/auth-client";
 import { markAppBoot } from "@/lib/app-boot";
 import { buttonVariants } from "@/components/site/button";
@@ -23,6 +24,10 @@ export function HeroGoogleSignupButton() {
     }
   }
 
+  if (loading) {
+    return <AppPreloader />;
+  }
+
   return (
     <div className="mt-8 flex flex-col items-center gap-3">
       <button
@@ -42,9 +47,7 @@ export function HeroGoogleSignupButton() {
             className="h-5 w-5 object-contain"
           />
         </span>
-        <span className="pl-9">
-          {loading ? "Redirecting..." : "Sign up with Google"}
-        </span>
+        <span className="pl-9">Sign up with Google</span>
       </button>
       <p className="text-sm text-[#0F172A]">No credit card needed.</p>
     </div>

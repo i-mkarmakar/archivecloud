@@ -21,6 +21,14 @@ export const metadata: Metadata = {
   },
   description:
     "Open-source multi-cloud storage hub. Connect Google Drive, Dropbox, OneDrive, and more. Manage files from one dashboard. Your files stay in your clouds.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -49,10 +57,6 @@ export default function RootLayout({
       data-theme="light"
       suppressHydrationWarning
     >
-      <head>
-        <link rel="icon" href="/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
-      </head>
       <body className="min-h-full font-[family-name:var(--font-manrope),ui-sans-serif,system-ui,sans-serif] antialiased">
         <Providers>{children}</Providers>
       </body>

@@ -2,6 +2,18 @@ export const API_URL = "";
 
 type ApiOptions = RequestInit & { skipAuth?: boolean };
 
+export class ApiRequestError extends Error {
+  readonly code: string | undefined;
+  readonly status: number;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export function isAbortError(error: unknown) {
   return (
     (error instanceof DOMException && error.name === "AbortError") ||
@@ -56,8 +68,14 @@ export async function apiFetch<T>(
   if (!response.ok) {
     const error = await response
       .json()
-      .catch(() => ({ message: response.statusText }));
-    throw new Error(error.message ?? "Request failed");
+      .catch(() => ({ message: response.statusText, code: undefined }));
+    throw new ApiRequestError(
+      typeof error.message === "string" && error.message
+        ? error.message
+        : "Request failed",
+      response.status,
+      typeof error.code === "string" ? error.code : undefined,
+    );
   }
 
   return response.json() as Promise<T>;

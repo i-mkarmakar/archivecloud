@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import {
   CardListSkeleton,
   FileGridSkeleton,
+  FolderGridSkeleton,
   FormPageSkeleton,
   StatCardsSkeleton,
 } from "@/components/drive/PageSkeletons";
@@ -30,7 +31,7 @@ export function FilesPageFallback() {
 export function SharedPageFallback() {
   return (
     <div className="mt-6 space-y-6">
-      <FileGridSkeleton count={4} label="Loading folders" />
+      <FolderGridSkeleton count={4} label="Loading folders" />
       <FileGridSkeleton count={8} label="Loading files" />
     </div>
   );

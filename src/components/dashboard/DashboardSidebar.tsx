@@ -29,7 +29,6 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import { apiFetch } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth-user";
 import { getProfileImageUrl } from "@/lib/gravatar";
-import { getPlanById } from "@/lib/plans";
 import {
   loadProviderOrder,
   saveProviderOrder,
@@ -277,6 +276,7 @@ export function DashboardSidebar({
   }, [user?.image, user?.email]);
 
   useEffect(() => {
+    if (!planLoaded) return;
     let cancelled = false;
     void apiFetch<TransferUsage>("/transfers/usage")
       .then((usage) => {
@@ -285,21 +285,20 @@ export function DashboardSidebar({
       })
       .catch(() => {
         if (!cancelled) {
-          const freePlan = getPlanById("free");
+          // Fall back to the confirmed user plan — never assume Free.
+          const limit = currentPlan.limits.monthlyTransferBytes;
           setTransferUsage({
             yearMonth: "",
             transferredBytes: "0",
-            limitBytes:
-              freePlan.limits.monthlyTransferBytes?.toString() ?? null,
-            remainingBytes:
-              freePlan.limits.monthlyTransferBytes?.toString() ?? null,
+            limitBytes: limit === null ? null : limit.toString(),
+            remainingBytes: limit === null ? null : limit.toString(),
           });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [planLoaded, currentPlan]);
 
   const edgeToggle =
     onToggleCollapse != null ? (

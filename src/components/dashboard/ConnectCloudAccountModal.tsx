@@ -86,9 +86,6 @@ const CONNECT_PROVIDERS: ConnectProvider[] = [
   },
 ];
 
-const inputClassName =
-  "h-10 w-full rounded-lg border border-[#d5dae6] bg-white px-3 text-sm text-foreground placeholder:text-[#9aa3b5] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
-
 function defaultAliasForProvider(label: string) {
   return `My ${label}`;
 }
@@ -276,40 +273,35 @@ export function ConnectCloudAccountModal({
     <Drawer state={state}>
       <Drawer.Backdrop isDismissable={!connecting}>
         <Drawer.Content placement="right">
-          <Drawer.Dialog className="h-full w-full max-w-lg gap-0 overflow-hidden rounded-none border-0 p-0 shadow-xl sm:max-w-xl">
-            <Drawer.CloseTrigger
-              isDisabled={connecting}
-              className="z-10 text-[#4a5568] hover:bg-black/5"
-            />
-            <Drawer.Header className="border-0 bg-white px-5 py-3.5 pr-12">
-              <Drawer.Heading className="text-xl font-bold tracking-tight text-[#2d3748] sm:text-2xl">
-                Connect Cloud Account
-              </Drawer.Heading>
+          <Drawer.Dialog className="h-full w-full max-w-lg sm:max-w-xl">
+            <Drawer.CloseTrigger isDisabled={connecting} />
+            <Drawer.Header>
+              <Drawer.Heading>Connect Cloud Account</Drawer.Heading>
             </Drawer.Header>
 
-            <Drawer.Body className="bg-white px-5 py-5">
+            <Drawer.Body>
               {step === "pick" ? (
                 <div className="grid gap-5">
                   <div className="grid gap-1.5">
                     <label
                       htmlFor="connect-account-alias"
-                      className="flex items-center gap-1.5 text-sm font-semibold text-[#2d3748]"
+                      className="flex items-center gap-1.5 text-sm font-medium text-foreground"
                     >
                       Account name (Alias)
                       <span className="text-danger" aria-hidden>
                         *
                       </span>
                       <CircleInfo
-                        className="h-3.5 w-3.5 text-[#9aa3b5]"
+                        className="h-3.5 w-3.5 text-muted"
                         aria-hidden
                       />
                     </label>
-                    <p className="text-xs text-[#888ea8]">
+                    <p className="text-xs text-muted">
                       You can change this later
                     </p>
                     <input
                       id="connect-account-alias"
-                      className={inputClassName}
+                      className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Enter account name"
                       value={alias}
                       onChange={(event) =>
@@ -318,13 +310,13 @@ export function ConnectCloudAccountModal({
                       autoComplete="off"
                       maxLength={50}
                     />
-                    <p className="text-xs text-[#888ea8]">
+                    <p className="text-xs text-muted">
                       {alias.length}/50 characters
                     </p>
                   </div>
 
                   <div className="grid gap-2.5">
-                    <p className="text-sm font-semibold text-[#2d3748]">
+                    <p className="text-sm font-medium text-foreground">
                       Select Cloud Platform
                       <span className="ml-0.5 text-danger" aria-hidden>
                         *
@@ -339,10 +331,10 @@ export function ConnectCloudAccountModal({
                             type="button"
                             onClick={() => selectProvider(provider.id)}
                             className={cn(
-                              "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left text-sm font-medium text-[#2d3748] transition-colors",
+                              "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border bg-background px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors",
                               isSelected
                                 ? "border-primary bg-primary/10 ring-1 ring-primary"
-                                : "border-[#d5dae6] hover:border-primary/60 hover:bg-[#f8fafc]",
+                                : "border-border hover:border-primary/60 hover:bg-surface-secondary",
                             )}
                           >
                             <ProviderIcon
@@ -359,7 +351,7 @@ export function ConnectCloudAccountModal({
                   </div>
 
                   <div className="grid gap-2.5">
-                    <p className="text-sm font-semibold text-[#2d3748]">
+                    <p className="text-sm font-medium text-foreground">
                       Business Services
                     </p>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -371,10 +363,10 @@ export function ConnectCloudAccountModal({
                             type="button"
                             onClick={() => selectProvider(provider.id)}
                             className={cn(
-                              "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left text-sm font-medium text-[#2d3748] transition-colors",
+                              "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border bg-background px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors",
                               isSelected
                                 ? "border-primary bg-primary/10 ring-1 ring-primary"
-                                : "border-[#d5dae6] hover:border-primary/60 hover:bg-[#f8fafc]",
+                                : "border-border hover:border-primary/60 hover:bg-surface-secondary",
                             )}
                           >
                             <ProviderIcon
@@ -393,10 +385,10 @@ export function ConnectCloudAccountModal({
               ) : (
                 <div className="grid gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-[#2d3748]">
+                    <p className="text-sm font-medium text-foreground">
                       Connect {selected?.label}
                     </p>
-                    <p className="mt-1 text-xs text-[#888ea8]">
+                    <p className="mt-1 text-xs text-muted">
                       Alias: {alias.trim()}
                     </p>
                   </div>
@@ -405,7 +397,7 @@ export function ConnectCloudAccountModal({
                   selected?.id === "icloud_photos" ? (
                     <div className="grid gap-3">
                       <input
-                        className={inputClassName}
+                        className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         type="email"
                         placeholder="Apple ID"
                         value={appleId}
@@ -413,7 +405,7 @@ export function ConnectCloudAccountModal({
                         autoComplete="off"
                       />
                       <input
-                        className={inputClassName}
+                        className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         type="password"
                         placeholder="App-specific password"
                         value={appPassword}
@@ -426,21 +418,20 @@ export function ConnectCloudAccountModal({
               )}
             </Drawer.Body>
 
-            <Drawer.Footer className="bg-white px-5 py-4">
+            <Drawer.Footer>
               {step === "pick" ? (
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button
                     variant="outline"
                     onPress={onClose}
                     isDisabled={connecting}
-                    className="cursor-pointer"
                   >
                     Cancel
                   </Button>
                   <Button
+                    variant="primary"
                     onPress={handleConnect}
                     isDisabled={!canConnect}
-                    className="min-w-[140px] cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] data-[disabled=true]:bg-[#c5cdd8] data-[disabled=true]:text-white"
                   >
                     {connecting ? "Connecting..." : "Connect Account"}
                   </Button>
@@ -451,7 +442,6 @@ export function ConnectCloudAccountModal({
                     variant="outline"
                     onPress={onClose}
                     isDisabled={connecting}
-                    className="cursor-pointer"
                   >
                     Cancel
                   </Button>
@@ -459,14 +449,13 @@ export function ConnectCloudAccountModal({
                     variant="outline"
                     onPress={() => setStep("pick")}
                     isDisabled={connecting}
-                    className="cursor-pointer"
                   >
                     Back
                   </Button>
                   <Button
+                    variant="primary"
                     onPress={() => void submitCredentials()}
                     isDisabled={!credentialsReady || connecting}
-                    className="border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]"
                   >
                     {connecting ? "Connecting..." : "Connect Account"}
                   </Button>

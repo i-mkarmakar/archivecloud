@@ -140,17 +140,11 @@ export default function PrivacyPage() {
           <ul className="list-disc space-y-2 pl-5 break-all">
             <li>
               <code className="text-sm text-foreground">
-                https://www.googleapis.com/auth/photoslibrary
+                https://www.googleapis.com/auth/photospicker.mediaitems.readonly
               </code>{" "}
-              : Access and manage media in your Google Photos library as needed
-              for browse, upload, and related features.
-            </li>
-            <li>
-              <code className="text-sm text-foreground">
-                https://www.googleapis.com/auth/photoslibrary.sharing
-              </code>{" "}
-              : Manage sharing for Google Photos content as needed by the
-              product.
+              : Let you select photos and videos from Google Photos through the
+              Google Photos Picker and import the chosen items into Archive
+              Cloud.
             </li>
             <li>
               <code className="text-sm text-foreground">

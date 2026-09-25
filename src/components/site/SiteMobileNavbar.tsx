@@ -59,7 +59,7 @@ export function SiteMobileNavbar({
   discordMembers?: number | null;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const isSignedIn = Boolean(session?.user);
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -171,7 +171,12 @@ export function SiteMobileNavbar({
                       initial="hidden"
                       animate="show"
                     >
-                      {isSignedIn ? (
+                      {sessionPending ? (
+                        <span
+                          className="mt-3 inline-block h-12 w-full"
+                          aria-hidden
+                        />
+                      ) : isSignedIn ? (
                         <Link
                           href="/home"
                           onClick={handleClose}

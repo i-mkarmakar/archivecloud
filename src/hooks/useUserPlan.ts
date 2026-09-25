@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { apiFetch } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
 import {
   formatBandwidthLimit,
   getPlanById,
@@ -22,6 +23,7 @@ type PlanState = {
   planId: PlanId;
   isAdmin: boolean;
   billingEnabled: boolean;
+  /** True only after /billing settles (or applyUserPlan). Cache alone is not enough. */
   loaded: boolean;
 };
 
@@ -45,6 +47,7 @@ function setStore(next: PlanState) {
   emit();
 }
 
+/** Prefill plan fields from cache without marking loaded (avoids Free↔Thunder flash). */
 function hydrateFromCache() {
   if (store.loaded) return;
   const cached = readUserPlanCache();
@@ -53,7 +56,7 @@ function hydrateFromCache() {
     planId: cached.planId,
     isAdmin: cached.isAdmin,
     billingEnabled: cached.billingEnabled,
-    loaded: true,
+    loaded: false,
   };
 }
 
@@ -65,7 +68,7 @@ function ensureBillingFetched() {
   if (fetchPromise) return fetchPromise;
 
   hydrateFromCache();
-  if (store.loaded) emit();
+  emit();
 
   fetchPromise = apiFetch<BillingStatus>("/billing")
     .then((billing) => {
@@ -122,6 +125,7 @@ export function applyUserPlan(next: {
     billingEnabled: state.billingEnabled,
   });
   setStore(state);
+  fetchPromise = Promise.resolve();
 }
 
 /** Reset in-memory plan store (e.g. after logout). Cache clear is separate. */
@@ -131,12 +135,21 @@ export function resetUserPlanStore() {
   emit();
 }
 
+/** Resolves when /billing has settled for the current session. */
+export function waitForUserPlan() {
+  return ensureBillingFetched();
+}
+
 export function useUserPlan() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { data: session, isPending: sessionPending } = authClient.useSession();
 
   useEffect(() => {
+    // Wait for an authenticated session so /billing is not fetched (and cached
+    // as free) before cookies/session are ready — important for ProtectedRoute.
+    if (sessionPending || !session) return;
     void ensureBillingFetched();
-  }, []);
+  }, [sessionPending, session]);
 
   const { planId, isAdmin, billingEnabled, loaded } = state;
   const plan = getPlanById(isAdmin ? "thunder" : planId);

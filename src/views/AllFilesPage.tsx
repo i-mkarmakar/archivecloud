@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { GooglePhotosImportPanel } from "@/components/dashboard/GooglePhotosImportPanel";
 import {
   CONNECT_ONBOARDING_DESCRIPTION,
   NoConnectedAccountsEmptyState,
@@ -46,15 +47,23 @@ import {
   MoveDestinationModal,
   type MoveSource,
 } from "@/components/drive/MoveDestinationModal";
+import {
+  FileGridSkeleton,
+  FolderGridSkeleton,
+} from "@/components/drive/PageSkeletons";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
-import { SuggestedSection } from "@/components/drive/SuggestedSection";
+import { DriveSection } from "@/components/drive/DriveSection";
 import { useUpload } from "@/context/UploadContext";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import { updateFilesMetadata } from "@/hooks/useWorkspaceFiles";
 import { API_URL, apiFetch, formatDate } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+import {
+  readHasConnectedAccountsHint,
+  writeHasConnectedAccountsHint,
+} from "@/lib/connected-accounts-hint";
 import { mapApiFileToItem } from "@/lib/files";
 import { getFirstName, getTimeGreeting } from "@/lib/greeting";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
@@ -167,8 +176,8 @@ export function AllFilesPage() {
   const [activeFile, setActiveFile] = useState<FileItem | null>(null);
   const [activeFolderForMenu, setActiveFolderForMenu] =
     useState<FolderItem | null>(null);
-  const [suggestedFoldersOpen, setSuggestedFoldersOpen] = useState(true);
-  const [suggestedFilesOpen, setSuggestedFilesOpen] = useState(true);
+  const [foldersOpen, setFoldersOpen] = useState(true);
+  const [filesOpen, setFilesOpen] = useState(true);
   const [cutFolder, setCutFolder] = useState<FolderItem | null>(null);
   const {
     contextMenu,
@@ -204,6 +213,7 @@ export function AllFilesPage() {
     ConnectedAccount[]
   >([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const [hasAccountsHint] = useState(() => readHasConnectedAccountsHint());
   const [selectedTargetAccountId, setSelectedTargetAccountId] = useState("");
   const [linkedFolders, setLinkedFolders] = useState<FolderItem[]>([]);
   const [linkedFiles, setLinkedFiles] = useState<FileItem[]>([]);
@@ -211,6 +221,9 @@ export function AllFilesPage() {
     Array<{ id: string; name: string }>
   >([]);
   const [linkedLoading, setLinkedLoading] = useState(false);
+  /** False until home linked-storage browse finishes (or is skipped). */
+  const [linkedBrowseReady, setLinkedBrowseReady] = useState(false);
+  const linkedBrowseGenRef = useRef(0);
   const [accountFilterOpen, setAccountFilterOpen] = useState(false);
   const [sortFilterOpen, setSortFilterOpen] = useState(false);
 
@@ -351,9 +364,11 @@ export function AllFilesPage() {
       id: `${LINKED_FOLDER_PREFIX}${account.id}:${folder.id}`,
       name: folder.name,
       color: defaultFolderColor,
-      updated: `${providerLabel(account.provider)} · ${formatDate(folder.modifiedTime)}`,
+      updated: formatDate(folder.modifiedTime),
       providerFolderId: folder.id,
       connectedAccountId: account.id,
+      accountProvider: account.provider,
+      accountEmail: account.email,
     };
   }
 
@@ -392,16 +407,22 @@ export function AllFilesPage() {
       id: `${ACCOUNT_FOLDER_PREFIX}${account.id}`,
       name: accountTitle(account),
       color: defaultFolderColor,
-      updated: providerLabel(account.provider),
+      updated: "",
       connectedAccountId: account.id,
+      accountProvider: account.provider,
+      accountEmail: account.email,
     };
   }
 
   async function loadLinkedStorage(accounts: ConnectedAccount[]) {
+    const gen = ++linkedBrowseGenRef.current;
+
     if (searchQuery || activeFolderId) {
       setLinkedFolders([]);
       setLinkedFiles([]);
       setLinkedBreadcrumbs([]);
+      setLinkedLoading(false);
+      setLinkedBrowseReady(true);
       return;
     }
 
@@ -412,15 +433,20 @@ export function AllFilesPage() {
       setLinkedFolders([]);
       setLinkedFiles([]);
       setLinkedBreadcrumbs([]);
+      setLinkedLoading(false);
+      setLinkedBrowseReady(true);
       return;
     }
 
     setLinkedLoading(true);
+    setLinkedBrowseReady(false);
+
     try {
       // Browse one account (optionally nested under cloudFolder).
       if (filterAccountId) {
         const account = connected.find((item) => item.id === filterAccountId);
         if (!account) {
+          if (gen !== linkedBrowseGenRef.current) return;
           setLinkedFolders([]);
           setLinkedFiles([]);
           setLinkedBreadcrumbs([]);
@@ -431,6 +457,7 @@ export function AllFilesPage() {
         const browse = await apiFetch<ProviderBrowseResult>(
           `/connected-accounts/${account.id}/browse?parentId=${encodeURIComponent(parentId)}&limit=${LINKED_BROWSE_LIMIT}`,
         );
+        if (gen !== linkedBrowseGenRef.current) return;
         setLinkedFolders(
           (browse.folders ?? []).map((folder) =>
             mapLinkedFolder(account, folder),
@@ -443,7 +470,7 @@ export function AllFilesPage() {
         return;
       }
 
-      // Home: sample root folders/files across all connected accounts.
+      // Home: wait for every connected account, then apply once (no partial flash).
       const results = await Promise.all(
         connected.map(async (account) => {
           try {
@@ -464,14 +491,14 @@ export function AllFilesPage() {
         }),
       );
 
+      if (gen !== linkedBrowseGenRef.current) return;
+
       const nextFolders: FolderItem[] = [];
       const nextFiles: FileItem[] = [];
 
       for (const { account, browse } of results) {
         for (const folder of browse.folders ?? []) {
-          const mapped = mapLinkedFolder(account, folder);
-          mapped.updated = `${providerLabel(account.provider)} · ${accountTitle(account)}`;
-          nextFolders.push(mapped);
+          nextFolders.push(mapLinkedFolder(account, folder));
         }
         for (const file of browse.files ?? []) {
           nextFiles.push(mapLinkedFile(account, file));
@@ -490,6 +517,7 @@ export function AllFilesPage() {
       setLinkedBreadcrumbs([]);
     } catch (error) {
       console.warn("Failed to load linked storage browse:", error);
+      if (gen !== linkedBrowseGenRef.current) return;
       if (!filterAccountId) {
         setLinkedFolders(connected.map(mapAccountAsFolder));
         setLinkedFiles([]);
@@ -499,7 +527,10 @@ export function AllFilesPage() {
       }
       setLinkedBreadcrumbs([]);
     } finally {
-      setLinkedLoading(false);
+      if (gen === linkedBrowseGenRef.current) {
+        setLinkedLoading(false);
+        setLinkedBrowseReady(true);
+      }
     }
   }
 
@@ -573,6 +604,12 @@ export function AllFilesPage() {
     () => connectedAccounts.find((account) => account.id === filterAccountId),
     [connectedAccounts, filterAccountId],
   );
+  const isGooglePhotosAccountView =
+    Boolean(selectedAccount) &&
+    selectedAccount?.provider === "google_photos" &&
+    !activeFolderId &&
+    !searchQuery &&
+    !cloudFolderId;
   const accountFilterOptions = useMemo(() => {
     if (!selectedAccount) return connectedAccounts;
     return connectedAccounts.filter(
@@ -1456,13 +1493,23 @@ export function AllFilesPage() {
       <span className="text-primary">{getFirstName(session?.user?.name)}</span>
     </>
   );
+  const hasConnectedAccounts = connectedAccounts.some(
+    (account) => account.status === "connected",
+  );
   const showConnectOnboarding =
-    accountsLoaded &&
-    connectedAccounts.length === 0 &&
+    accountsLoaded && !hasConnectedAccounts && !activeFolderId && !searchQuery;
+  // Keep the home skeleton until accounts + linked browse are both ready —
+  // avoids flashing "No folders yet" / partial provider results.
+  const showHomeContentLoading =
     !activeFolderId &&
-    !searchQuery;
+    !searchQuery &&
+    ((!accountsLoaded && hasAccountsHint === true) ||
+      (accountsLoaded && hasConnectedAccounts && !linkedBrowseReady));
   const showConnectOnboardingSkeleton =
-    !accountsLoaded && !activeFolderId && !searchQuery;
+    !accountsLoaded &&
+    !activeFolderId &&
+    !searchQuery &&
+    hasAccountsHint !== true;
 
   return (
     <>
@@ -1491,12 +1538,38 @@ export function AllFilesPage() {
                   "/connected-accounts",
                 )
                   .then((data) => {
-                    setConnectedAccounts(data.accounts || []);
+                    const accounts = data.accounts || [];
+                    setConnectedAccounts(accounts);
                     setAccountsLoaded(true);
+                    writeHasConnectedAccountsHint(
+                      accounts.some(
+                        (account) => account.status === "connected",
+                      ),
+                    );
                   })
                   .catch(() => undefined);
               }}
             />
+          </>
+        ) : showHomeContentLoading ? (
+          <>
+            <PageHeader title={homeGreeting} />
+            <DriveSection
+              title="All Folders"
+              variant="plain"
+              open={foldersOpen}
+              onOpenChange={setFoldersOpen}
+            >
+              <FolderGridSkeleton count={10} label="Loading folders" />
+            </DriveSection>
+            <DriveSection
+              title="All files"
+              variant="plain"
+              open={filesOpen}
+              onOpenChange={setFilesOpen}
+            >
+              <FileGridSkeleton count={8} label="Loading files" />
+            </DriveSection>
           </>
         ) : (
           <>
@@ -1745,53 +1818,69 @@ export function AllFilesPage() {
                 </div>
               }
             />
-            {!activeFolder && !isCloudFolderView ? (
-              <SuggestedSection
-                title="Folders"
+            {isGooglePhotosAccountView && selectedAccount ? (
+              <div className="mb-6">
+                <GooglePhotosImportPanel
+                  account={selectedAccount}
+                  destinations={connectedAccounts.filter(
+                    (item) => item.status === "connected",
+                  )}
+                  onImported={() => {
+                    loadAll().catch(() => undefined);
+                  }}
+                />
+              </div>
+            ) : null}
+            {!activeFolder &&
+            !isCloudFolderView &&
+            !isGooglePhotosAccountView ? (
+              <DriveSection
+                title="All Folders"
                 variant="plain"
-                open={suggestedFoldersOpen}
-                onOpenChange={setSuggestedFoldersOpen}
+                open={foldersOpen}
+                onOpenChange={setFoldersOpen}
               >
                 {displayFolders.length > 0 ? (
                   <FolderGrid
                     items={displayFolders}
                     mobileTwoColumns
                     sizeScale="xs"
+                    previewRows={2}
                     onFolderMenu={openFolderMenu}
                     onFolderOpen={openFolder}
                     onDropItem={handleDropItem}
                   />
+                ) : linkedLoading ||
+                  (hasConnectedAccounts && !linkedBrowseReady) ? (
+                  <FolderGridSkeleton count={10} label="Loading folders" />
                 ) : (
                   <div className="flex min-h-[160px] items-center justify-center py-6">
                     <p className="text-center text-sm text-muted">
-                      {linkedLoading
-                        ? "Loading folders from linked storage..."
-                        : connectedAccounts.some(
-                              (account) => account.status === "connected",
-                            )
-                          ? filterAccountId
-                            ? "No folders in this cloud root yet."
-                            : "No folders yet. Use Add New in the sidebar or open a linked cloud from the account filter."
-                          : "No folders yet. Use Add New in the sidebar or right-click to create one."}
+                      {hasConnectedAccounts
+                        ? filterAccountId
+                          ? "No folders in this cloud root yet."
+                          : "No folders yet. Use Add New in the sidebar or open a linked cloud from the account filter."
+                        : "No folders yet. Use Add New in the sidebar or right-click to create one."}
                     </p>
                   </div>
                 )}
-              </SuggestedSection>
+              </DriveSection>
             ) : displayFolders.length > 0 ? (
-              <SuggestedSection
-                title="Folders"
+              <DriveSection
+                title="All Folders"
                 variant="plain"
-                open={suggestedFoldersOpen}
-                onOpenChange={setSuggestedFoldersOpen}
+                open={foldersOpen}
+                onOpenChange={setFoldersOpen}
               >
                 <FolderGrid
                   items={displayFolders}
                   sizeScale="xs"
+                  previewRows={2}
                   onFolderMenu={openFolderMenu}
                   onFolderOpen={openFolder}
                   onDropItem={handleDropItem}
                 />
-              </SuggestedSection>
+              </DriveSection>
             ) : null}
             <AllFilesSelectionBar
               selectedFileIds={selectedFileIds}
@@ -1811,92 +1900,98 @@ export function AllFilesPage() {
                 area to paste here.
               </p>
             ) : null}
-            <SuggestedSection
-              title="Files"
-              variant="plain"
-              open={suggestedFilesOpen}
-              onOpenChange={setSuggestedFilesOpen}
-            >
-              {displayFiles.length === 0 ? (
-                <div className="flex min-h-[160px] items-center justify-center py-6">
-                  <p className="text-center text-sm text-muted">
-                    {searchQuery
-                      ? `No files found for "${searchQuery}".`
-                      : activeFolder || isCloudFolderView
-                        ? "No files in this folder yet."
-                        : linkedLoading
-                          ? "Loading files from linked storage..."
-                          : filterAccountId
-                            ? "No files in this cloud root yet. Open a folder above or Upload a file."
-                            : connectedAccounts.some(
-                                  (account) => account.status === "connected",
-                                )
-                              ? "Open a linked cloud folder above to browse files, or Upload a file into Archive Cloud."
-                              : "No uploaded files yet. Connect a cloud account, then Sync or upload a file."}
-                  </p>
-                </div>
-              ) : fileViewMode === "grid" ? (
-                <FileGrid
-                  files={displayFiles}
-                  selectedFileIds={selectedFileIds}
-                  sizeScale="xs"
-                  onToggleFile={toggleFileSelection}
-                  onFileContextMenu={openContext}
-                  onFileOpen={(file) => {
-                    void openFilePreview(file);
-                  }}
-                />
-              ) : fileViewMode === "calendar" ? (
-                <div className="grid gap-4">
-                  {filesByDay.map(([day, dayFiles]) => (
-                    <section key={day} className="min-w-0">
-                      <h3 className="mb-2 text-sm font-bold text-foreground">
-                        {day}
-                      </h3>
-                      <FileGrid
-                        files={dayFiles}
-                        selectedFileIds={selectedFileIds}
-                        sizeScale="xs"
-                        onToggleFile={toggleFileSelection}
-                        onFileContextMenu={openContext}
-                        onFileOpen={(file) => {
-                          void openFilePreview(file);
-                        }}
-                      />
-                    </section>
-                  ))}
-                </div>
-              ) : (
-                <FileTable
-                  files={displayFiles}
-                  selectedFileIds={selectedFileIds}
-                  allSelected={allVisibleSelected}
-                  onToggleFile={toggleFileSelection}
-                  onToggleAll={toggleAllVisibleFiles}
-                  onFileContextMenu={openContext}
-                />
-              )}
-              {filesNextCursor ? (
-                <div className="mt-4 flex justify-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    isDisabled={filesLoadingMore}
-                    onPress={() =>
-                      loadFiles(filesNextCursor).catch((error) =>
-                        toast.danger(
-                          error instanceof Error
-                            ? error.message
-                            : "Failed to load more files",
-                        ),
-                      )
-                    }
-                  >
-                    {filesLoadingMore ? "Loading…" : "Load more"}
-                  </Button>
-                </div>
-              ) : null}
-            </SuggestedSection>
+            {isGooglePhotosAccountView && displayFiles.length === 0 ? null : (
+              <DriveSection
+                title="All files"
+                variant="plain"
+                open={filesOpen}
+                onOpenChange={setFilesOpen}
+              >
+                {displayFiles.length === 0 ? (
+                  (linkedLoading ||
+                    (hasConnectedAccounts && !linkedBrowseReady)) &&
+                  !searchQuery &&
+                  !activeFolder &&
+                  !isCloudFolderView ? (
+                    <FileGridSkeleton count={8} label="Loading files" />
+                  ) : (
+                    <div className="flex min-h-[160px] items-center justify-center py-6">
+                      <p className="text-center text-sm text-muted">
+                        {searchQuery
+                          ? `No files found for "${searchQuery}".`
+                          : activeFolder || isCloudFolderView
+                            ? "No files in this folder yet."
+                            : filterAccountId
+                              ? "No files in this cloud root yet. Open a folder above or Upload a file."
+                              : hasConnectedAccounts
+                                ? "Open a linked cloud folder above to browse files, or Upload a file into Archive Cloud."
+                                : "No uploaded files yet. Connect a cloud account, then Sync or upload a file."}
+                      </p>
+                    </div>
+                  )
+                ) : fileViewMode === "grid" ? (
+                  <FileGrid
+                    files={displayFiles}
+                    selectedFileIds={selectedFileIds}
+                    sizeScale="xs"
+                    onToggleFile={toggleFileSelection}
+                    onFileContextMenu={openContext}
+                    onFileOpen={(file) => {
+                      void openFilePreview(file);
+                    }}
+                  />
+                ) : fileViewMode === "calendar" ? (
+                  <div className="grid gap-4">
+                    {filesByDay.map(([day, dayFiles]) => (
+                      <section key={day} className="min-w-0">
+                        <h3 className="mb-2 text-sm font-bold text-foreground">
+                          {day}
+                        </h3>
+                        <FileGrid
+                          files={dayFiles}
+                          selectedFileIds={selectedFileIds}
+                          sizeScale="xs"
+                          onToggleFile={toggleFileSelection}
+                          onFileContextMenu={openContext}
+                          onFileOpen={(file) => {
+                            void openFilePreview(file);
+                          }}
+                        />
+                      </section>
+                    ))}
+                  </div>
+                ) : (
+                  <FileTable
+                    files={displayFiles}
+                    selectedFileIds={selectedFileIds}
+                    allSelected={allVisibleSelected}
+                    onToggleFile={toggleFileSelection}
+                    onToggleAll={toggleAllVisibleFiles}
+                    onFileContextMenu={openContext}
+                  />
+                )}
+                {filesNextCursor ? (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      isDisabled={filesLoadingMore}
+                      onPress={() =>
+                        loadFiles(filesNextCursor).catch((error) =>
+                          toast.danger(
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to load more files",
+                          ),
+                        )
+                      }
+                    >
+                      {filesLoadingMore ? "Loading…" : "Load more"}
+                    </Button>
+                  </div>
+                ) : null}
+              </DriveSection>
+            )}
           </>
         )}
       </div>

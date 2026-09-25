@@ -1,15 +1,13 @@
 "use client";
 
 import { Suspense } from "react";
-import { AuthShell } from "@/components/auth-shell";
-import { LoginForm } from "@/components/login-form";
+import { AppPreloader } from "@/components/AppPreloader";
+import { AuthEntry } from "@/components/auth/AuthEntry";
 
 export function SignInPage() {
   return (
-    <AuthShell>
-      <Suspense fallback={null}>
-        <LoginForm mode="signin" />
-      </Suspense>
-    </AuthShell>
+    <Suspense fallback={<AppPreloader />}>
+      <AuthEntry mode="signin" />
+    </Suspense>
   );
 }

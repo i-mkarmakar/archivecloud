@@ -169,6 +169,47 @@ function FilterPill({
   );
 }
 
+function ScheduleTasksPageSkeleton() {
+  return (
+    <div
+      className="skeleton--shimmer relative mt-6 overflow-hidden"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading Schedule Tasks"
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {["stat-a", "stat-b", "stat-c", "stat-d"].map((id) => (
+          <Card
+            key={id}
+            className="relative overflow-hidden border border-border bg-white p-5 shadow-none"
+          >
+            <Skeleton
+              animationType="none"
+              className="absolute right-4 top-4 h-9 w-9 rounded-full"
+            />
+            <Skeleton animationType="none" className="h-3 w-24 rounded" />
+            <Skeleton
+              animationType="none"
+              className="mt-3 h-8 w-16 rounded-lg"
+            />
+            <Skeleton
+              animationType="none"
+              className="mt-2 h-3 w-4/5 max-w-[200px] rounded"
+            />
+          </Card>
+        ))}
+      </div>
+      <Card className="mt-6 border border-border bg-white p-5 shadow-none">
+        <Skeleton animationType="none" className="h-10 w-full rounded-lg" />
+        <Skeleton
+          animationType="none"
+          className="mt-4 h-24 w-full rounded-xl"
+        />
+      </Card>
+    </div>
+  );
+}
+
 export function ScheduleTasksView() {
   const router = useRouter();
   const {
@@ -440,260 +481,269 @@ export function ScheduleTasksView() {
         }
       />
 
-      {planLoaded && !hasAutomation ? (
-        <Card className="mt-6 border-primary/30 bg-primary/5 p-5">
-          <p className="font-extrabold text-foreground">
-            Automation is a Thunder feature
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            {canUpgrade
-              ? "Unlock scheduled jobs, folder sync, and real-time sync with a $9 lifetime upgrade."
-              : "Thunder features on this instance are managed by your administrator."}
-          </p>
-          {canUpgrade ? (
-            <Button
-              className="mt-4 rounded-full"
-              variant="primary"
-              onPress={() => setUpgradeOpen(true)}
-            >
-              Get Lifetime Access for $9
-            </Button>
+      {!planLoaded ? (
+        <ScheduleTasksPageSkeleton />
+      ) : (
+        <>
+          {!hasAutomation ? (
+            <Card className="mt-6 border-primary/30 bg-primary/5 p-5">
+              <p className="font-extrabold text-foreground">
+                Automation is a Thunder feature
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {canUpgrade
+                  ? "Unlock scheduled jobs, folder sync, and real-time sync with a $9 lifetime upgrade."
+                  : "Thunder features on this instance are managed by your administrator."}
+              </p>
+              {canUpgrade ? (
+                <Button
+                  className="mt-4 rounded-full"
+                  variant="primary"
+                  onPress={() => setUpgradeOpen(true)}
+                >
+                  Get Lifetime Access for $9
+                </Button>
+              ) : null}
+            </Card>
           ) : null}
-        </Card>
-      ) : null}
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Active Schedules"
-          value={String(stats.activeCount)}
-          hint={stats.activeHint}
-          icon={<Calendar className="h-4 w-4" />}
-          iconClassName="bg-primary/10 text-primary"
-        />
-        <StatCard
-          label="Next Run"
-          value={stats.nextRunLabel}
-          hint={stats.nextRunHint}
-          icon={<Clock className="h-4 w-4" />}
-          iconClassName="bg-[#fff6db] text-[#c48a00]"
-        />
-        <StatCard
-          label="Failed Last 7D"
-          value={String(stats.failed7d)}
-          hint={stats.failedHint}
-          valueClassName="text-[#e53935]"
-          icon={<TriangleExclamation className="h-4 w-4" />}
-          iconClassName="bg-[#fdecea] text-[#e53935]"
-        />
-        <StatCard
-          label="Runs in Last 24H"
-          value={String(stats.runs24h)}
-          hint={stats.runsHint}
-          icon={<Clock className="h-4 w-4" />}
-          iconClassName="bg-[#e8f8ef] text-[#1b7a45]"
-        />
-      </div>
-
-      <div className="mt-6 flex flex-col gap-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                ["all", "All"],
-                ["scheduled", "Scheduled"],
-                ["failed", "Failed"],
-                ["paused", "Paused"],
-                ["completed", "Completed"],
-                ["deleted", "Deleted"],
-              ] as const
-            ).map(([id, label]) => (
-              <FilterPill
-                key={id}
-                active={statusFilter === id}
-                tone="soft"
-                onClick={() => setStatusFilter(id)}
-              >
-                {id === "failed" ? (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#e53935]" />
-                ) : null}
-                {label} {counts[id]}
-              </FilterPill>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                ["all", "Both ops"],
-                ["move", "Move"],
-                ["copy", "Copy"],
-                ["delete", "Delete"],
-              ] as const
-            ).map(([id, label]) => (
-              <FilterPill
-                key={id}
-                active={opFilter === id}
-                onClick={() => setOpFilter(id)}
-              >
-                {label}
-              </FilterPill>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <Magnifier className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
-              className="h-10 w-full rounded-xl border border-border bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-foreground/30"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter list..."
-              aria-label="Filter scheduled tasks"
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Active Schedules"
+              value={String(stats.activeCount)}
+              hint={stats.activeHint}
+              icon={<Calendar className="h-4 w-4" />}
+              iconClassName="bg-primary/10 text-primary"
+            />
+            <StatCard
+              label="Next Run"
+              value={stats.nextRunLabel}
+              hint={stats.nextRunHint}
+              icon={<Clock className="h-4 w-4" />}
+              iconClassName="bg-[#fff6db] text-[#c48a00]"
+            />
+            <StatCard
+              label="Failed Last 7D"
+              value={String(stats.failed7d)}
+              hint={stats.failedHint}
+              valueClassName="text-[#e53935]"
+              icon={<TriangleExclamation className="h-4 w-4" />}
+              iconClassName="bg-[#fdecea] text-[#e53935]"
+            />
+            <StatCard
+              label="Runs in Last 24H"
+              value={String(stats.runs24h)}
+              hint={stats.runsHint}
+              icon={<Clock className="h-4 w-4" />}
+              iconClassName="bg-[#e8f8ef] text-[#1b7a45]"
             />
           </div>
-          <label className="relative inline-flex min-w-[220px] items-center">
-            <ArrowUpArrowDown className="pointer-events-none absolute left-3 h-4 w-4 text-muted" />
-            <select
-              className="h-10 w-full appearance-none rounded-xl border border-border bg-white py-2 pl-9 pr-8 text-sm font-semibold"
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as SortMode)}
-              aria-label="Sort scheduled tasks"
-            >
-              <option value="created_desc">Sort Recently created</option>
-              <option value="next_run_asc">Sort Next run</option>
-              <option value="name_asc">Sort Name</option>
-            </select>
-          </label>
-        </div>
-      </div>
 
-      <div className="mt-5 rounded-2xl border border-border bg-white">
-        {tasksLoading ? (
-          <div
-            className="skeleton--shimmer relative space-y-3 overflow-hidden p-4"
-            role="status"
-            aria-busy="true"
-            aria-label="Loading schedules"
-          >
-            {["s-a", "s-b", "s-c", "s-d"].map((id) => (
-              <div
-                key={id}
-                className="rounded-xl border border-border bg-surface-secondary p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton
-                      animationType="none"
-                      className="h-4 w-52 max-w-full rounded"
-                    />
-                    <Skeleton
-                      animationType="none"
-                      className="h-3 w-40 max-w-full rounded"
-                    />
-                    <Skeleton
-                      animationType="none"
-                      className="h-3 w-28 max-w-full rounded"
-                    />
-                  </div>
-                  <Skeleton
-                    animationType="none"
-                    className="h-8 w-20 shrink-0 rounded-lg"
-                  />
-                </div>
+          <div className="mt-6 flex flex-col gap-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    ["all", "All"],
+                    ["scheduled", "Scheduled"],
+                    ["failed", "Failed"],
+                    ["paused", "Paused"],
+                    ["completed", "Completed"],
+                    ["deleted", "Deleted"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <FilterPill
+                    key={id}
+                    active={statusFilter === id}
+                    tone="soft"
+                    onClick={() => setStatusFilter(id)}
+                  >
+                    {id === "failed" ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#e53935]" />
+                    ) : null}
+                    {label} {counts[id]}
+                  </FilterPill>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : showEmpty ? (
-          <div className="flex min-h-[360px] flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <ArrowRotateRight className="h-7 w-7" />
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    ["all", "Both ops"],
+                    ["move", "Move"],
+                    ["copy", "Copy"],
+                    ["delete", "Delete"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <FilterPill
+                    key={id}
+                    active={opFilter === id}
+                    onClick={() => setOpFilter(id)}
+                  >
+                    {label}
+                  </FilterPill>
+                ))}
+              </div>
             </div>
-            <h2 className="mt-5 text-xl font-extrabold tracking-tight text-foreground">
-              No scheduled tasks yet
-            </h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-              Automate Move and Copy operations across your connected clouds.
-              Create a schedule once and Archive Cloud will run it on your
-              behalf. Every run is recorded with a full per-file audit trail.
-            </p>
-            <Button className="mt-6" variant="primary" onPress={openCreate}>
-              <Plus className="h-4 w-4" />
-              New schedule
-            </Button>
-          </div>
-        ) : filteredTasks.length === 0 ? (
-          <div className="flex min-h-[240px] flex-col items-center justify-center px-6 py-12 text-center">
-            <p className="font-extrabold text-foreground">No matching tasks</p>
-            <p className="mt-1 text-sm text-muted">
-              Try a different status, operation, or search filter.
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-extrabold text-foreground">
-                    {task.fileName}
-                  </p>
-                  <p className="mt-1 text-sm text-muted">
-                    {humanScheduleKind(task.scheduleKind)} · Next:{" "}
-                    {formatNextRun(task.nextRunAt)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {task.operation === "delete"
-                      ? "Delete"
-                      : task.operation === "move"
-                        ? "Move"
-                        : "Copy"}{" "}
-                    · {task.sourceAccountEmail ?? "Source"}
-                    {task.operation === "delete"
-                      ? null
-                      : ` → ${task.destAccountEmail ?? "Destination"}`}
-                  </p>
-                  {task.errorMessage ? (
-                    <p className="mt-2 text-sm text-danger-soft-foreground">
-                      {task.errorMessage}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-muted">
-                    {mapUiStatus(task.status)}
-                  </span>
-                  {task.status === "active" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onPress={() => {
-                        apiFetch(`/automation/scheduled/${task.id}`, {
-                          method: "DELETE",
-                        })
-                          .then(() => {
-                            toast.success("Task cancelled.");
-                            loadTasks().catch(() => undefined);
-                          })
-                          .catch((err) =>
-                            toast.danger(
-                              err instanceof Error
-                                ? err.message
-                                : "Cancel failed",
-                            ),
-                          );
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  ) : null}
-                </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-md">
+                <Magnifier className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <input
+                  className="h-10 w-full rounded-xl border border-border bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-foreground/30"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filter list..."
+                  aria-label="Filter scheduled tasks"
+                />
               </div>
-            ))}
+              <label className="relative inline-flex min-w-[220px] items-center">
+                <ArrowUpArrowDown className="pointer-events-none absolute left-3 h-4 w-4 text-muted" />
+                <select
+                  className="h-10 w-full appearance-none rounded-xl border border-border bg-white py-2 pl-9 pr-8 text-sm font-semibold"
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  aria-label="Sort scheduled tasks"
+                >
+                  <option value="created_desc">Sort Recently created</option>
+                  <option value="next_run_asc">Sort Next run</option>
+                  <option value="name_asc">Sort Name</option>
+                </select>
+              </label>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="mt-5 rounded-2xl border border-border bg-white">
+            {tasksLoading ? (
+              <div
+                className="skeleton--shimmer relative space-y-3 overflow-hidden p-4"
+                role="status"
+                aria-busy="true"
+                aria-label="Loading schedules"
+              >
+                {["s-a", "s-b", "s-c", "s-d"].map((id) => (
+                  <div
+                    key={id}
+                    className="rounded-xl border border-border bg-surface-secondary p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton
+                          animationType="none"
+                          className="h-4 w-52 max-w-full rounded"
+                        />
+                        <Skeleton
+                          animationType="none"
+                          className="h-3 w-40 max-w-full rounded"
+                        />
+                        <Skeleton
+                          animationType="none"
+                          className="h-3 w-28 max-w-full rounded"
+                        />
+                      </div>
+                      <Skeleton
+                        animationType="none"
+                        className="h-8 w-20 shrink-0 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : showEmpty ? (
+              <div className="flex min-h-[360px] flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <ArrowRotateRight className="h-7 w-7" />
+                </div>
+                <h2 className="mt-5 text-xl font-extrabold tracking-tight text-foreground">
+                  No scheduled tasks yet
+                </h2>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+                  Automate Move and Copy operations across your connected
+                  clouds. Create a schedule once and Archive Cloud will run it
+                  on your behalf. Every run is recorded with a full per-file
+                  audit trail.
+                </p>
+                <Button className="mt-6" variant="primary" onPress={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  New schedule
+                </Button>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <div className="flex min-h-[240px] flex-col items-center justify-center px-6 py-12 text-center">
+                <p className="font-extrabold text-foreground">
+                  No matching tasks
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  Try a different status, operation, or search filter.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {filteredTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-extrabold text-foreground">
+                        {task.fileName}
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        {humanScheduleKind(task.scheduleKind)} · Next:{" "}
+                        {formatNextRun(task.nextRunAt)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        {task.operation === "delete"
+                          ? "Delete"
+                          : task.operation === "move"
+                            ? "Move"
+                            : "Copy"}{" "}
+                        · {task.sourceAccountEmail ?? "Source"}
+                        {task.operation === "delete"
+                          ? null
+                          : ` → ${task.destAccountEmail ?? "Destination"}`}
+                      </p>
+                      {task.errorMessage ? (
+                        <p className="mt-2 text-sm text-danger-soft-foreground">
+                          {task.errorMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+                        {mapUiStatus(task.status)}
+                      </span>
+                      {task.status === "active" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onPress={() => {
+                            apiFetch(`/automation/scheduled/${task.id}`, {
+                              method: "DELETE",
+                            })
+                              .then(() => {
+                                toast.success("Task cancelled.");
+                                loadTasks().catch(() => undefined);
+                              })
+                              .catch((err) =>
+                                toast.danger(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Cancel failed",
+                                ),
+                              );
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <NewScheduleModal
         open={createOpen}

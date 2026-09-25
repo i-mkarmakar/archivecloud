@@ -31,7 +31,7 @@ export function SiteNavbar({
   githubStars?: number | null;
   discordMembers?: number | null;
 }) {
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const user = session?.user;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -46,7 +46,9 @@ export function SiteNavbar({
         <div className="relative z-20 flex items-center gap-2">
           <GithubStarsLink stars={githubStars} />
           <DiscordLink members={discordMembers} />
-          {user ? (
+          {sessionPending ? (
+            <span className="inline-block h-9 w-[7.5rem]" aria-hidden />
+          ) : user ? (
             <Link href="/home" className={cn(buttonVariants({ size: "sm" }))}>
               Dashboard
             </Link>

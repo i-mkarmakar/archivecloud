@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppPreloader } from "@/components/AppPreloader";
+import { useUserPlan, waitForUserPlan } from "@/hooks/useUserPlan";
 import { authClient } from "@/lib/auth-client";
 import { APP_BOOT_MIN_MS, consumeAppBoot, hasAppBoot } from "@/lib/app-boot";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
@@ -11,9 +12,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
+  const { loaded: planLoaded } = useUserPlan();
   const [booting, setBooting] = useState(() =>
     typeof window === "undefined" ? false : hasAppBoot(),
   );
+  const [planReady, setPlanReady] = useState(false);
 
   useEffect(() => {
     if (isPending || session) return;
@@ -41,7 +44,25 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [isPending, session]);
 
-  if (isPending || !session || booting) {
+  useEffect(() => {
+    if (isPending || !session) {
+      setPlanReady(false);
+      return;
+    }
+
+    let cancelled = false;
+    void waitForUserPlan().then(() => {
+      if (!cancelled) setPlanReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPending, session]);
+
+  // Keep the preloader until session + confirmed plan are ready so Thunder vs
+  // Free branding/limits appear correctly on first paint (no free→paid flash).
+  if (isPending || !session || booting || !planLoaded || !planReady) {
     return <AppPreloader />;
   }
 
