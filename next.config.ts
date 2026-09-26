@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Azure publisher-domain check hits this path without the .json suffix.
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/microsoft-identity-association",
+        destination: "/.well-known/microsoft-identity-association.json",
+      },
+    ];
+  },
   env: {
     NEXT_PUBLIC_APP_BUILT_AT: new Date().toISOString(),
   },
