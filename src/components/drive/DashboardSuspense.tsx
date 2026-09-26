@@ -6,6 +6,7 @@ import {
   FileGridSkeleton,
   FolderGridSkeleton,
   FormPageSkeleton,
+  SettingsPageSkeleton,
   StatCardsSkeleton,
 } from "@/components/drive/PageSkeletons";
 
@@ -38,11 +39,7 @@ export function SharedPageFallback() {
 }
 
 export function SettingsPageFallback() {
-  return (
-    <div className="mt-2">
-      <FormPageSkeleton label="Loading settings" />
-    </div>
-  );
+  return <SettingsPageSkeleton />;
 }
 
 export function AutomationPageFallback() {

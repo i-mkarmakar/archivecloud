@@ -1,99 +1,47 @@
 "use client";
 
 import { formatBytes } from "@/lib/api";
-import type { PlanDefinition } from "@/lib/plans";
-import { cn } from "@/lib/utils";
+
+/** Soft scale so unlimited plans still show a visible fill for small usage. */
+const UNLIMITED_BAR_BYTES = 100 * 1024 * 1024 * 1024; // 100 GB
+
+function toByteNumber(value: string | number | bigint | null | undefined) {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "bigint") {
+    const asNumber = Number(value);
+    return Number.isFinite(asNumber) ? asNumber : 0;
+  }
+  const asNumber = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(asNumber) ? asNumber : 0;
+}
 
 export function SidebarPlanLimits({
-  plan,
   transferUsedBytes,
   transferLimitBytes,
-  storageUsedBytes,
-  storageAvailableBytes,
-  connectedAccounts,
 }: {
-  plan: PlanDefinition;
   transferUsedBytes: string | number | bigint;
   transferLimitBytes: string | number | bigint | null;
-  storageUsedBytes: string | number | bigint;
-  storageAvailableBytes: string | number | bigint | null;
-  connectedAccounts: number;
 }) {
-  const bandwidthUsed = Number(transferUsedBytes) || 0;
+  const bandwidthUsed = toByteNumber(transferUsedBytes);
   const unlimitedBandwidth = transferLimitBytes === null;
   const bandwidthLimit = unlimitedBandwidth
     ? 0
-    : Number(transferLimitBytes) || 0;
+    : toByteNumber(transferLimitBytes);
   const bandwidthRemaining = unlimitedBandwidth
     ? null
-    : bandwidthLimit > bandwidthUsed
-      ? bandwidthLimit - bandwidthUsed
-      : 0;
-
-  const accountLimit = plan.limits.maxCloudAccounts;
-  const accountsValue = accountLimit
-    ? `${connectedAccounts} / ${accountLimit}`
-    : `${connectedAccounts} · unlimited`;
-
-  const rows = [
-    {
-      label: "Cloud accounts",
-      value: accountsValue,
-      dotClass: "bg-accent",
-    },
-    {
-      label: "Drive storage",
-      value: formatBytes(storageUsedBytes),
-      dotClass: "bg-warning",
-    },
-    {
-      label: "Drive free",
-      value:
-        storageAvailableBytes === null || storageAvailableBytes === undefined
-          ? "Unlimited"
-          : formatBytes(storageAvailableBytes),
-      dotClass: "bg-muted-foreground/70",
-    },
-  ];
+    : Math.max(0, bandwidthLimit - bandwidthUsed);
 
   const barTotal = unlimitedBandwidth
-    ? Math.max(bandwidthUsed, 1)
-    : bandwidthLimit > 0
-      ? bandwidthLimit
-      : Math.max(bandwidthUsed, 1);
-  const usedPct = unlimitedBandwidth
-    ? 0
-    : barTotal > 0
-      ? Math.min(100, (bandwidthUsed / barTotal) * 100)
-      : 0;
+    ? UNLIMITED_BAR_BYTES
+    : Math.max(bandwidthLimit, 1);
+
+  let usedPct =
+    barTotal > 0 ? Math.min(100, (bandwidthUsed / barTotal) * 100) : 0;
+  // Keep a visible sliver whenever anything has been used.
+  if (bandwidthUsed > 0 && usedPct < 1) usedPct = 1;
 
   return (
     <div className="min-w-0">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
-        Plan limits · {plan.name}
-      </p>
-      <div className="mb-3 space-y-2">
-        {rows.map((item) => (
-          <div
-            key={item.label}
-            className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted"
-          >
-            <span className="flex min-w-0 items-center gap-2 font-medium">
-              <span
-                className={cn(
-                  "h-1.5 w-1.5 shrink-0 rounded-full",
-                  item.dotClass,
-                )}
-              />
-              <span className="truncate">{item.label}</span>
-            </span>
-            <span className="shrink-0 font-semibold text-foreground">
-              {item.value}
-            </span>
-          </div>
-        ))}
-      </div>
-
       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
         Bandwidth
       </p>
@@ -103,8 +51,8 @@ export function SidebarPlanLimits({
         </span>
         <span className="shrink-0 text-muted">
           {unlimitedBandwidth
-            ? "Unlimited free"
-            : `${formatBytes(bandwidthRemaining ?? 0)} free`}
+            ? "Unlimited"
+            : `${formatBytes(bandwidthRemaining)} free`}
         </span>
       </div>
       <div
@@ -112,11 +60,11 @@ export function SidebarPlanLimits({
         role="progressbar"
         aria-label="Monthly bandwidth usage"
         aria-valuemin={0}
-        aria-valuemax={barTotal}
-        aria-valuenow={bandwidthUsed}
+        aria-valuemax={Math.round(barTotal)}
+        aria-valuenow={Math.round(bandwidthUsed)}
       >
         <div
-          className="h-full shrink-0 bg-success"
+          className="h-full shrink-0 rounded-full bg-success transition-[width] duration-300 ease-out"
           style={{ width: `${usedPct}%` }}
           title={
             unlimitedBandwidth

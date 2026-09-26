@@ -16,7 +16,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { GooglePhotosImportPanel } from "@/components/dashboard/GooglePhotosImportPanel";
+import { GooglePhotosHowtoModal } from "@/components/dashboard/GooglePhotosHowtoModal";
+import {
+  GooglePhotosImportPanel,
+  type GooglePhotosImportHandle,
+} from "@/components/dashboard/GooglePhotosImportPanel";
+import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import {
   CONNECT_ONBOARDING_DESCRIPTION,
   NoConnectedAccountsEmptyState,
@@ -111,6 +116,7 @@ export function AllFilesPage() {
   const searchQuery = sp.get("q")?.trim() ?? "";
   const filterAccountId = sp.get("accountId")?.trim() ?? "";
   const cloudFolderId = sp.get("cloudFolder")?.trim() ?? "";
+  const photosHowto = sp.get("photosHowto") === "1";
   const sortParam = (sp.get("sort") as FileSort | null) ?? "created_desc";
   const activeSort = FILE_SORT_OPTIONS.some(
     (option) => option.value === sortParam,
@@ -226,6 +232,8 @@ export function AllFilesPage() {
   const linkedBrowseGenRef = useRef(0);
   const [accountFilterOpen, setAccountFilterOpen] = useState(false);
   const [sortFilterOpen, setSortFilterOpen] = useState(false);
+  const [photosHowtoOpen, setPhotosHowtoOpen] = useState(false);
+  const photosImportRef = useRef<GooglePhotosImportHandle | null>(null);
 
   const displayFolders = useMemo(() => {
     if (activeFolderId || searchQuery) return folders;
@@ -610,6 +618,20 @@ export function AllFilesPage() {
     !activeFolderId &&
     !searchQuery &&
     !cloudFolderId;
+
+  useEffect(() => {
+    if (photosHowto && isGooglePhotosAccountView) {
+      setPhotosHowtoOpen(true);
+    }
+  }, [photosHowto, isGooglePhotosAccountView]);
+
+  function dismissPhotosHowto() {
+    setPhotosHowtoOpen(false);
+    if (photosHowto) {
+      patchHomeParams({ photosHowto: null });
+    }
+  }
+
   const accountFilterOptions = useMemo(() => {
     if (!selectedAccount) return connectedAccounts;
     return connectedAccounts.filter(
@@ -1796,6 +1818,23 @@ export function AllFilesPage() {
                     </Popover.Content>
                   </Popover>
 
+                  {isGooglePhotosAccountView && selectedAccount ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 gap-1.5 sm:h-10"
+                      onPress={() => {
+                        photosImportRef.current?.startImport();
+                      }}
+                    >
+                      <ProviderBrandIcon
+                        name="google_photos"
+                        className="h-4 w-4"
+                      />
+                      Import
+                    </Button>
+                  ) : null}
+
                   <Button
                     size="sm"
                     variant="outline"
@@ -1819,17 +1858,15 @@ export function AllFilesPage() {
               }
             />
             {isGooglePhotosAccountView && selectedAccount ? (
-              <div className="mb-6">
-                <GooglePhotosImportPanel
-                  account={selectedAccount}
-                  destinations={connectedAccounts.filter(
-                    (item) => item.status === "connected",
-                  )}
-                  onImported={() => {
-                    loadAll().catch(() => undefined);
-                  }}
-                />
-              </div>
+              <GooglePhotosImportPanel
+                ref={photosImportRef}
+                toolbarMode
+                account={selectedAccount}
+                onImported={() => {
+                  loadAll().catch(() => undefined);
+                  void loadLinkedStorage(connectedAccounts);
+                }}
+              />
             ) : null}
             {!activeFolder &&
             !isCloudFolderView &&
@@ -2595,6 +2632,10 @@ export function AllFilesPage() {
           </div>
         </DummyModal>
       )}
+      <GooglePhotosHowtoModal
+        open={photosHowtoOpen}
+        onClose={dismissPhotosHowto}
+      />
     </>
   );
 }

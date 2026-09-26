@@ -2,8 +2,8 @@ import {
   ArrowRotateLeft,
   Clock,
   ClockArrowRotateLeft,
-  FolderFill,
   Folders,
+  HouseFill,
   Persons,
   Thunderbolt,
 } from "@gravity-ui/icons";
@@ -32,7 +32,7 @@ export const dashboardNavSections: DashboardNavSection[] = [
     id: "workspace",
     title: "Workspace",
     items: [
-      { label: "All Files", icon: FolderFill, href: "/home" },
+      { label: "Home", icon: HouseFill, href: "/home" },
       { label: "Shared with me", icon: Persons, href: "/shared" },
       { label: "Virtual Folders", icon: Folders, href: "/virtual-folders" },
       { label: "Recent", icon: Clock, href: "/recent" },

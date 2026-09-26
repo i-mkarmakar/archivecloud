@@ -225,40 +225,58 @@ export async function importGooglePhotosPickerMediaHandler(
     const body = z
       .object({
         sessionId: z.string().min(1),
-        destAccountId: z.string().min(1),
+        destAccountId: z.string().min(1).optional(),
         destParentId: z.string().min(1).optional().nullable(),
         mediaItemIds: z.array(z.string().min(1)).optional(),
       })
       .parse(await request.json());
 
     const sourceAccount = await getOwnedGooglePhotosAccount(accountId, user.id);
-    const destAccount = await prisma.connectedAccount.findFirst({
-      where: {
-        id: body.destAccountId,
-        userId: user.id,
-        status: "connected",
-      },
-    });
-    if (!destAccount) {
+
+    // Durable bytes need a non-Photos cloud; fall back to first connected one.
+    let destAccount =
+      body.destAccountId != null
+        ? await prisma.connectedAccount.findFirst({
+            where: {
+              id: body.destAccountId,
+              userId: user.id,
+              status: "connected",
+            },
+          })
+        : null;
+    if (body.destAccountId && !destAccount) {
       return errorJson(
         "ACCOUNT_NOT_FOUND",
         "Destination account not found.",
         404,
       );
     }
-    if (!isSupportedProvider(destAccount.provider)) {
-      return errorJson(
-        "UNSUPPORTED_PROVIDER",
-        "Destination provider is not supported.",
-        400,
-      );
+    if (!destAccount) {
+      destAccount = await prisma.connectedAccount.findFirst({
+        where: {
+          userId: user.id,
+          status: "connected",
+          provider: { not: "google_photos" },
+          id: { not: sourceAccount.id },
+        },
+        orderBy: { createdAt: "asc" },
+      });
     }
-    if (destAccount.provider === "google_photos") {
-      return errorJson(
-        "UNSUPPORTED_DESTINATION",
-        "Choose a destination other than Google Photos.",
-        400,
-      );
+    if (destAccount) {
+      if (!isSupportedProvider(destAccount.provider)) {
+        return errorJson(
+          "UNSUPPORTED_PROVIDER",
+          "Destination provider is not supported.",
+          400,
+        );
+      }
+      if (destAccount.provider === "google_photos") {
+        return errorJson(
+          "UNSUPPORTED_DESTINATION",
+          "Choose a destination other than Google Photos.",
+          400,
+        );
+      }
     }
 
     const session = await getPickerSession(sourceAccount, body.sessionId);
@@ -301,6 +319,7 @@ export async function importGooglePhotosPickerMediaHandler(
       status: string;
       errorMessage: string | null;
       destProviderFileId: string | null;
+      fileId: string | null;
     }> = [];
 
     let imported = 0;
@@ -308,14 +327,17 @@ export async function importGooglePhotosPickerMediaHandler(
 
     for (const item of items) {
       const normalized = normalizePickedMediaItem(item);
+      const providerFileId =
+        item.id.length <= 191 ? item.id : item.id.slice(0, 191);
+
       const job = await prisma.transferJob.create({
         data: {
           userId: user.id,
           type: "copy",
           status: "running",
           sourceAccountId: sourceAccount.id,
-          destAccountId: destAccount.id,
-          sourceProviderFileId: item.id,
+          destAccountId: destAccount?.id ?? sourceAccount.id,
+          sourceProviderFileId: providerFileId,
           destParentId: body.destParentId ?? null,
           fileName: normalized.filename,
           mimeType: normalized.mimeType,
@@ -325,27 +347,73 @@ export async function importGooglePhotosPickerMediaHandler(
       });
 
       try {
-        const pulled = await downloadPickedMediaStream(sourceAccount, item);
-        const result = await pushPulledFileToProvider(
-          destAccount,
-          pulled,
-          body.destParentId,
-        );
+        let sizeBytes = 0n;
+        let destProviderFileId: string | null = null;
+        let mimeType = normalized.mimeType;
+        let fileName = normalized.filename;
 
-        await recordTransferUsage(
-          user.id,
-          result.sizeBytes > 0n ? result.sizeBytes : 1n,
-        );
+        if (destAccount) {
+          const pulled = await downloadPickedMediaStream(sourceAccount, item);
+          const result = await pushPulledFileToProvider(
+            destAccount,
+            pulled,
+            body.destParentId,
+          );
+          sizeBytes = result.sizeBytes;
+          destProviderFileId = result.destProviderFileId;
+          mimeType = result.mimeType;
+          fileName = result.name;
+
+          await recordTransferUsage(
+            user.id,
+            result.sizeBytes > 0n ? result.sizeBytes : 1n,
+          );
+        } else {
+          // Reference-only: no other cloud to hold bytes yet.
+          await recordTransferUsage(user.id, 1n);
+        }
+
+        const existing = await prisma.file.findFirst({
+          where: {
+            userId: user.id,
+            connectedAccountId: sourceAccount.id,
+            provider: "google_photos",
+            providerFileId,
+          },
+        });
+        const file = existing
+          ? await prisma.file.update({
+              where: { id: existing.id },
+              data: {
+                name: fileName,
+                mimeType,
+                sizeBytes,
+                status: "active",
+                deletedAt: null,
+              },
+            })
+          : await prisma.file.create({
+              data: {
+                userId: user.id,
+                connectedAccountId: sourceAccount.id,
+                provider: "google_photos",
+                providerFileId,
+                name: fileName,
+                mimeType,
+                sizeBytes,
+                status: "active",
+              },
+            });
 
         await prisma.transferJob.update({
           where: { id: job.id },
           data: {
             status: "completed",
-            destProviderFileId: result.destProviderFileId,
-            mimeType: result.mimeType,
-            fileName: result.name,
-            sizeBytes: result.sizeBytes,
-            transferredBytes: result.sizeBytes > 0n ? result.sizeBytes : 1n,
+            destProviderFileId,
+            mimeType,
+            fileName,
+            sizeBytes,
+            transferredBytes: sizeBytes > 0n ? sizeBytes : 1n,
             completedAt: new Date(),
           },
         });
@@ -357,18 +425,20 @@ export async function importGooglePhotosPickerMediaHandler(
           job.id,
           {
             sourceAccountId: sourceAccount.id,
-            destAccountId: destAccount.id,
-            fileName: result.name,
+            destAccountId: destAccount?.id ?? null,
+            fileId: file.id,
+            fileName,
             via: "google_photos_picker",
           },
         );
 
         jobs.push({
           id: job.id,
-          fileName: result.name,
+          fileName,
           status: "completed",
           errorMessage: null,
-          destProviderFileId: result.destProviderFileId,
+          destProviderFileId,
+          fileId: file.id,
         });
         imported += 1;
       } catch (error) {
@@ -388,6 +458,7 @@ export async function importGooglePhotosPickerMediaHandler(
           status: "failed",
           errorMessage: message,
           destProviderFileId: null,
+          fileId: null,
         });
         failed += 1;
       }

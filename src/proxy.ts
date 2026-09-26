@@ -51,6 +51,7 @@ const publicRoutePrefixes = [
   "/solutions",
   "/cron",
   "/webhooks",
+  "/.well-known",
 ];
 
 const SESSION_COOKIE_NAMES = [

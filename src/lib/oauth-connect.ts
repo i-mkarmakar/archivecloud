@@ -64,10 +64,32 @@ export function openCenteredPopup(
   return window.open(url, name, features);
 }
 
+/** Write a simple loading page into a popup (about:blank). */
+export function writePopupLoading(
+  popup: Window,
+  title: string,
+  subtitle = "Please wait",
+) {
+  try {
+    popup.document.open();
+    popup.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>${title}</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:system-ui,-apple-system,sans-serif;background:#fff;color:#374151;text-align:center}
+  h1{margin:0;font-size:1.25rem;font-weight:600;color:#111827}
+  p{margin:.5rem 0 0;font-size:.875rem;color:#9ca3af}
+</style></head>
+<body><div><h1>${title}</h1><p>${subtitle}</p></div></body></html>`);
+    popup.document.close();
+  } catch {
+    // Cross-origin or closed popup — ignore.
+  }
+}
+
 export async function connectOAuthPopup(options: {
   connectUrlPath: string;
   popupName: string;
-
   popupTitle?: string;
 }): Promise<void> {
   const url = new URL(options.connectUrlPath, window.location.origin);
@@ -75,6 +97,17 @@ export async function connectOAuthPopup(options: {
     url.pathname = "/connected-accounts/google/connect";
   }
   const path = `${url.pathname}${url.search}`;
+
+  if (options.popupTitle) {
+    const popup = openCenteredPopup("about:blank", options.popupName);
+    if (!popup) {
+      window.location.assign(path);
+      return;
+    }
+    writePopupLoading(popup, options.popupTitle, "Please wait");
+    popup.location.href = path;
+    return;
+  }
 
   const popup = openCenteredPopup(path, options.popupName);
   if (!popup) {

@@ -188,7 +188,8 @@ export async function syncGooglePhotosQuota(accountId: string) {
 
 /**
  * Google Photos no longer supports library browsing via the Library API.
- * Selection happens through the Photos Picker API instead.
+ * Selection happens through the Photos Picker API; imported picks are stored
+ * as file records on this account and listed here.
  */
 export async function browseGooglePhotosFolder(
   accountId: string,
@@ -205,9 +206,27 @@ export async function browseGooglePhotosFolder(
     },
   });
 
+  const files = await prisma.file.findMany({
+    where: {
+      userId,
+      connectedAccountId: accountId,
+      provider: "google_photos",
+      status: "active",
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+
   return {
     folders: [],
-    files: [],
+    files: files.map((file) => ({
+      id: file.providerFileId,
+      name: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes.toString(),
+      modifiedTime: file.createdAt.toISOString(),
+      dbFileId: file.id,
+    })),
     breadcrumbs: [
       { id: "root", name: "Google Photos" },
       ...(parentId !== "root"
