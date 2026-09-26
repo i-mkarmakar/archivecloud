@@ -24,18 +24,15 @@ import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { clearUserPlanCache } from "@/lib/user-plan-cache";
 import { cn } from "@/lib/utils";
 
-type StorageSummary = {
-  totalBytes: string | null;
-  usedBytes: string;
-  availableBytes: string | null;
-};
-
 type ConnectedAccount = {
   id: string;
   email: string;
   displayName?: string | null;
   provider: string;
   status: string;
+  storageAccount?: {
+    usedBytes?: string | null;
+  } | null;
 };
 
 export function DriveLayout({ children }: { children: ReactNode }) {
@@ -53,11 +50,6 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   const user: AuthUser | null = session?.user
     ? sessionUserToAuthUser(session.user)
     : null;
-  const [storage, setStorage] = useState<StorageSummary>({
-    totalBytes: "0",
-    usedBytes: "0",
-    availableBytes: "0",
-  });
   const { uploadProgress, setUploadProgress, retryFailedUpload } = useUpload();
   const [uploadProgressCollapsed, setUploadProgressCollapsed] = useState(false);
 
@@ -121,7 +113,6 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     if (status === "connected") {
       toast.success("Google Drive connected to your account.");
       void loadConnectedAccounts();
-      void loadSidebarStats();
     } else if (status === "error") {
       toast.danger(
         "Could not connect Google Drive. You can retry in Settings.",
@@ -132,11 +123,6 @@ export function DriveLayout({ children }: { children: ReactNode }) {
     const qs = next.toString();
     router.replace(qs ? `${safePathname}?${qs}` : safePathname);
   }, [sp, router, safePathname]);
-
-  async function loadSidebarStats() {
-    const summary = await apiFetch<StorageSummary>("/storage/summary");
-    setStorage(summary);
-  }
 
   async function loadConnectedAccounts() {
     try {
@@ -252,11 +238,9 @@ export function DriveLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (sessionPending || !session?.user) return;
-    loadSidebarStats().catch(() => undefined);
     loadConnectedAccounts().catch(() => undefined);
     loadTags().catch(() => undefined);
     function onStorageChanged() {
-      loadSidebarStats().catch(() => undefined);
       loadConnectedAccounts().catch(() => undefined);
     }
     window.addEventListener("archivecloud:storage-changed", onStorageChanged);
@@ -270,7 +254,6 @@ export function DriveLayout({ children }: { children: ReactNode }) {
   const sidebarProps = {
     safePathname,
     user,
-    storage,
     accounts,
     onLogout: logout,
   };

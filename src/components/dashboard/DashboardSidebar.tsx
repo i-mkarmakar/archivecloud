@@ -10,6 +10,8 @@ import {
   Gear,
   Grip,
   Plus,
+  TrashBin,
+  TriangleExclamation,
 } from "@gravity-ui/icons";
 import {
   AlertDialog,
@@ -18,15 +20,17 @@ import {
   Popover,
   ScrollShadow,
   Surface,
+  toast,
 } from "@heroui/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/drive/BrandLogo";
+import { DummyModal } from "@/components/drive/DummyModal";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, formatBytes } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth-user";
 import { getProfileImageUrl } from "@/lib/gravatar";
 import {
@@ -49,18 +53,15 @@ type TransferUsage = {
   remainingBytes: string | null;
 };
 
-type StorageSummary = {
-  totalBytes: string | null;
-  usedBytes: string;
-  availableBytes: string | null;
-};
-
 export type SidebarConnectedAccount = {
   id: string;
   email: string;
   displayName?: string | null;
   provider: string;
   status: string;
+  storageAccount?: {
+    usedBytes?: string | null;
+  } | null;
 };
 
 function accountTitle(account: SidebarConnectedAccount) {
@@ -157,7 +158,6 @@ function isNavActive(
 export function DashboardSidebar({
   safePathname,
   user,
-  storage,
   accounts = [],
   onLogout,
   onNavigate,
@@ -168,7 +168,6 @@ export function DashboardSidebar({
 }: {
   safePathname: string;
   user: AuthUser | null;
-  storage: StorageSummary;
   accounts?: SidebarConnectedAccount[];
   onLogout: () => void;
   onNavigate?: () => void;
@@ -178,12 +177,16 @@ export function DashboardSidebar({
   hideNewButton?: boolean;
   className?: string;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams() ?? new URLSearchParams();
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [avatarError, setAvatarError] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [accountToDisconnect, setAccountToDisconnect] =
+    useState<SidebarConnectedAccount | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
   const {
     planId: currentPlanId,
     plan: currentPlan,
@@ -209,6 +212,30 @@ export function DashboardSidebar({
   function openConnectModal() {
     setConnectOpen(true);
     onNavigate?.();
+  }
+
+  async function disconnectAccount() {
+    if (!accountToDisconnect || disconnecting) return;
+    setDisconnecting(true);
+    try {
+      await apiFetch(`/connected-accounts/${accountToDisconnect.id}`, {
+        method: "DELETE",
+      });
+      toast.success("Storage account disconnected.");
+      if (searchParams.get("accountId") === accountToDisconnect.id) {
+        router.push("/home");
+      }
+      setAccountToDisconnect(null);
+      window.dispatchEvent(new Event("archivecloud:storage-changed"));
+    } catch (error) {
+      toast.danger(
+        error instanceof Error
+          ? error.message
+          : "Failed to disconnect storage account",
+      );
+    } finally {
+      setDisconnecting(false);
+    }
   }
 
   const connectedAccounts = accounts.filter(
@@ -278,25 +305,34 @@ export function DashboardSidebar({
   useEffect(() => {
     if (!planLoaded) return;
     let cancelled = false;
-    void apiFetch<TransferUsage>("/transfers/usage")
-      .then((usage) => {
+
+    async function loadTransferUsage() {
+      try {
+        const usage = await apiFetch<TransferUsage>("/transfers/usage");
+        if (!cancelled) setTransferUsage(usage);
+      } catch {
         if (cancelled) return;
-        setTransferUsage(usage);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          // Fall back to the confirmed user plan — never assume Free.
-          const limit = currentPlan.limits.monthlyTransferBytes;
-          setTransferUsage({
-            yearMonth: "",
-            transferredBytes: "0",
-            limitBytes: limit === null ? null : limit.toString(),
-            remainingBytes: limit === null ? null : limit.toString(),
-          });
-        }
-      });
+        const limit = currentPlan.limits.monthlyTransferBytes;
+        setTransferUsage({
+          yearMonth: "",
+          transferredBytes: "0",
+          limitBytes: limit === null ? null : limit.toString(),
+          remainingBytes: limit === null ? null : limit.toString(),
+        });
+      }
+    }
+
+    void loadTransferUsage();
+    function onStorageChanged() {
+      void loadTransferUsage();
+    }
+    window.addEventListener("archivecloud:storage-changed", onStorageChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        "archivecloud:storage-changed",
+        onStorageChanged,
+      );
     };
   }, [planLoaded, currentPlan]);
 
@@ -707,46 +743,66 @@ export function DashboardSidebar({
                                       const email = accountEmail(account);
 
                                       return (
-                                        <Link
+                                        <div
                                           key={account.id}
-                                          href={href}
-                                          onClick={onNavigate}
-                                          title={accountTitle(account)}
                                           className={cn(
-                                            "group relative flex min-h-8 min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-lg px-2.5 py-1 text-sm transition-colors",
+                                            "group/account relative flex min-h-8 min-w-0 items-center overflow-hidden rounded-lg transition-colors",
                                             isActive
-                                              ? "bg-primary/10 font-semibold text-primary"
-                                              : "font-medium text-[#4a5568] hover:bg-black/5",
+                                              ? "bg-primary/10"
+                                              : "hover:bg-black/5",
                                           )}
                                         >
                                           {isActive ? (
                                             <span className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-primary" />
                                           ) : null}
-                                          <span className="min-w-0 flex-1 overflow-hidden">
-                                            <span
-                                              className={cn(
-                                                "block truncate text-xs",
-                                                isActive
-                                                  ? "font-semibold text-primary"
-                                                  : "font-semibold text-[#4a5568]",
-                                              )}
-                                            >
-                                              {name}
-                                            </span>
-                                            {email ? (
+                                          <Link
+                                            href={href}
+                                            onClick={onNavigate}
+                                            title={accountTitle(account)}
+                                            className={cn(
+                                              "flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-1 pr-8 pl-2.5 text-sm",
+                                              isActive
+                                                ? "font-semibold text-primary"
+                                                : "font-medium text-[#4a5568]",
+                                            )}
+                                          >
+                                            <span className="min-w-0 flex-1 overflow-hidden">
                                               <span
                                                 className={cn(
-                                                  "mt-0.5 block truncate text-[11px] font-normal",
+                                                  "block truncate text-xs",
                                                   isActive
-                                                    ? "text-primary/80"
-                                                    : "text-[#888ea8]",
+                                                    ? "font-semibold text-primary"
+                                                    : "font-semibold text-[#4a5568]",
                                                 )}
                                               >
-                                                {email}
+                                                {name}
                                               </span>
-                                            ) : null}
-                                          </span>
-                                        </Link>
+                                              {email ? (
+                                                <span
+                                                  className={cn(
+                                                    "mt-0.5 block truncate text-[11px] font-normal",
+                                                    isActive
+                                                      ? "text-primary/80"
+                                                      : "text-[#888ea8]",
+                                                  )}
+                                                >
+                                                  {email}
+                                                </span>
+                                              ) : null}
+                                            </span>
+                                          </Link>
+                                          <button
+                                            type="button"
+                                            title="Disconnect"
+                                            aria-label={`Disconnect ${accountTitle(account)}`}
+                                            onClick={() =>
+                                              setAccountToDisconnect(account)
+                                            }
+                                            className="absolute top-1/2 right-1 z-10 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover/account:opacity-100 focus-visible:opacity-100"
+                                          >
+                                            <TrashBin className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
                                       );
                                     })}
                                   </div>
@@ -831,7 +887,6 @@ export function DashboardSidebar({
         {planLoaded && connectedAccounts.length > 0 ? (
           <div className="min-w-0 overflow-hidden border-t border-separator px-3 pb-3 pt-3">
             <SidebarPlanLimits
-              plan={currentPlan}
               transferUsedBytes={transferUsage?.transferredBytes ?? "0"}
               transferLimitBytes={
                 transferUsage?.limitBytes ??
@@ -839,9 +894,6 @@ export function DashboardSidebar({
                   ? null
                   : currentPlan.limits.monthlyTransferBytes.toString())
               }
-              storageUsedBytes={storage?.usedBytes ?? 0}
-              storageAvailableBytes={storage?.availableBytes ?? null}
-              connectedAccounts={connectedAccounts.length}
             />
           </div>
         ) : null}
@@ -957,6 +1009,77 @@ export function DashboardSidebar({
           </AlertDialog.Dialog>
         </AlertDialog.Container>
       </AlertDialog.Backdrop>
+
+      <DummyModal
+        open={Boolean(accountToDisconnect)}
+        title="Disconnect Cloud Account"
+        size="lg"
+        className="sm:min-w-[36rem]"
+        onClose={() => {
+          if (disconnecting) return;
+          setAccountToDisconnect(null);
+        }}
+      >
+        <div className="grid gap-4">
+          {accountToDisconnect ? (
+            <p className="text-sm leading-relaxed text-muted">
+              Are you sure you want to disconnect the{" "}
+              <span className="font-semibold text-foreground">
+                {accountToDisconnect.displayName?.trim() ||
+                  `My ${providerLabel(accountToDisconnect.provider)}`}
+              </span>{" "}
+              cloud account from your Archive Cloud account? This action will
+              remove Archive Cloud&apos;s access to the account. You can
+              reconnect it at any time.
+            </p>
+          ) : null}
+
+          <div className="rounded-xl bg-background-secondary p-4 text-sm text-muted">
+            <p className="font-semibold text-foreground">
+              {accountToDisconnect?.email}
+            </p>
+            <p className="mt-1">
+              {accountToDisconnect
+                ? providerLabel(accountToDisconnect.provider)
+                : null}
+            </p>
+            <p className="mt-1">
+              Used storage:{" "}
+              {formatBytes(accountToDisconnect?.storageAccount?.usedBytes)}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
+              <TriangleExclamation className="h-4 w-4 shrink-0" />
+              Warning
+            </div>
+            <p className="mt-1.5 text-sm leading-relaxed text-amber-800/90">
+              If you have any active schedule jobs, they will also be deleted
+              automatically.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:flex sm:justify-end">
+            <Button
+              variant="outline"
+              onPress={() => setAccountToDisconnect(null)}
+              isDisabled={disconnecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onPress={() => {
+                void disconnectAccount();
+              }}
+              isDisabled={disconnecting}
+            >
+              {disconnecting ? "Disconnecting..." : "Disconnect"}
+            </Button>
+          </div>
+        </div>
+      </DummyModal>
     </>
   );
 }

@@ -3,16 +3,32 @@ import type { NextResponse } from "next/server";
 const CONNECT_ALIAS_COOKIE = "archivecloud_connect_alias";
 const MAX_ALIAS_LEN = 50;
 
+/** Decode accidental URL-encoding (My%20Google%20Photos → My Google Photos). */
+function decodeAliasEncoding(value: string): string {
+  let current = value;
+  // Cookie/query double-encoding leaves literal %20 in the stored name.
+  for (let i = 0; i < 3; i += 1) {
+    if (!/%[0-9A-Fa-f]{2}/.test(current)) break;
+    try {
+      const next = decodeURIComponent(current);
+      if (next === current) break;
+      current = next;
+    } catch {
+      break;
+    }
+  }
+  return current;
+}
+
 export function parseConnectAliasParam(request: Request): string | null {
   const raw = new URL(request.url).searchParams.get("alias")?.trim() ?? "";
-  if (!raw) return null;
-  return raw.slice(0, MAX_ALIAS_LEN);
+  return normalizeConnectAlias(raw);
 }
 
 export function normalizeConnectAlias(
   value: string | null | undefined,
 ): string | null {
-  const trimmed = value?.trim() ?? "";
+  const trimmed = decodeAliasEncoding(value?.trim() ?? "").trim();
   if (!trimmed) return null;
   return trimmed.slice(0, MAX_ALIAS_LEN);
 }

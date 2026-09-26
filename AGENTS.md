@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Archive Cloud is a Google Drive storage gateway. It lets users sign up/sign in with email/password or Google, connect Google Drive accounts, track combined quota, upload files through the backend into a dedicated Google Drive `archivecloud` folder, organize files in virtual folders, preview/download/share files, sync app database file records from Google Drive, invite other users to files/folders, and route uploads to a connected Drive account with enough free space.
+Archive Cloud is a multi-cloud storage gateway. It lets users sign up/sign in with email/password or Google, connect cloud accounts (Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, iCloud Drive, iCloud Photos), track combined quota, upload files through the backend into a dedicated `archivecloud` folder on each provider, organize files in virtual folders, preview/download/share files, sync app database file records from connected storage, invite other users to files/folders, copy/move files across clouds, and route uploads to a connected account with enough free space.
 
 ## Repository Structure
 
@@ -12,7 +12,7 @@ Single full-stack Next.js app at the repo root:
 - `src/views/**`: page view components (not `src/pages/` — avoids Next.js conflict).
 - `src/server/handlers/**`: API handler logic (auth, files, uploads, etc.).
 - `src/server/http/**`: shared Route Handler utilities (auth, responses, API key).
-- `src/server/modules/**`: provider services (Google), streaming helpers, config, scripts.
+- `src/server/modules/**`: provider services (Google, OneDrive, Dropbox, pCloud, iCloud), streaming helpers, config, scripts.
 - `src/components/**`, `src/layouts/**`, `src/lib/**`, `src/context/**`: UI and client utilities.
 - `prisma/`: PostgreSQL 18+ schema and migrations.
 - `public/`: static assets.
@@ -22,8 +22,9 @@ Single full-stack Next.js app at the repo root:
 - Node.js 20+
 - pnpm
 - PostgreSQL 18+
-- Google Cloud project with Google Drive API enabled
+- Google Cloud project with Google Drive API enabled (for Google providers + Google sign-in)
 - Google OAuth client ID and secret
+- Optional: Dropbox, Microsoft (OneDrive), pCloud, and iCloud credentials for those providers
 
 ## Stack
 
@@ -146,7 +147,7 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 - Never log OAuth client secrets, Better Auth secrets, encryption keys, or raw public share tokens.
 - Google tokens are encrypted before database storage.
 - Share and preview tokens are stored as hashes where applicable.
-- Uploaded files must stream through backend to Google Drive folder `archivecloud`; do not store uploaded files on disk.
+- Uploaded files must stream through backend to the provider `archivecloud` folder (or equivalent); do not store uploaded files on disk.
 - Keep Better Auth session handling centralized; do not change without explicit reason.
 
 ## Database Rules
@@ -230,9 +231,9 @@ Uploads:
 - Content type: `multipart/form-data`.
 - Frontend sends metadata first as `filesMeta`: JSON array of `{ fieldName, fileName, mimeType, sizeBytes, folderId? }`.
 - File fields then match `filesMeta[*].fieldName`, e.g. `file-0`, `file-1`.
-- Backend selects a connected Google Drive account with enough available quota and streams each file to Google Drive.
-- Google Drive uploads are placed under the root Drive folder named `archivecloud`; virtual folders remain app/database-only.
-- `POST /files/sync-google` treats Google Drive folder `archivecloud` as source of truth for physical files.
+- Backend selects a connected account with enough available quota and streams each file to that provider.
+- Provider uploads are placed under the root folder named `archivecloud` (or provider equivalent); virtual folders remain app/database-only.
+- Provider sync treats the `archivecloud` folder as source of truth for physical files.
 
 ## Verification
 

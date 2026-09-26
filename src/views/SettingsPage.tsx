@@ -28,10 +28,7 @@ import {
 import { ConnectCloudAccountModal } from "@/components/dashboard/ConnectCloudAccountModal";
 import { DummyModal } from "@/components/drive/DummyModal";
 import { PageHeader } from "@/components/drive/PageHeader";
-import {
-  FormPageSkeleton,
-  SectionSkeleton,
-} from "@/components/drive/PageSkeletons";
+import { SettingsPageSkeleton } from "@/components/drive/PageSkeletons";
 import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { ProfilePasswordSection } from "@/components/profile-password-section";
@@ -264,8 +261,12 @@ export function SettingsPage() {
   });
   const [routingSaving, setRoutingSaving] = useState(false);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [firstName, setFirstName] = useState(
+    () => splitDisplayName(user?.name ?? "").firstName,
+  );
+  const [lastName, setLastName] = useState(
+    () => splitDisplayName(user?.name ?? "").lastName,
+  );
   const [savingName, setSavingName] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [avatarError, setAvatarError] = useState(false);
@@ -273,10 +274,10 @@ export function SettingsPage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
-  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [linkedAccountsReady, setLinkedAccountsReady] = useState(false);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
 
-  const [prefs, setPrefs] = useState<SettingsPrefs>(DEFAULT_PREFS);
-  const [prefsReady, setPrefsReady] = useState(false);
+  const [prefs, setPrefs] = useState<SettingsPrefs>(() => loadPrefs());
   const [newsletterSaving, setNewsletterSaving] = useState(false);
   const [activeNavIndex, setActiveNavIndex] = useState(0);
   const scrollingToRef = useRef<number | null>(null);
@@ -419,7 +420,6 @@ export function SettingsPage() {
   );
 
   const loadLinkedAccounts = useCallback(async () => {
-    setLoadingAccounts(true);
     try {
       const { data, error } = await authClient.listAccounts();
       if (error) {
@@ -428,15 +428,19 @@ export function SettingsPage() {
       }
       setLinkedAccounts((data ?? []) as LinkedAccount[]);
     } finally {
-      setLoadingAccounts(false);
+      setLinkedAccountsReady(true);
     }
   }, []);
 
   const loadAccounts = useCallback(async () => {
-    const accountsData = await apiFetch<{ accounts: ConnectedAccount[] }>(
-      "/connected-accounts",
-    );
-    setAccounts(accountsData.accounts);
+    try {
+      const accountsData = await apiFetch<{ accounts: ConnectedAccount[] }>(
+        "/connected-accounts",
+      );
+      setAccounts(accountsData.accounts);
+    } finally {
+      setAccountsLoaded(true);
+    }
   }, []);
 
   function reloadAfterConnect() {
@@ -477,10 +481,6 @@ export function SettingsPage() {
   }
 
   useEffect(() => {
-    const local = loadPrefs();
-    setPrefs(local);
-    setPrefsReady(true);
-
     void apiFetch<{ subscribed: boolean }>("/account/newsletter")
       .then((data) => {
         setPrefs((prev) => {
@@ -714,12 +714,8 @@ export function SettingsPage() {
     }
   }
 
-  if (isPending) {
-    return (
-      <main className="p-8">
-        <FormPageSkeleton label="Loading settings" />
-      </main>
-    );
+  if (isPending || !planLoaded || !accountsLoaded || !linkedAccountsReady) {
+    return <SettingsPageSkeleton />;
   }
 
   return (
@@ -864,16 +860,12 @@ export function SettingsPage() {
           </div>
 
           <div id="settings-password" className="scroll-mt-24">
-            {!loadingAccounts ? (
-              <ProfilePasswordSection
-                email={user?.email ?? ""}
-                hasCredentialAccount={hasCredentialAccount}
-                isGoogleUser={isGoogleUser}
-                onCredentialLinked={loadLinkedAccounts}
-              />
-            ) : (
-              <SectionSkeleton rows={4} label="Loading password settings" />
-            )}
+            <ProfilePasswordSection
+              email={user?.email ?? ""}
+              hasCredentialAccount={hasCredentialAccount}
+              isGoogleUser={isGoogleUser}
+              onCredentialLinked={loadLinkedAccounts}
+            />
           </div>
 
           <div className="pt-4">
@@ -896,26 +888,21 @@ export function SettingsPage() {
                   <span
                     className={cn(
                       "inline-flex h-4 shrink-0 items-center justify-center rounded-full px-1.5 text-[9px] font-bold leading-none tracking-wide text-white",
-                      !planLoaded
-                        ? "invisible"
-                        : hasThunder
-                          ? "bg-[#f97316] uppercase"
-                          : "bg-[#22c55e]",
+                      hasThunder ? "bg-[#f97316] uppercase" : "bg-[#22c55e]",
                     )}
                   >
-                    {planLoaded ? (hasThunder ? "Thunder" : "Free") : ""}
+                    {hasThunder ? "Thunder" : "Free"}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-muted">
-                  {planLoaded
-                    ? `You are on the ${currentPlan.name} plan · ${bandwidthLabel} transfers`
-                    : "Loading plan details…"}
+                  You are on the {currentPlan.name} plan · {bandwidthLabel}{" "}
+                  transfers
                 </p>
               </div>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {!planLoaded ? null : hasThunder ? (
+              {hasThunder ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-secondary/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -1016,7 +1003,7 @@ export function SettingsPage() {
                 OneDrive, and other connected clouds based on available space
                 and your routing policy.
               </p>
-              {!planLoaded ? null : hasSmartDistribution ? (
+              {hasSmartDistribution ? (
                 <div className="mt-4 grid gap-3 sm:max-w-md">
                   <label className="grid gap-2 text-sm font-semibold text-foreground">
                     Routing mode
@@ -1083,14 +1070,12 @@ export function SettingsPage() {
                 <p className="text-sm font-semibold text-foreground">
                   Subscribe to Newsletter
                 </p>
-                {prefsReady ? (
-                  <PrefSwitch
-                    isSelected={prefs.newsletter}
-                    isDisabled={newsletterSaving}
-                    onChange={(value) => void setNewsletterSubscribed(value)}
-                    aria-label="Subscribe to newsletter"
-                  />
-                ) : null}
+                <PrefSwitch
+                  isSelected={prefs.newsletter}
+                  isDisabled={newsletterSaving}
+                  onChange={(value) => void setNewsletterSubscribed(value)}
+                  aria-label="Subscribe to newsletter"
+                />
               </div>
             </SettingsCard>
 
@@ -1119,15 +1104,13 @@ export function SettingsPage() {
                       </p>
                     </div>
                   </div>
-                  {prefsReady ? (
-                    <PrefSwitch
-                      isSelected={prefs.defaultNotifications}
-                      onChange={(value) =>
-                        updatePrefs({ defaultNotifications: value })
-                      }
-                      aria-label="Default notifications"
-                    />
-                  ) : null}
+                  <PrefSwitch
+                    isSelected={prefs.defaultNotifications}
+                    onChange={(value) =>
+                      updatePrefs({ defaultNotifications: value })
+                    }
+                    aria-label="Default notifications"
+                  />
                 </div>
                 <div className="flex items-start justify-between gap-3 rounded-xl border border-border px-3 py-3">
                   <div className="flex items-start gap-3">
@@ -1141,15 +1124,11 @@ export function SettingsPage() {
                       </p>
                     </div>
                   </div>
-                  {prefsReady ? (
-                    <PrefSwitch
-                      isSelected={prefs.announcements}
-                      onChange={(value) =>
-                        updatePrefs({ announcements: value })
-                      }
-                      aria-label="Announcements"
-                    />
-                  ) : null}
+                  <PrefSwitch
+                    isSelected={prefs.announcements}
+                    onChange={(value) => updatePrefs({ announcements: value })}
+                    aria-label="Announcements"
+                  />
                 </div>
               </div>
               <div className="mt-4 flex items-start gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-muted">

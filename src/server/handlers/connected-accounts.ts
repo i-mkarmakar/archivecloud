@@ -8,6 +8,7 @@ import { prisma } from "@/server/config/prisma";
 import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import {
   clearConnectAliasCookie,
+  normalizeConnectAlias,
   oauthStateFromAuthUrl,
   parseConnectAliasParam,
   resolveConnectedAccountAlias,
@@ -178,12 +179,26 @@ export async function listConnectedAccountsHandler(request: Request) {
         refreshTokenEncrypted: _r,
         storageAccount,
         ...account
-      }) => ({
-        ...account,
-        storageAccount: storageAccount
-          ? serializeStorageAccount(storageAccount)
-          : null,
-      }),
+      }) => {
+        const displayName =
+          normalizeConnectAlias(account.displayName) ?? account.displayName;
+        // Heal aliases that were stored URL-encoded (My%20Google%20Photos).
+        if (displayName && displayName !== account.displayName) {
+          void prisma.connectedAccount
+            .update({
+              where: { id: account.id },
+              data: { displayName },
+            })
+            .catch(() => undefined);
+        }
+        return {
+          ...account,
+          displayName,
+          storageAccount: storageAccount
+            ? serializeStorageAccount(storageAccount)
+            : null,
+        };
+      },
     ),
   });
 }
@@ -838,9 +853,14 @@ export async function updateConnectedAccountHandler(
     return errorJson("NOT_FOUND", "Connected account not found.", 404);
   }
 
+  const alias = normalizeConnectAlias(body.alias);
+  if (!alias) {
+    return errorJson("VALIDATION_ERROR", "Alias is required.", 400);
+  }
+
   const account = await prisma.connectedAccount.update({
     where: { id: accountId },
-    data: { displayName: body.alias },
+    data: { displayName: alias },
     include: { storageAccount: true },
   });
 

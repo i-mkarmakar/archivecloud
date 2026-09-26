@@ -443,7 +443,9 @@ export async function googlePhotosCallbackHandler(request: Request) {
       data: { usedAt: new Date() },
     });
     await syncGooglePhotosQuota(account.id);
-    const success = NextResponse.redirect(`${redirectBase}?status=success`);
+    const success = NextResponse.redirect(
+      `${redirectBase}?status=success&accountId=${encodeURIComponent(account.id)}`,
+    );
     clearConnectAliasCookie(success);
     return success;
   } catch (error) {

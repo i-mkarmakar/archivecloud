@@ -2,6 +2,7 @@
 
 import { CircleInfo } from "@gravity-ui/icons";
 import { Button, Drawer, toast, useOverlayState } from "@heroui/react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { apiFetch } from "@/lib/api";
@@ -132,6 +133,7 @@ export function ConnectCloudAccountModal({
 
   initialProviderId?: SupportedProviderId | null;
 }) {
+  const router = useRouter();
   const state = useOverlayState({
     isOpen: open,
     onOpenChange: (isOpen) => {
@@ -187,7 +189,8 @@ export function ConnectCloudAccountModal({
 
     function onMessage(event: MessageEvent) {
       if (event.origin !== window.location.origin) return;
-      const config = OAUTH_CONNECT_MESSAGE_HANDLERS[event.data?.type as string];
+      const type = event.data?.type as string | undefined;
+      const config = type ? OAUTH_CONNECT_MESSAGE_HANDLERS[type] : undefined;
       if (!config) return;
 
       if (event.data.status === "success") {
@@ -195,6 +198,15 @@ export function ConnectCloudAccountModal({
         notifyStorageChanged();
         onConnected?.();
         onClose();
+        if (
+          type === "GOOGLE_PHOTOS_CONNECTED" &&
+          typeof event.data.accountId === "string" &&
+          event.data.accountId
+        ) {
+          router.push(
+            `/home?accountId=${encodeURIComponent(event.data.accountId)}&photosHowto=1`,
+          );
+        }
       } else {
         toast.danger(config.failure);
       }
@@ -202,15 +214,19 @@ export function ConnectCloudAccountModal({
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [open, onClose, onConnected]);
+  }, [open, onClose, onConnected, router]);
 
   async function startOAuth(provider: ConnectProvider) {
     if (!provider.connectUrlPath || !provider.popupName) return;
     setConnecting(true);
     try {
-      const aliasQuery = encodeURIComponent(alias.trim());
+      const connectUrl = new URL(
+        provider.connectUrlPath,
+        window.location.origin,
+      );
+      connectUrl.searchParams.set("alias", alias.trim());
       await connectOAuthPopup({
-        connectUrlPath: `${provider.connectUrlPath}?alias=${aliasQuery}`,
+        connectUrlPath: `${connectUrl.pathname}${connectUrl.search}`,
         popupName: provider.popupName,
         popupTitle: `Connecting to ${provider.label}...`,
       });

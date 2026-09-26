@@ -10,6 +10,7 @@ export function GooglePhotosConnectedPage() {
   const router = useRouter();
   const status = sp.get("status") ?? "success";
   const reason = sp.get("reason");
+  const accountId = sp.get("accountId");
   const ok = status === "success";
 
   const errorDetail =
@@ -21,7 +22,7 @@ export function GooglePhotosConnectedPage() {
 
   useEffect(() => {
     window.opener?.postMessage(
-      { type: "GOOGLE_PHOTOS_CONNECTED", status },
+      { type: "GOOGLE_PHOTOS_CONNECTED", status, accountId },
       window.location.origin,
     );
     const timer = window.setTimeout(() => {
