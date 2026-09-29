@@ -1,5 +1,5 @@
 import { DiscordLogo } from "@/components/drive/DiscordLogo";
-import { DISCORD_INVITE_URL } from "@/components/site/nav-links";
+import { DISCORD_URL } from "@/components/site/nav-links";
 import { formatDiscordMembers } from "@/lib/discord-members";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function DiscordLink({
 
   return (
     <a
-      href={DISCORD_INVITE_URL}
+      href={DISCORD_URL}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}

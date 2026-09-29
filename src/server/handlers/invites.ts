@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
+import { createNotification } from "@/server/utils/notifications";
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -178,7 +179,7 @@ export async function createInviteHandler(request: Request) {
   const email = body.email.trim().toLowerCase();
   const inviter = await prisma.user.findUniqueOrThrow({
     where: { id: user.id },
-    select: { email: true },
+    select: { email: true, name: true },
   });
   if (email === inviter.email)
     return errorJson(
@@ -217,6 +218,25 @@ export async function createInviteHandler(request: Request) {
     },
   });
   const targetByKey = await resolveTargets([invite]);
+  if (existingUser) {
+    const target =
+      targetByKey.get(`${invite.targetType}:${invite.targetId}`) ?? null;
+    await createNotification({
+      userId: existingUser.id,
+      category: "invite",
+      type: "INVITE_RECEIVED",
+      title: `${inviter.name || "Someone"} shared a ${invite.targetType}`,
+      body: target?.name
+        ? `${target.name} (${invite.role})`
+        : `You were invited as ${invite.role}.`,
+      href: "/shared",
+      metadata: {
+        inviteId: invite.id,
+        targetType: invite.targetType,
+        targetId: invite.targetId,
+      },
+    });
+  }
   return json(
     {
       invite: serializeInvite(

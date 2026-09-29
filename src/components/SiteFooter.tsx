@@ -1,12 +1,11 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { BrandLogo } from "@/components/drive/BrandLogo";
 import { DiscordLogo } from "@/components/drive/DiscordLogo";
 import { GithubLogo } from "@/components/drive/GithubLogo";
-import {
-  DISCORD_INVITE_URL,
-  GITHUB_REPO_URL,
-} from "@/components/site/nav-links";
+import { CookieSettingsLink } from "@/components/cookie-consent/cookie-settings-link";
+import { DISCORD_URL, GITHUB_REPO_URL } from "@/components/site/nav-links";
 
 const PRODUCT = [
   { label: "Features", href: "/#features" },
@@ -27,12 +26,17 @@ const CLOUDS = [
   { label: "iCloud", href: "/#integrations" },
 ] as const;
 
-const LINKS = [
+const LEGAL = [
   { label: "Privacy", href: "/privacy-policy" },
   { label: "Terms", href: "/terms-of-service" },
-  { label: "Support", href: "mailto:team@archivecloud.in" },
+  { label: "Refunds", href: "/refund-policy" },
+  { label: "Cookies", href: "/cookie-policy" },
+] as const;
+
+const SUPPORT = [
   { label: "Help Center", href: "/help" },
   { label: "Security", href: "/security" },
+  { label: "Support", href: "mailto:team@archivecloud.in" },
 ] as const;
 
 const MORE = [
@@ -44,7 +48,7 @@ const MORE = [
   },
   {
     label: "Discord",
-    href: DISCORD_INVITE_URL,
+    href: DISCORD_URL,
     external: true,
     emphasized: true,
   },
@@ -57,24 +61,28 @@ type FooterLink = {
   emphasized?: boolean;
 };
 
+const linkClass =
+  "text-sm text-[#6B7280] transition-colors hover:text-[#111827] sm:text-[15px]";
+const emphasisClass =
+  "inline-flex items-center gap-0.5 text-sm text-[#111827] underline decoration-[#111827]/40 underline-offset-4 transition-colors hover:decoration-[#111827] sm:text-[15px]";
+
 function FooterColumn({
   title,
   links,
+  extra,
 }: {
   title: string;
   links: readonly FooterLink[];
+  extra?: ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <h3 className="text-sm font-semibold tracking-tight text-[#111827] sm:text-[15px]">
         {title}
       </h3>
       <ul className="mt-2.5 space-y-2 sm:mt-4 sm:space-y-3">
         {links.map((link) => {
-          const className = link.emphasized
-            ? "inline-flex items-center gap-0.5 text-sm text-[#111827] underline decoration-[#111827]/40 underline-offset-4 transition-colors hover:decoration-[#111827] sm:text-[15px]"
-            : "text-sm text-[#6B7280] transition-colors hover:text-[#111827] sm:text-[15px]";
-
+          const className = link.emphasized ? emphasisClass : linkClass;
           const content = link.emphasized ? (
             <>
               {link.label}
@@ -88,7 +96,7 @@ function FooterColumn({
           );
 
           return (
-            <li key={link.label}>
+            <li key={link.label} className="min-w-0">
               {link.href.startsWith("mailto:") || link.external ? (
                 <a
                   href={link.href}
@@ -107,6 +115,7 @@ function FooterColumn({
             </li>
           );
         })}
+        {extra}
       </ul>
     </div>
   );
@@ -137,7 +146,7 @@ export function SiteFooter() {
               <GithubLogo className="size-4 sm:size-5" />
             </a>
             <a
-              href={DISCORD_INVITE_URL}
+              href={DISCORD_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Discord"
@@ -151,10 +160,19 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:mt-20 sm:grid-cols-4 sm:gap-x-12 sm:gap-y-10">
+        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 sm:mt-20 sm:grid-cols-3 sm:gap-x-10 sm:gap-y-10 lg:grid-cols-5 lg:gap-x-8">
           <FooterColumn title="Product" links={PRODUCT} />
           <FooterColumn title="Clouds" links={CLOUDS} />
-          <FooterColumn title="Links" links={LINKS} />
+          <FooterColumn
+            title="Legal"
+            links={LEGAL}
+            extra={
+              <li className="min-w-0">
+                <CookieSettingsLink className={`cursor-pointer ${linkClass}`} />
+              </li>
+            }
+          />
+          <FooterColumn title="Support" links={SUPPORT} />
           <FooterColumn title="More" links={MORE} />
         </div>
       </div>

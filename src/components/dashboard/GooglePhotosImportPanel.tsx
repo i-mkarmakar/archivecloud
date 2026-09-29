@@ -113,7 +113,6 @@ export const GooglePhotosImportPanel = forwardRef<
       await connectOAuthPopup({
         connectUrlPath: "/connected-accounts/google-photos/connect-url",
         popupName: "google-photos-connect",
-        popupTitle: "Connecting to Google Photos...",
       });
       setNeedsReconnect(false);
       setStatusMessage(null);

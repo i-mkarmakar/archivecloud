@@ -4,10 +4,7 @@ import TextLoop from "@/components/home/TextLoop";
 
 export function OpenSourceTextLoop() {
   return (
-    <section
-      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden"
-      aria-label="Open source"
-    >
+    <section className="w-full overflow-x-hidden" aria-label="Open source">
       <TextLoop
         text="Open Source ✦ Self-Hostable ✦ Apache 2.0 ✦ Your Clouds Your Control"
         shape="line"
@@ -15,13 +12,13 @@ export function OpenSourceTextLoop() {
         direction="forward"
         separator="✦"
         curviness={90}
-        fontSize={22}
+        fontSize={20}
         fontWeight={800}
         letterSpacing={2}
         color="#ffffff"
         ribbon
         ribbonColor="#1e9df1"
-        ribbonWidth={36}
+        ribbonWidth={40}
         separatorPadding={1}
         pauseOnHover
         className="w-full"

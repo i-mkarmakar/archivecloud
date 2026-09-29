@@ -2,7 +2,7 @@
 
 # Archive Cloud
 
-Archive Cloud is a multi-cloud storage gateway web app. Connect Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud into one virtual storage dashboard. Users can register with email/password or Google, connect cloud accounts, track combined quota, upload files through the backend into a dedicated `archive cloud` folder on each provider, organize files with virtual folders, preview and share files, sync the app database from connected storage, and route uploads to the account with enough free space.
+Archive Cloud is a multi-cloud storage gateway web app. Connect Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos into one virtual storage dashboard. Users can register with email/password or Google, connect cloud accounts, track combined quota, upload files through the backend into a dedicated `archivecloud` folder on each provider, organize files with virtual folders, preview and share files, sync the app database from connected storage, and route uploads to the account with enough free space. (iCloud account connect works today; full browse and transfers need Apple CloudKit configured on the server.)
 
 ## License
 
@@ -12,7 +12,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) for det
 
 ## Features
 
-- Multi-cloud storage gateway in one dashboard: Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud.
+- Multi-cloud storage gateway in one dashboard: Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos.
 - Direct upload stream to connected cloud storage. Files are not stored on the server.
 - Provider uploads are stored under a root `archivecloud` folder (or provider equivalent).
 - Upload routing policies: most-available, round-robin, and priority-order modes.
@@ -30,15 +30,17 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) for det
 - Bottom-right upload progress panel.
 - Session cookie authentication (Better Auth).
 - Global Google OAuth config stored encrypted in the database (seed command or Settings UI).
-- Scheduled automation, folder sync, and real-time provider webhooks (Thunder plan).
+- Schedule Tasks on Free; folder sync, real-time provider webhooks, and smart upload routing on Thunder.
 - Optional Polar checkout for Thunder lifetime access ($9).
 - Self-hosting with instance admin unlock and billing controls via environment variables.
+- Community Discord: https://archivecloud.in/discord
 - PostgreSQL database with Prisma migrations.
 - Next.js 16 full-stack app (App Router + Route Handlers) with React 19 and TypeScript.
 
 ## Preview
 
 - Repository: https://github.com/i-mkarmakar/archivecloud
+- Discord: https://archivecloud.in/discord
 
 ## Project Structure
 
@@ -565,11 +567,12 @@ POLAR_SERVER=sandbox
 
 ### Thunder features (gated on Free)
 
-- Scheduled automation
-- Folder sync
+- Folder sync (one-way and two-way)
 - Real-time sync (provider webhooks)
 - Smart file distribution / upload routing
 - Unlimited monthly transfer bandwidth (Free: 50 GB/month)
+
+Free includes Schedule Tasks & Run History, hub/search, transfers, and virtual folders.
 
 ## Self-Hosting Troubleshoot
 

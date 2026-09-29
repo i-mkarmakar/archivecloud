@@ -279,6 +279,7 @@ export function SettingsPage() {
 
   const [prefs, setPrefs] = useState<SettingsPrefs>(() => loadPrefs());
   const [newsletterSaving, setNewsletterSaving] = useState(false);
+  const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
   const [activeNavIndex, setActiveNavIndex] = useState(0);
   const scrollingToRef = useRef<number | null>(null);
   const scrollClearTimerRef = useRef<number | null>(null);
@@ -459,6 +460,39 @@ export function SettingsPage() {
     });
   }
 
+  async function updateNotificationPrefs(
+    patch: Partial<
+      Pick<SettingsPrefs, "defaultNotifications" | "announcements">
+    >,
+  ) {
+    const previous = {
+      defaultNotifications: prefs.defaultNotifications,
+      announcements: prefs.announcements,
+    };
+    updatePrefs(patch);
+    setNotifPrefsSaving(true);
+    try {
+      const data = await apiFetch<{
+        prefs: {
+          defaultNotifications: boolean;
+          announcements: boolean;
+        };
+      }>("/account/notification-prefs", {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      updatePrefs({
+        defaultNotifications: data.prefs.defaultNotifications,
+        announcements: data.prefs.announcements,
+      });
+    } catch {
+      updatePrefs(previous);
+      toast.danger("Could not update notification preferences.");
+    } finally {
+      setNotifPrefsSaving(false);
+    }
+  }
+
   async function setNewsletterSubscribed(subscribed: boolean) {
     const previous = prefs.newsletter;
     updatePrefs({ newsletter: subscribed });
@@ -485,6 +519,21 @@ export function SettingsPage() {
       .then((data) => {
         setPrefs((prev) => {
           const next = { ...prev, newsletter: data.subscribed };
+          savePrefs(next);
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    void apiFetch<{
+      prefs: { defaultNotifications: boolean; announcements: boolean };
+    }>("/account/notification-prefs")
+      .then((data) => {
+        setPrefs((prev) => {
+          const next = {
+            ...prev,
+            defaultNotifications: data.prefs.defaultNotifications,
+            announcements: data.prefs.announcements,
+          };
           savePrefs(next);
           return next;
         });
@@ -1106,8 +1155,11 @@ export function SettingsPage() {
                   </div>
                   <PrefSwitch
                     isSelected={prefs.defaultNotifications}
+                    isDisabled={notifPrefsSaving}
                     onChange={(value) =>
-                      updatePrefs({ defaultNotifications: value })
+                      void updateNotificationPrefs({
+                        defaultNotifications: value,
+                      })
                     }
                     aria-label="Default notifications"
                   />
@@ -1126,7 +1178,10 @@ export function SettingsPage() {
                   </div>
                   <PrefSwitch
                     isSelected={prefs.announcements}
-                    onChange={(value) => updatePrefs({ announcements: value })}
+                    isDisabled={notifPrefsSaving}
+                    onChange={(value) =>
+                      void updateNotificationPrefs({ announcements: value })
+                    }
                     aria-label="Announcements"
                   />
                 </div>

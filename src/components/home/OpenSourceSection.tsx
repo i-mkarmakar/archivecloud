@@ -4,10 +4,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { DiscordLogo } from "@/components/drive/DiscordLogo";
 import { GithubLogo } from "@/components/drive/GithubLogo";
 import { SectionBadge } from "@/components/home/SectionBadge";
-import {
-  DISCORD_INVITE_URL,
-  GITHUB_REPO_URL,
-} from "@/components/site/nav-links";
+import { DISCORD_URL, GITHUB_REPO_URL } from "@/components/site/nav-links";
 import {
   AnimatedSpan,
   Terminal,
@@ -75,7 +72,7 @@ export function OpenSourceSection() {
                 />
               </a>
               <a
-                href={DISCORD_INVITE_URL}
+                href={DISCORD_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex h-9 max-w-max items-center justify-center gap-1.5 rounded-full border border-[#E5EEF7] bg-white px-3 text-xs font-semibold text-[#0F172A] shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] transition hover:bg-white/80 sm:h-11 sm:gap-2 sm:px-6 sm:text-sm"

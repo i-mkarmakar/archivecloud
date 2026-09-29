@@ -13,27 +13,31 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-function hasFolderTagDelegate(client: PrismaClient) {
+function hasRequiredDelegates(client: PrismaClient) {
+  const c = client as {
+    folderTag?: { findMany?: unknown };
+    notification?: { findMany?: unknown };
+  };
   return (
-    typeof (client as { folderTag?: { findMany?: unknown } }).folderTag
-      ?.findMany === "function"
+    typeof c.folderTag?.findMany === "function" &&
+    typeof c.notification?.findMany === "function"
   );
 }
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
-  prismaFolderTagRefreshDone?: boolean;
+  prismaDelegateRefreshDone?: boolean;
 };
 
 function getPrismaClient() {
   const existing = globalForPrisma.prisma;
-  if (existing && hasFolderTagDelegate(existing)) {
+  if (existing && hasRequiredDelegates(existing)) {
     return existing;
   }
 
-  // Replace a pre-FolderTag HMR singleton once, then keep whatever we get.
-  if (existing && !globalForPrisma.prismaFolderTagRefreshDone) {
-    globalForPrisma.prismaFolderTagRefreshDone = true;
+  // Replace a stale HMR singleton once (missing new model delegates), then keep it.
+  if (existing && !globalForPrisma.prismaDelegateRefreshDone) {
+    globalForPrisma.prismaDelegateRefreshDone = true;
     void existing.$disconnect().catch(() => undefined);
     const client = createPrismaClient();
     globalForPrisma.prisma = client;

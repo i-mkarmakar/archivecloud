@@ -237,6 +237,8 @@ export default function TextLoop({
   }, [metrics, speed, direction, pauseOnHover]);
 
   const loopText = unit.repeat(metrics.reps);
+  const isLine = shape === "line";
+  const svgHeight = isLine ? Math.max(ribbonWidth, fontSize + 8) : undefined;
 
   return (
     <div
@@ -247,9 +249,10 @@ export default function TextLoop({
       <svg
         className="text-loop-svg"
         viewBox={`0 0 ${VIEW_W} ${viewH}`}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio={isLine ? "xMidYMid slice" : "xMidYMid meet"}
         role="img"
         aria-label={text}
+        style={svgHeight ? { height: svgHeight, width: "100%" } : undefined}
       >
         <path
           ref={pathRef}

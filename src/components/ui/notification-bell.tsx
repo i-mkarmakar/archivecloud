@@ -267,6 +267,8 @@ export type NotificationBellProps = Omit<
   size?: number;
   color?: keyof typeof COLORS;
   asChild?: boolean;
+  /** When false, renders a non-interactive div (e.g. inside Popover.Trigger). */
+  interactive?: boolean;
   children?: ReactNode;
 };
 
@@ -277,6 +279,7 @@ export function NotificationBell({
   size = 48,
   color = "red",
   asChild = false,
+  interactive = true,
   className,
   style,
   children,
@@ -298,23 +301,26 @@ export function NotificationBell({
   );
 
   const label =
-    asChild || props["aria-label"] != null ? null : (
+    asChild || !interactive || props["aria-label"] != null ? null : (
       <span role="status" className="sr-only">
         {total > 0 ? `Notifications, ${total} unread` : "Notifications"}
       </span>
     );
 
+  const surfaceClass = cn(
+    "relative grid place-items-center rounded-full outline-none transition-transform active:scale-90 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100",
+    SURFACE,
+    GLYPH,
+    className,
+  );
+  const surfaceStyle = { width: size, height: size, ...style };
+
   if (asChild) {
     return (
       <Slot
         data-slot="notification-bell"
-        className={cn(
-          "relative grid place-items-center rounded-full outline-none transition-transform active:scale-90 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100",
-          SURFACE,
-          GLYPH,
-          className,
-        )}
-        style={{ width: size, height: size, ...style }}
+        className={surfaceClass}
+        style={surfaceStyle}
         {...props}
       >
         <Slottable>{children}</Slottable>
@@ -325,17 +331,26 @@ export function NotificationBell({
     );
   }
 
+  if (!interactive) {
+    return (
+      <div
+        data-slot="notification-bell"
+        className={surfaceClass}
+        style={surfaceStyle}
+        aria-hidden
+      >
+        <BellIcon side={size * ICON} swing={swing} clapper={clapper} />
+        {badge}
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
       data-slot="notification-bell"
-      className={cn(
-        "relative grid place-items-center rounded-full outline-none transition-transform active:scale-90 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:active:scale-100",
-        SURFACE,
-        GLYPH,
-        className,
-      )}
-      style={{ width: size, height: size, ...style }}
+      className={surfaceClass}
+      style={surfaceStyle}
       {...props}
     >
       {label}

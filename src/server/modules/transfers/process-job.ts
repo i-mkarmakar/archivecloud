@@ -10,6 +10,7 @@ import {
   recordTransferUsage,
 } from "@/server/modules/transfers/usage";
 import { createAuditLog } from "@/server/utils/audit";
+import { createNotification } from "@/server/utils/notifications";
 
 async function processTransferJob(jobId: string) {
   const job = await prisma.transferJob.findUnique({
@@ -75,6 +76,15 @@ async function processTransferJob(jobId: string) {
           sizeBytes: "0",
         },
       );
+      await createNotification({
+        userId: job.userId,
+        category: "transfer",
+        type: "TRANSFER_COMPLETED",
+        title: "Delete transfer complete",
+        body: job.fileName,
+        href: "/run-history",
+        metadata: { jobId, type: job.type },
+      });
       return;
     }
 
@@ -160,6 +170,18 @@ async function processTransferJob(jobId: string) {
         sizeBytes: billedBytes.toString(),
       },
     );
+    await createNotification({
+      userId: job.userId,
+      category: "transfer",
+      type: "TRANSFER_COMPLETED",
+      title:
+        job.type === "move"
+          ? "Move transfer complete"
+          : "Copy transfer complete",
+      body: result.name || job.fileName,
+      href: "/run-history",
+      metadata: { jobId, type: job.type },
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Transfer failed unexpectedly.";
@@ -180,6 +202,15 @@ async function processTransferJob(jobId: string) {
           : "TRANSFER_COPY_FAILED";
     await createAuditLog(job.userId, failedAction, "transfer_job", jobId, {
       message,
+    });
+    await createNotification({
+      userId: job.userId,
+      category: "transfer",
+      type: "TRANSFER_FAILED",
+      title: "Transfer failed",
+      body: job.fileName ? `${job.fileName}: ${message}` : message,
+      href: "/run-history",
+      metadata: { jobId, type: job.type },
     });
   }
 }

@@ -18,6 +18,7 @@ import {
   connectICloudAccount,
   syncICloudQuota,
 } from "@/server/modules/icloud/icloud.service";
+import { notifyAccountConnected } from "@/server/utils/notifications";
 import {
   buildPCloudAuthUrl,
   buildPCloudScopes,
@@ -280,6 +281,12 @@ export async function pcloudCallbackHandler(request: Request) {
       data: { usedAt: new Date() },
     });
     await syncPCloudQuota(account.id);
+    await notifyAccountConnected({
+      userId: oauthState.userId,
+      provider: "pcloud",
+      accountId: account.id,
+      displayName: account.displayName,
+    });
     const success = NextResponse.redirect(`${redirectBase}?status=success`);
     clearConnectAliasCookie(success);
     return success;
@@ -443,6 +450,12 @@ export async function googlePhotosCallbackHandler(request: Request) {
       data: { usedAt: new Date() },
     });
     await syncGooglePhotosQuota(account.id);
+    await notifyAccountConnected({
+      userId: oauthState.userId,
+      provider: "google_photos",
+      accountId: account.id,
+      displayName: account.displayName,
+    });
     const success = NextResponse.redirect(
       `${redirectBase}?status=success&accountId=${encodeURIComponent(account.id)}`,
     );
@@ -593,6 +606,14 @@ export async function googleSharedDriveCallbackHandler(request: Request) {
       where: { id: oauthState.id },
       data: { usedAt: new Date() },
     });
+    await notifyAccountConnected({
+      userId: oauthState.userId,
+      provider: "google_shared_drive",
+      displayName:
+        sharedDrives.length === 1
+          ? sharedDrives[0]?.name
+          : `${sharedDrives.length} shared drives`,
+    });
     const success = NextResponse.redirect(`${redirectBase}?status=success`);
     clearConnectAliasCookie(success);
     return success;
@@ -624,6 +645,12 @@ export async function connectICloudHandler(request: Request) {
       displayName: alias,
     });
     await syncICloudQuota(account.id);
+    await notifyAccountConnected({
+      userId: user.id,
+      provider: body.provider,
+      accountId: account.id,
+      displayName: account.displayName,
+    });
     return credentialAccountResponse(account);
   } catch (error) {
     console.error("iCloud connect failed:", error);

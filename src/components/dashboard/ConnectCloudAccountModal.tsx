@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleInfo } from "@gravity-ui/icons";
+import { CircleInfo, Eye, EyeSlash } from "@gravity-ui/icons";
 import { Button, Drawer, toast, useOverlayState } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -12,6 +12,9 @@ import {
 } from "@/lib/oauth-connect";
 import { PROVIDER_LABELS, type SupportedProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
+
+const fieldClass =
+  "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 type ProviderAuthKind = "oauth" | "credentials";
 
@@ -150,6 +153,8 @@ export function ConnectCloudAccountModal({
 
   const [appleId, setAppleId] = useState("");
   const [appPassword, setAppPassword] = useState("");
+  const [showAppPassword, setShowAppPassword] = useState(false);
+  const [icloudWebAccessOn, setIcloudWebAccessOn] = useState(false);
 
   const selected = CONNECT_PROVIDERS.find((p) => p.id === selectedId) ?? null;
   const platformProviders = CONNECT_PROVIDERS.filter(
@@ -176,6 +181,8 @@ export function ConnectCloudAccountModal({
     setConnecting(false);
     setAppleId("");
     setAppPassword("");
+    setShowAppPassword(false);
+    setIcloudWebAccessOn(false);
   }, [open, initialProviderId]);
 
   function selectProvider(providerId: SupportedProviderId) {
@@ -228,7 +235,6 @@ export function ConnectCloudAccountModal({
       await connectOAuthPopup({
         connectUrlPath: `${connectUrl.pathname}${connectUrl.search}`,
         popupName: provider.popupName,
-        popupTitle: `Connecting to ${provider.label}...`,
       });
     } catch (error) {
       toast.danger(
@@ -282,7 +288,7 @@ export function ConnectCloudAccountModal({
 
   const credentialsReady =
     selected?.id === "icloud_drive" || selected?.id === "icloud_photos"
-      ? Boolean(appleId.trim() && appPassword)
+      ? Boolean(appleId.trim() && appPassword && icloudWebAccessOn)
       : false;
 
   return (
@@ -399,35 +405,115 @@ export function ConnectCloudAccountModal({
                   </div>
                 </div>
               ) : (
-                <div className="grid gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      Connect {selected?.label}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      Alias: {alias.trim()}
-                    </p>
+                <div className="grid gap-5">
+                  <div className="flex items-start gap-3">
+                    {selected ? (
+                      <ProviderIcon
+                        providerId={selected.id}
+                        label={selected.label}
+                      />
+                    ) : null}
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-foreground">
+                        {selected?.label}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted">
+                        Saving as “{alias.trim()}”
+                      </p>
+                    </div>
                   </div>
 
                   {selected?.id === "icloud_drive" ||
                   selected?.id === "icloud_photos" ? (
-                    <div className="grid gap-3">
-                      <input
-                        className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        type="email"
-                        placeholder="Apple ID"
-                        value={appleId}
-                        onChange={(e) => setAppleId(e.target.value)}
-                        autoComplete="off"
-                      />
-                      <input
-                        className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        type="password"
-                        placeholder="App-specific password"
-                        value={appPassword}
-                        onChange={(e) => setAppPassword(e.target.value)}
-                        autoComplete="off"
-                      />
+                    <div className="grid gap-4">
+                      <label className="grid gap-1.5">
+                        <span className="text-sm font-medium text-foreground">
+                          Apple ID
+                        </span>
+                        <input
+                          className={fieldClass}
+                          type="email"
+                          placeholder="email@icloud.com"
+                          value={appleId}
+                          onChange={(e) => setAppleId(e.target.value)}
+                          autoComplete="username"
+                        />
+                      </label>
+
+                      <label className="grid gap-1.5">
+                        <span className="flex items-center justify-between gap-2 text-sm font-medium text-foreground">
+                          App-specific password
+                          <a
+                            href="https://appleid.apple.com/account/manage"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            Create one
+                          </a>
+                        </span>
+                        <div className="relative">
+                          <input
+                            className={cn(fieldClass, "pr-10")}
+                            type={showAppPassword ? "text" : "password"}
+                            placeholder="xxxx-xxxx-xxxx-xxxx"
+                            value={appPassword}
+                            onChange={(e) => setAppPassword(e.target.value)}
+                            autoComplete="current-password"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted hover:bg-black/5 hover:text-foreground"
+                            onClick={() =>
+                              setShowAppPassword((value) => !value)
+                            }
+                            aria-label={
+                              showAppPassword
+                                ? "Hide password"
+                                : "Show password"
+                            }
+                          >
+                            {showAppPassword ? (
+                              <EyeSlash className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                        <span className="text-xs text-muted">
+                          Not your normal Apple password — generate an
+                          app-specific one on appleid.apple.com.
+                        </span>
+                      </label>
+
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-3 transition-colors hover:bg-surface-secondary has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
+                          checked={icloudWebAccessOn}
+                          onChange={(e) =>
+                            setIcloudWebAccessOn(e.target.checked)
+                          }
+                        />
+                        <span className="min-w-0 grid gap-0.5">
+                          <span className="text-sm font-medium text-foreground">
+                            iCloud web access is enabled
+                          </span>
+                          <span className="text-xs leading-relaxed text-muted">
+                            On an Apple device: Settings → your name → iCloud →
+                            Access iCloud Data on the Web.
+                          </span>
+                        </span>
+                      </label>
+
+                      <p className="flex items-start gap-2 text-xs text-muted">
+                        <CircleInfo
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                          aria-hidden
+                        />
+                        Credentials are encrypted at rest. We never store your
+                        normal Apple ID password.
+                      </p>
                     </div>
                   ) : null}
                 </div>

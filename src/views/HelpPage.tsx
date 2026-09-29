@@ -53,14 +53,16 @@ const CLOUD_SERVICES = [
   {
     id: "icloud_photos",
     title: "iCloud Photos",
-    description: "Securely access, share & manage your iCloud Photos.",
+    description:
+      "Connect with an app-specific password. Full browse needs CloudKit on the server.",
     href: "/settings",
     keywords: ["icloud", "photos", "apple"],
   },
   {
     id: "icloud_drive",
     title: "iCloud Drive",
-    description: "Securely access, share & manage your iCloud Drive files.",
+    description:
+      "Connect with an app-specific password. Full browse needs CloudKit on the server.",
     href: "/settings",
     keywords: ["icloud", "drive", "apple"],
   },
