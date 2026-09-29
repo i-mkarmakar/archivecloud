@@ -12,6 +12,7 @@ import {
   isAdminEmail,
 } from "@/server/modules/billing/admin";
 import { sendVerificationOtpEmail } from "@/server/modules/email/send-verification-otp";
+import { sendWelcomeEmail } from "@/server/modules/email/send-welcome-email";
 import { subscribeUserToNewsletter } from "@/server/modules/newsletter/subscribe";
 
 /** Paths relative to Better Auth basePath (`/api/auth`). `endpoints` replaces defaults. */
@@ -89,6 +90,12 @@ export const auth = betterAuth({
             });
           } catch (error) {
             console.error("Failed to subscribe user to newsletter:", error);
+          }
+
+          try {
+            await sendWelcomeEmail({ email: user.email, name: user.name });
+          } catch (error) {
+            console.error("Failed to send welcome email:", error);
           }
         },
       },
