@@ -65,7 +65,7 @@ export function AuthEntry({ mode }: { mode: "signin" | "signup" }) {
   }
 
   return (
-    <AuthShell>
+    <AuthShell mode={mode}>
       <LoginForm
         mode={mode}
         onEnterApp={handleEnterApp}

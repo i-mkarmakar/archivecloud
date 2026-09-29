@@ -29,27 +29,29 @@ export function HeroGoogleSignupButton() {
   }
 
   return (
-    <div className="mt-8 flex flex-col items-center gap-3">
+    <div className="mt-8 flex flex-col items-center gap-2 sm:gap-3">
       <button
         type="button"
         disabled={loading}
         onClick={signUpWithGoogle}
         className={cn(
           buttonVariants({ size: "lg" }),
-          "relative h-11 w-auto justify-center gap-0 rounded-full pr-5 pl-1.5 text-xs font-semibold disabled:opacity-70",
+          "relative h-9 w-auto justify-center gap-0 rounded-full pr-4 pl-1.5 text-[11px] font-semibold disabled:opacity-70 sm:h-11 sm:pr-5 sm:text-xs",
         )}
       >
-        <span className="absolute top-1/2 left-1.5 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-sm">
+        <span className="absolute top-1/2 left-1.5 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-sm sm:size-8">
           <img
             src="/brand/google.svg"
             alt=""
             aria-hidden
-            className="h-5 w-5 object-contain"
+            className="h-4 w-4 object-contain sm:h-5 sm:w-5"
           />
         </span>
-        <span className="pl-9">Sign up with Google</span>
+        <span className="pl-7 sm:pl-9">Sign up with Google</span>
       </button>
-      <p className="text-sm text-[#0F172A]">No credit card needed.</p>
+      <p className="text-xs text-[#0F172A] sm:text-sm">
+        No credit card needed.
+      </p>
     </div>
   );
 }

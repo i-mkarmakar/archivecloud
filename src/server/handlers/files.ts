@@ -8,10 +8,8 @@ import { errorJson, json } from "@/server/http/responses";
 import { getAccessibleFile } from "@/server/lib/file-access";
 import { serializeFile, touchFileAccess } from "@/server/lib/file-serialize";
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
-import {
-  fetchGoogleDriveFileMedia,
-  streamGoogleDriveThumbnailResponse,
-} from "@/server/modules/providers/google/drive-stream";
+import { streamDbFileThumbnail } from "@/server/modules/files/stream-thumbnail";
+import { fetchGoogleDriveFileMedia } from "@/server/modules/providers/google/drive-stream";
 import {
   getGoogleDriveWebLinks,
   makeGoogleDriveFilePublicReader,
@@ -1097,17 +1095,7 @@ export async function thumbnailFileHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId, { activeOnly: true });
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
-  if (file.connectedAccount.provider !== "google_drive") {
-    return errorJson(
-      "UNSUPPORTED_PROVIDER",
-      "Thumbnails are not supported for this provider.",
-      400,
-    );
-  }
-  return streamGoogleDriveThumbnailResponse(
-    file.connectedAccount,
-    file.providerFileId,
-  );
+  return streamDbFileThumbnail(file);
 }
 
 export async function trashFileHandler(

@@ -500,6 +500,36 @@ export async function downloadDropboxFileStream(
   return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
 }
 
+export async function streamDropboxThumbnailResponse(
+  account: ConnectedAccount,
+  pathOrId: string,
+): Promise<Response> {
+  const accessToken = await getDropboxAccessToken(account);
+  const response = await fetch(`${DROPBOX_CONTENT}/files/get_thumbnail_v2`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Dropbox-API-Arg": JSON.stringify({
+        resource: { ".tag": "path", path: pathOrId },
+        format: "jpeg",
+        size: "w256h256",
+        mode: "strict",
+      }),
+    },
+  });
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(text || "Dropbox thumbnail failed.");
+  }
+  const headers = new Headers();
+  headers.set(
+    "Content-Type",
+    response.headers.get("content-type") ?? "image/jpeg",
+  );
+  headers.set("Cache-Control", "private, max-age=300");
+  return new Response(response.body, { status: 200, headers });
+}
+
 function toBody(chunk: Buffer): BodyInit {
   return new Blob([new Uint8Array(chunk)]);
 }

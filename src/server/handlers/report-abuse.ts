@@ -49,7 +49,7 @@ export async function reportAbuseHandler(request: Request) {
   const to =
     env.ADMIN_EMAIL?.split(",")
       .map((value) => value.trim())
-      .filter(Boolean)[0] || "contact@archivecloud.com";
+      .filter(Boolean)[0] || "team@archivecloud.in";
 
   const comments = body.comments?.trim() || "(none)";
   const fileName = body.fileName?.trim() || "Unknown file";

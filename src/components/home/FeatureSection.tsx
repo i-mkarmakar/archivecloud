@@ -68,7 +68,7 @@ export function FeatureSection() {
       id="features"
       className="scroll-mt-24 bg-[#F5FAFF] px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16"
     >
-      <div className="mx-auto max-w-[1200px]">
+      <div className="mx-auto w-full max-w-[85%] sm:max-w-[1200px]">
         <div className="mx-auto max-w-2xl text-center">
           <SectionBadge>Features</SectionBadge>
           <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#0F172A] sm:mt-4 sm:text-4xl lg:text-[2.75rem]">

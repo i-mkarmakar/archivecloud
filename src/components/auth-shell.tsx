@@ -1,16 +1,40 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/drive/BrandLogo";
-import Grainient from "@/components/Grainient";
-import { cn } from "@/lib/utils";
+import { AuthLanguageSelect } from "@/components/auth/AuthLanguageSelect";
+import CloudShaderFlightHeroDemo from "@/components/cloud-shader-flight-hero-demo";
 
-export function AuthShell({ children }: { children: React.ReactNode }) {
-  const [grainReady, setGrainReady] = useState(false);
-
+export function AuthShell({
+  children,
+  mode,
+}: {
+  children: React.ReactNode;
+  mode?: "signin" | "signup";
+}) {
   return (
-    <div className="grid min-h-svh bg-white lg:grid-cols-[40%_60%]">
+    <div className="relative grid min-h-svh bg-white lg:grid-cols-[40%_60%]">
+      {mode ? (
+        <div className="absolute top-6 right-6 z-30 flex items-center gap-4 md:top-8 md:right-8">
+          <AuthLanguageSelect className="hidden lg:inline-flex" />
+          {mode === "signup" ? (
+            <Link
+              href="/auth/sign-in"
+              className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-black shadow-md transition hover:bg-white/90"
+            >
+              Sign In
+            </Link>
+          ) : (
+            <Link
+              href="/auth/sign-up"
+              className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-black shadow-md transition hover:bg-white/90"
+            >
+              Register
+            </Link>
+          )}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <Link
@@ -25,64 +49,8 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <div className="w-full max-w-xs">{children}</div>
         </div>
       </div>
-      <div
-        className={cn(
-          "relative hidden overflow-hidden lg:block",
-          // Stay white until Grainient paints — avoids a solid navy flash.
-          grainReady ? "bg-[#0b3a66]" : "bg-white",
-        )}
-      >
-        <div
-          className={cn(
-            "absolute inset-0 transition-opacity duration-300",
-            grainReady ? "opacity-100" : "opacity-0",
-          )}
-        >
-          <Grainient
-            color1="#6dc4fb"
-            color2="#1e9df1"
-            color3="#0b3a66"
-            timeSpeed={0.25}
-            colorBalance={0.0}
-            warpStrength={1.0}
-            warpFrequency={5.0}
-            warpSpeed={2.0}
-            warpAmplitude={50.0}
-            blendAngle={0.0}
-            blendSoftness={0.05}
-            rotationAmount={500.0}
-            noiseScale={2.0}
-            grainAmount={0.1}
-            grainScale={2.0}
-            grainAnimated={false}
-            contrast={1.5}
-            gamma={1.0}
-            saturation={1.0}
-            centerX={0.0}
-            centerY={0.0}
-            zoom={0.9}
-            onReady={() => setGrainReady(true)}
-          />
-        </div>
-        <div
-          className={cn(
-            "absolute inset-x-0 bottom-0 z-10 flex justify-center px-8 pb-16 transition-opacity duration-300 md:px-12 md:pb-20 lg:justify-end lg:pb-24 lg:pr-16",
-            grainReady ? "opacity-100" : "opacity-0",
-          )}
-        >
-          <div className="flex max-w-md flex-col gap-3 text-center lg:text-right">
-            <p className="text-2xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-3xl">
-              Your storage
-              <br />
-              never runs out.
-            </p>
-            <p className="text-sm leading-relaxed text-white/80 sm:text-base lg:text-right">
-              Add a free Google Drive, get more
-              <br />
-              space. Add another, get unlimited.
-            </p>
-          </div>
-        </div>
+      <div className="relative hidden overflow-hidden lg:block">
+        <CloudShaderFlightHeroDemo />
       </div>
     </div>
   );

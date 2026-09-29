@@ -39,11 +39,11 @@ export function SiteNavbar({
     <Navbar className="z-[99999]">
       {/* Desktop */}
       <NavBody>
-        <div className="relative z-20 flex items-center gap-1">
+        <div className="relative z-20 flex min-w-0 shrink items-center gap-2">
           <NavbarLogo />
           <NavItems items={NAV_ITEMS} />
         </div>
-        <div className="relative z-20 flex items-center gap-2">
+        <div className="relative z-20 flex shrink-0 items-center gap-2">
           <GithubStarsLink stars={githubStars} />
           <DiscordLink members={discordMembers} />
           {sessionPending ? (

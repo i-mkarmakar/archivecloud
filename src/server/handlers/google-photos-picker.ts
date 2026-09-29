@@ -44,6 +44,41 @@ function parsePollIntervalSeconds(value: string | undefined) {
   return Math.min(Math.max(seconds, 1), 30);
 }
 
+/** Prefer path/query over params — nested [sessionId] routes can 404 on Windows/Turbopack. */
+function resolvePhotosPickerIds(
+  request: Request,
+  params?: Record<string, string>,
+) {
+  const url = new URL(request.url);
+  const parts = url.pathname.split("/").filter(Boolean);
+  const accountId =
+    (parts[0] === "connected-accounts" ? parts[1] : undefined) ||
+    params?.id ||
+    "";
+
+  let sessionId = url.searchParams.get("sessionId") || params?.sessionId || "";
+  if (!sessionId) {
+    const sessionIdx = parts.indexOf("session");
+    if (sessionIdx >= 0 && parts[sessionIdx + 1]) {
+      sessionId = parts[sessionIdx + 1];
+    } else {
+      const mediaIdx = parts.indexOf("media-items");
+      if (mediaIdx >= 0 && parts[mediaIdx + 1]) {
+        sessionId = parts[mediaIdx + 1];
+      }
+    }
+  }
+
+  try {
+    sessionId = decodeURIComponent(sessionId);
+  } catch {
+    // keep raw
+  }
+  sessionId = sessionId.replace(/^sessions\//i, "").trim();
+
+  return { accountId, sessionId };
+}
+
 export async function createGooglePhotosPickerSessionHandler(
   request: Request,
   _user?: unknown,
@@ -51,7 +86,7 @@ export async function createGooglePhotosPickerSessionHandler(
 ) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
-  const accountId = params?.id;
+  const { accountId } = resolvePhotosPickerIds(request, params);
   if (!accountId) {
     return errorJson("VALIDATION_ERROR", "Account id required.", 400);
   }
@@ -110,8 +145,7 @@ export async function getGooglePhotosPickerSessionHandler(
 ) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
-  const accountId = params?.id;
-  const sessionId = params?.sessionId;
+  const { accountId, sessionId } = resolvePhotosPickerIds(request, params);
   if (!accountId || !sessionId) {
     return errorJson(
       "VALIDATION_ERROR",
@@ -150,8 +184,7 @@ export async function listGooglePhotosPickerMediaItemsHandler(
 ) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
-  const accountId = params?.id;
-  const sessionId = params?.sessionId;
+  const { accountId, sessionId } = resolvePhotosPickerIds(request, params);
   if (!accountId || !sessionId) {
     return errorJson(
       "VALIDATION_ERROR",
@@ -190,8 +223,7 @@ export async function deleteGooglePhotosPickerSessionHandler(
 ) {
   const user = await requireAuthUser(request);
   if (user instanceof Response) return user;
-  const accountId = params?.id;
-  const sessionId = params?.sessionId;
+  const { accountId, sessionId } = resolvePhotosPickerIds(request, params);
   if (!accountId || !sessionId) {
     return errorJson(
       "VALIDATION_ERROR",

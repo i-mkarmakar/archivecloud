@@ -37,7 +37,7 @@ const CTA_LOGOS = [
 export function FinalCTA() {
   return (
     <section className="px-4 py-6 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
-      <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-xl bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] px-4 pt-7 pb-12 text-center sm:rounded-[22px] sm:px-10 sm:pt-16 sm:pb-32">
+      <div className="relative mx-auto w-full max-w-[92%] overflow-hidden rounded-xl bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] px-4 pt-7 pb-12 text-center sm:max-w-[1200px] sm:rounded-[22px] sm:px-10 sm:pt-16 sm:pb-32">
         <div aria-hidden className="pointer-events-none absolute inset-0 z-[1]">
           {CTA_LOGOS.map((logo) => (
             // eslint-disable-next-line @next/next/no-img-element

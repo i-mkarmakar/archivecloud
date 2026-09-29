@@ -18,10 +18,9 @@ import {
 } from "react";
 import { GooglePhotosHowtoModal } from "@/components/dashboard/GooglePhotosHowtoModal";
 import {
-  GooglePhotosImportPanel,
   type GooglePhotosImportHandle,
+  GooglePhotosImportPanel,
 } from "@/components/dashboard/GooglePhotosImportPanel";
-import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import {
   CONNECT_ONBOARDING_DESCRIPTION,
   NoConnectedAccountsEmptyState,
@@ -31,6 +30,7 @@ import {
   AddToVirtualFolderModal,
   type AddToVirtualFolderTarget,
 } from "@/components/drive/AddToVirtualFolderModal";
+import { DriveSection } from "@/components/drive/DriveSection";
 import { DummyModal } from "@/components/drive/DummyModal";
 import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
 import { FileContextMenu } from "@/components/drive/FileContextMenu";
@@ -52,13 +52,13 @@ import {
   MoveDestinationModal,
   type MoveSource,
 } from "@/components/drive/MoveDestinationModal";
+import { PageHeader } from "@/components/drive/PageHeader";
 import {
   FileGridSkeleton,
   FolderGridSkeleton,
 } from "@/components/drive/PageSkeletons";
-import { PageHeader } from "@/components/drive/PageHeader";
 import { PublicLinkModal } from "@/components/drive/PublicLinkModal";
-import { DriveSection } from "@/components/drive/DriveSection";
+import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { useUpload } from "@/context/UploadContext";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
@@ -406,7 +406,7 @@ export function AllFilesPage() {
       accountAvatarUrl: account.avatarUrl ?? mapped.accountAvatarUrl ?? null,
       thumbnailUrl: file.dbFileId
         ? `/files/${file.dbFileId}/thumbnail`
-        : `/connected-accounts/${account.id}/files/${encodeURIComponent(file.id)}/preview`,
+        : `/connected-accounts/${account.id}/files/${encodeURIComponent(file.id)}/thumbnail`,
     };
   }
 

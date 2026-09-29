@@ -9,6 +9,7 @@ import {
   Tag,
   TrashBin,
 } from "@gravity-ui/icons";
+import { Portal } from "@/components/Portal";
 import type { FolderItem } from "@/data/drive-data";
 
 type Props = {
@@ -82,15 +83,15 @@ export function FolderContextMenu({
   };
 
   return (
-    <>
+    <Portal>
       <button
         type="button"
-        className="fixed inset-0 z-40 cursor-default"
+        className="fixed inset-0 z-[100] cursor-default"
         aria-label="Close folder menu"
         onClick={onClose}
       />
       <div
-        className="fixed z-50 flex w-56 flex-col overflow-hidden rounded-xl border border-border/70 bg-white p-1.5 shadow-xl"
+        className="fixed z-[101] flex w-56 flex-col overflow-hidden rounded-xl border border-border/70 bg-white p-1.5 shadow-xl"
         style={
           window.innerWidth >= 640
             ? { left: safeX, top: safeY }
@@ -136,6 +137,6 @@ export function FolderContextMenu({
           onClick={() => run(onAddToVirtualFolder)}
         />
       </div>
-    </>
+    </Portal>
   );
 }

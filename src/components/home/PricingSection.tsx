@@ -121,7 +121,7 @@ export function PricingSection() {
             <article
               key={plan.title}
               className={cn(
-                "relative mx-auto flex w-full max-w-[300px] flex-col rounded-2xl border bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:max-w-none sm:rounded-[24px] sm:p-7",
+                "relative mx-auto flex min-h-[440px] w-full max-w-[300px] flex-col rounded-2xl border bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:min-h-[560px] sm:max-w-none sm:rounded-[24px] sm:p-7",
                 plan.highlighted
                   ? "border-primary shadow-[0_18px_50px_-28px_rgba(22,131,247,0.55)] ring-1 ring-primary/25"
                   : "border-[#E5EEF7]",

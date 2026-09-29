@@ -1,4 +1,5 @@
 import { ArrowUpFromLine, CopyCheck, FolderPlus } from "@gravity-ui/icons";
+import { Portal } from "@/components/Portal";
 
 type Props = {
   x: number;
@@ -67,15 +68,15 @@ export function EmptyAreaContextMenu({
   };
 
   return (
-    <>
+    <Portal>
       <button
         type="button"
-        className="fixed inset-0 z-40 cursor-default"
+        className="fixed inset-0 z-[100] cursor-default"
         aria-label="Close empty area menu"
         onClick={onClose}
       />
       <div
-        className="fixed z-50 w-52 overflow-hidden rounded-2xl border border-border/70 bg-overlay/95 shadow-2xl shadow-overlay backdrop-blur-2xl dark:border-border/70 dark:bg-overlay/95"
+        className="fixed z-[101] w-52 overflow-hidden rounded-2xl border border-border/70 bg-overlay/95 shadow-2xl shadow-overlay backdrop-blur-2xl dark:border-border/70 dark:bg-overlay/95"
         style={
           window.innerWidth >= 640
             ? { left: safeX, top: safeY }
@@ -106,6 +107,6 @@ export function EmptyAreaContextMenu({
           ) : null}
         </div>
       </div>
-    </>
+    </Portal>
   );
 }
