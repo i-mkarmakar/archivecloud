@@ -547,3 +547,26 @@ html::-webkit-scrollbar-corner {
   height: 0 !important;
   background: transparent !important;
 }
+
+@keyframes cookie-banner-slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.cookie-consent-banner-enter {
+  animation: cookie-banner-slide-up 1.35s cubic-bezier(0.16, 1, 0.3, 1) 0.2s
+    both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cookie-consent-banner-enter {
+    animation: none;
+  }
+}

@@ -87,27 +87,16 @@ export function writePopupLoading(
   }
 }
 
+/** Open provider OAuth URL in a popup (or same tab if blocked). */
 export async function connectOAuthPopup(options: {
   connectUrlPath: string;
   popupName: string;
-  popupTitle?: string;
 }): Promise<void> {
   const url = new URL(options.connectUrlPath, window.location.origin);
   if (url.pathname === "/connected-accounts/google/connect-url") {
     url.pathname = "/connected-accounts/google/connect";
   }
   const path = `${url.pathname}${url.search}`;
-
-  if (options.popupTitle) {
-    const popup = openCenteredPopup("about:blank", options.popupName);
-    if (!popup) {
-      window.location.assign(path);
-      return;
-    }
-    writePopupLoading(popup, options.popupTitle, "Please wait");
-    popup.location.href = path;
-    return;
-  }
 
   const popup = openCenteredPopup(path, options.popupName);
   if (!popup) {

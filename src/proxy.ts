@@ -45,6 +45,8 @@ const publicRoutePrefixes = [
   "/google-shared-connected",
   "/terms-of-service",
   "/privacy-policy",
+  "/refund-policy",
+  "/cookie-policy",
   "/faqs",
   "/help",
   "/security",

@@ -65,7 +65,7 @@ export default function PrivacyPage() {
             </span>{" "}
             Secure OAuth tokens and encrypted credentials used to connect
             third-party services such as Google Drive, Google Photos, Shared
-            Drive, OneDrive, Dropbox, pCloud, and iCloud.
+            Drive, OneDrive, Dropbox, pCloud, iCloud Drive, and iCloud Photos.
           </li>
           <li>
             <span className="font-medium text-foreground">
@@ -260,12 +260,13 @@ export default function PrivacyPage() {
 
         <SubSection title="Other connected providers">
           <p>
-            Archive Cloud may also let you connect pCloud and iCloud. For those
-            providers we store only the credentials or tokens needed to operate
-            the integration (encrypted at rest where applicable) and metadata
-            required to show your files in the product. Disconnecting a provider
-            or deleting your Archive Cloud account removes that linked access
-            data.
+            Archive Cloud may also let you connect pCloud, iCloud Drive, and
+            iCloud Photos. For those providers we store only the credentials or
+            tokens needed to operate the integration (encrypted at rest where
+            applicable) and metadata required to show your files in the product.
+            iCloud browse and transfers may require Apple CloudKit configuration
+            on the server. Disconnecting a provider or deleting your Archive
+            Cloud account removes that linked access data.
           </p>
         </SubSection>
       </Section>
@@ -289,6 +290,21 @@ export default function PrivacyPage() {
             Security
           </Link>{" "}
           page.
+        </p>
+      </Section>
+
+      <Section title="Cookies and Similar Technologies">
+        <p>
+          We use essential cookies for authentication and short-lived cookies
+          during OAuth connect flows. We may also store UI preferences in your
+          browser. We do not use advertising cookies. Details are in our{" "}
+          <Link
+            href="/cookie-policy"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Cookie Policy
+          </Link>
+          .
         </p>
       </Section>
 

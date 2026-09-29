@@ -12,6 +12,7 @@ import {
 } from "@/server/modules/sync/content-hash";
 import { enqueueTransferJob } from "@/server/modules/transfers/process-job";
 import { createAuditLog } from "@/server/utils/audit";
+import { createNotification } from "@/server/utils/notifications";
 
 export function computeNextRunAt(
   scheduleKind: string,
@@ -240,6 +241,19 @@ export async function runFolderSync(
       },
     );
 
+    await createNotification({
+      userId: sync.userId,
+      category: "transfer",
+      type: "FOLDER_SYNC_COMPLETED",
+      title: "Folder sync finished",
+      body:
+        limits.queuedJobs > 0
+          ? `Queued ${limits.queuedJobs} transfer${limits.queuedJobs === 1 ? "" : "s"}.`
+          : "No new files to transfer.",
+      href: "/automation",
+      metadata: { syncId, queuedJobs: limits.queuedJobs },
+    });
+
     return {
       queuedJobs: limits.queuedJobs,
       foldersVisited: limits.foldersVisited,
@@ -254,6 +268,15 @@ export async function runFolderSync(
         lastRunAt: now,
         lastError: message,
       },
+    });
+    await createNotification({
+      userId: sync.userId,
+      category: "transfer",
+      type: "FOLDER_SYNC_FAILED",
+      title: "Folder sync failed",
+      body: message,
+      href: "/automation",
+      metadata: { syncId },
     });
     throw error;
   }

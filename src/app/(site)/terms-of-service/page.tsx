@@ -37,7 +37,7 @@ export default function TermsPage() {
           Archive Cloud provides a platform that allows users to connect,
           manage, and operate across multiple cloud storage accounts (including
           Google Drive, Google Photos, Shared Drive, OneDrive, Dropbox, pCloud,
-          and iCloud).
+          iCloud Drive, and iCloud Photos).
         </p>
         <p>
           Our Services enable actions such as uploading, browsing, transferring,
@@ -88,8 +88,8 @@ export default function TermsPage() {
       <Section title="Third-Party Services">
         <p>
           Archive Cloud integrates with third-party services, including Google
-          Drive, Google Photos, Shared Drive, OneDrive, Dropbox, pCloud, and
-          iCloud.
+          Drive, Google Photos, Shared Drive, OneDrive, Dropbox, pCloud, iCloud
+          Drive, and iCloud Photos.
         </p>
         <ul className="list-disc space-y-2 pl-5">
           <li>
@@ -139,6 +139,21 @@ export default function TermsPage() {
           However, no system is completely secure. You are responsible for
           safeguarding your login information and immediately notifying us of
           any unauthorized access.
+        </p>
+      </Section>
+
+      <Section title="Payments and Refunds">
+        <p>
+          Paid upgrades on the official hosted service (Thunder lifetime) are
+          billed as a one-time purchase through Polar. Details on eligibility,
+          the refund window, and how to request a refund are in our{" "}
+          <Link
+            href="/refund-policy"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Refund Policy
+          </Link>
+          .
         </p>
       </Section>
 

@@ -60,6 +60,7 @@ import {
   hashToken,
   randomToken,
 } from "@/server/utils/crypto";
+import { notifyAccountConnected } from "@/server/utils/notifications";
 
 const browserInlineImageMimeTypes = new Set([
   "image/jpeg",
@@ -376,6 +377,12 @@ export async function onedriveCallbackHandler(request: Request) {
     } catch (error) {
       console.error("OneDrive subscription registration failed:", error);
     }
+    await notifyAccountConnected({
+      userId: oauthState.userId,
+      provider: "onedrive",
+      accountId: account.id,
+      displayName: account.displayName,
+    });
     const success = NextResponse.redirect(
       `${env.APP_URL}/onedrive-connected?status=success`,
     );
@@ -571,6 +578,12 @@ export async function dropboxCallbackHandler(request: Request) {
     } catch (error) {
       console.error("Dropbox webhook cursor setup failed:", error);
     }
+    await notifyAccountConnected({
+      userId: oauthState.userId,
+      provider: "dropbox",
+      accountId: account.id,
+      displayName: account.displayName,
+    });
     const success = NextResponse.redirect(
       `${env.APP_URL}/dropbox-connected?status=success`,
     );
@@ -772,11 +785,23 @@ export async function googleCallbackHandler(request: Request) {
     if (returnTo) {
       const dest = new URL(returnTo, env.APP_URL);
       dest.searchParams.set("googleDrive", "connected");
+      await notifyAccountConnected({
+        userId: oauthState.userId,
+        provider: "google_drive",
+        accountId: account.id,
+        displayName: account.displayName,
+      });
       const response = NextResponse.redirect(dest.toString());
       clearConnectAliasCookie(response);
       return response;
     }
 
+    await notifyAccountConnected({
+      userId: oauthState.userId,
+      provider: "google_drive",
+      accountId: account.id,
+      displayName: account.displayName,
+    });
     const success = NextResponse.redirect(
       `${env.APP_URL}/google-connected?status=success`,
     );

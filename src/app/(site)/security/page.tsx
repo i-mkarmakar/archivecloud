@@ -17,7 +17,7 @@ const SECURITY_POINTS = [
   {
     title: "OAuth, not passwords",
     description:
-      "Google Drive, Photos, Shared Drive, OneDrive, Dropbox, and pCloud connect with official OAuth. Providers that require keys or app-specific passwords store those credentials encrypted, never in plaintext logs.",
+      "Google Drive, Photos, Shared Drive, OneDrive, Dropbox, and pCloud connect with official OAuth. iCloud Drive and Photos use an Apple ID plus app-specific password (encrypted). Full iCloud browse needs CloudKit on the server. Secrets are never stored in plaintext logs.",
     icon: KeyRoundIcon,
   },
   {

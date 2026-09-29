@@ -16,6 +16,7 @@ import {
   uploadGoogleDriveMediaFile,
 } from "@/server/modules/providers/google-drive-upload";
 import { createAuditLog } from "@/server/utils/audit";
+import { createNotification } from "@/server/utils/notifications";
 
 type UploadMeta = {
   fieldName: string;
@@ -429,6 +430,17 @@ export async function handleUploadRequest(
           where: { id: session.id },
           data: { status: "completed", completedAt: new Date() },
         });
+        await createNotification({
+          userId: user.id,
+          category: "file",
+          type: "FILE_UPLOADED",
+          title: "Upload complete",
+          body: uploadedName,
+          href: folderId
+            ? `/home?folderId=${encodeURIComponent(folderId)}`
+            : "/home",
+          metadata: { fileId: file.id, folderId: folderId ?? null },
+        });
         syncQuotaInBackground(account.id, session.id);
       } catch (error) {
         fileStream.resume();
@@ -769,6 +781,21 @@ export async function resumableChunkHandler(
     await createAuditLog(user.id, "UPLOAD_FILE", "file", existingFile.id, {
       name: existingFile.name,
       size: existingFile.sizeBytes.toString(),
+    });
+
+    await createNotification({
+      userId: user.id,
+      category: "file",
+      type: "FILE_UPLOADED",
+      title: "Upload complete",
+      body: existingFile.name,
+      href: session.folderId
+        ? `/home?folderId=${encodeURIComponent(session.folderId)}`
+        : "/home",
+      metadata: {
+        fileId: existingFile.id,
+        folderId: session.folderId ?? null,
+      },
     });
 
     syncQuotaInBackground(account.id, session.id);

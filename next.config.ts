@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  async redirects() {
+    return [
+      {
+        source: "/discord",
+        destination: "https://discord.gg/z9rg9MrWSn",
+        permanent: false,
+      },
+    ];
+  },
   // Azure publisher-domain check hits this path without the .json suffix.
   async rewrites() {
     return [
