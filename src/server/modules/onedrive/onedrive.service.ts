@@ -192,6 +192,27 @@ export async function getOneDriveAccessToken(account: ConnectedAccount) {
   return decryptText(account.accessTokenEncrypted);
 }
 
+export async function streamOneDriveThumbnailResponse(
+  account: ConnectedAccount,
+  itemId: string,
+): Promise<Response> {
+  const response = await graphFetch(
+    account,
+    `/me/drive/items/${encodeURIComponent(itemId)}/thumbnails/0/medium/content`,
+  );
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(text || "OneDrive thumbnail failed.");
+  }
+  const headers = new Headers();
+  headers.set(
+    "Content-Type",
+    response.headers.get("content-type") ?? "image/jpeg",
+  );
+  headers.set("Cache-Control", "private, max-age=300");
+  return new Response(response.body, { status: 200, headers });
+}
+
 async function graphFetch(
   account: ConnectedAccount,
   path: string,

@@ -143,7 +143,7 @@ export const GooglePhotosImportPanel = forwardRef<
       }
 
       const data = await apiFetch<PickerSessionResponse>(
-        `/connected-accounts/${account.id}/photos-picker/session/${encodeURIComponent(activeSessionId)}`,
+        `/connected-accounts/${account.id}/photos-picker/session?sessionId=${encodeURIComponent(activeSessionId)}`,
       );
 
       if (data.session.mediaItemsSet) {
@@ -219,7 +219,7 @@ export const GooglePhotosImportPanel = forwardRef<
         mediaItems: PickedMediaItem[];
         count: number;
       }>(
-        `/connected-accounts/${account.id}/photos-picker/media-items/${encodeURIComponent(session.id)}`,
+        `/connected-accounts/${account.id}/photos-picker/media-items?sessionId=${encodeURIComponent(session.id)}`,
       );
 
       if (!listed.mediaItems.length) {

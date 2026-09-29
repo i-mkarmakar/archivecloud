@@ -270,10 +270,10 @@ export default function TermsPage() {
         <p>
           Email:{" "}
           <a
-            href="mailto:contact@archivecloud.com"
+            href="mailto:team@archivecloud.in"
             className="text-foreground underline underline-offset-4"
           >
-            contact@archivecloud.com
+            team@archivecloud.in
           </a>
         </p>
       </Section>

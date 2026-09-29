@@ -643,6 +643,31 @@ export async function downloadPCloudFileStream(
   return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
 }
 
+export async function streamPCloudThumbnailResponse(
+  account: ConnectedAccount,
+  fileId: string,
+): Promise<Response> {
+  const accessToken = await getPCloudAccessToken(account);
+  const apiBase = getPCloudApiBaseForAccount(account);
+  const url = new URL(`${apiBase}/getthumb`);
+  url.searchParams.set("access_token", accessToken);
+  url.searchParams.set("fileid", fileId);
+  url.searchParams.set("size", "256x256");
+  url.searchParams.set("type", "auto");
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(text || "pCloud thumbnail failed.");
+  }
+  const headers = new Headers();
+  headers.set(
+    "Content-Type",
+    response.headers.get("content-type") ?? "image/jpeg",
+  );
+  headers.set("Cache-Control", "private, max-age=300");
+  return new Response(response.body, { status: 200, headers });
+}
+
 function toBody(chunk: Buffer): BodyInit {
   return new Blob([new Uint8Array(chunk)]);
 }

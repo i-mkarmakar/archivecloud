@@ -30,7 +30,7 @@ const CLOUDS = [
 const LINKS = [
   { label: "Privacy", href: "/privacy-policy" },
   { label: "Terms", href: "/terms-of-service" },
-  { label: "Support", href: "mailto:hello@archivecloud.app" },
+  { label: "Support", href: "mailto:team@archivecloud.in" },
   { label: "Help Center", href: "/help" },
   { label: "Security", href: "/security" },
 ] as const;

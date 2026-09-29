@@ -1,12 +1,13 @@
 "use client";
 
+import confetti from "canvas-confetti";
+import { Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import confetti from "canvas-confetti";
-import { Loader2, RefreshCw } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { Portal } from "@/components/Portal";
 import { applyUserPlan } from "@/hooks/useUserPlan";
+import { apiFetch } from "@/lib/api";
 import { normalizePlanId } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
@@ -138,34 +139,39 @@ export function BillingSuccessOverlay() {
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="billing-success-title"
-    >
-      {/* Dimmed dashboard backdrop — keep home visible behind */}
-      <button
-        type="button"
-        aria-label="Close payment overlay"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity"
-        onClick={clearOverlayParams}
-      />
+    <Portal>
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="billing-success-title"
+      >
+        {/* Dimmed dashboard backdrop — keep home visible behind */}
+        <button
+          type="button"
+          aria-label="Close payment overlay"
+          className="absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity"
+          onClick={clearOverlayParams}
+        />
 
-      <div className="relative z-10 w-full max-w-md">
-        {phase === "confirming" ? <ConfirmingCard /> : null}
-        {phase === "confirmed" ? (
-          <SuccessCard checkoutId={checkoutId} onGoHome={clearOverlayParams} />
-        ) : null}
-        {phase === "timed_out" ? (
-          <TimedOutCard
-            checkoutId={checkoutId}
-            onRefresh={() => setPollKey((k) => k + 1)}
-            onGoHome={clearOverlayParams}
-          />
-        ) : null}
+        <div className="relative z-10 w-full max-w-md">
+          {phase === "confirming" ? <ConfirmingCard /> : null}
+          {phase === "confirmed" ? (
+            <SuccessCard
+              checkoutId={checkoutId}
+              onGoHome={clearOverlayParams}
+            />
+          ) : null}
+          {phase === "timed_out" ? (
+            <TimedOutCard
+              checkoutId={checkoutId}
+              onRefresh={() => setPollKey((k) => k + 1)}
+              onGoHome={clearOverlayParams}
+            />
+          ) : null}
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 

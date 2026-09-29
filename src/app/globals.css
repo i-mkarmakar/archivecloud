@@ -469,3 +469,81 @@ button[aria-disabled="true"],
 .drive-preview-video-shell video {
   object-fit: contain;
 }
+
+/* Thumb only — track fully removed.
+   Do NOT set scrollbar-color/width on Chromium (disables webkit rules). */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(15 23 42 / 45%) transparent;
+  }
+}
+
+html {
+  scrollbar-gutter: auto;
+}
+
+html::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent !important;
+}
+
+html::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track-piece {
+  display: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: rgb(15 23 42 / 45%);
+  border-radius: 9999px;
+  min-height: 48px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(15 23 42 / 60%);
+}
+
+html::-webkit-scrollbar-button,
+html::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* Nested scroll areas (modals, sidebars, etc.) */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent !important;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track-piece {
+  display: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(15 23 42 / 45%);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(15 23 42 / 60%);
+}
+
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}

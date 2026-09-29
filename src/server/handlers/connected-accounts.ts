@@ -24,6 +24,8 @@ import {
   getDropboxAccountProfileWithToken,
   syncDropboxQuota,
 } from "@/server/modules/dropbox/dropbox.service";
+import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
+import { streamAccountFileThumbnail } from "@/server/modules/files/stream-thumbnail";
 import {
   buildOneDriveAuthUrl,
   ensureGlobalOneDriveProviderConfig,
@@ -1091,6 +1093,30 @@ export async function previewConnectedAccountFileHandler(
     );
   }
 
+  if (account.provider === "google_photos") {
+    const file = await prisma.file.findFirst({
+      where: {
+        connectedAccountId: account.id,
+        providerFileId: decodeURIComponent(providerFileId),
+        provider: "google_photos",
+        status: "active",
+      },
+      include: { connectedAccount: true },
+    });
+    if (!file) {
+      return errorJson(
+        "PHOTOS_FILE_BYTES_UNAVAILABLE",
+        "This Google Photos import has no stored copy yet. Import again with another cloud connected.",
+        404,
+      );
+    }
+    return streamProviderFileResponse(
+      file,
+      request.headers.get("range") ?? undefined,
+      { disposition: "inline" },
+    );
+  }
+
   try {
     const { pullProviderFile } = await import(
       "@/server/modules/providers/operations"
@@ -1199,14 +1225,9 @@ export async function thumbnailConnectedAccountFileHandler(
   const account = await getOwnedConnectedAccount(accountId, user.id);
   if (account instanceof Response) return account;
 
-  if (account.provider === "google_drive") {
-    return streamGoogleDriveThumbnailResponse(account, providerFileId);
-  }
-
-  return errorJson(
-    "UNSUPPORTED_PROVIDER",
-    "Thumbnails are not supported for this provider.",
-    400,
+  return streamAccountFileThumbnail(
+    account,
+    decodeURIComponent(providerFileId),
   );
 }
 

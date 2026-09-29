@@ -311,10 +311,10 @@ export default function PrivacyPage() {
           If you want to delete your data without logging into your account, you
           can send a request email to{" "}
           <a
-            href="mailto:contact@archivecloud.com"
+            href="mailto:team@archivecloud.in"
             className="text-foreground underline underline-offset-4"
           >
-            contact@archivecloud.com
+            team@archivecloud.in
           </a>{" "}
           from the email you used to create your Archive Cloud account.
         </p>
@@ -357,10 +357,10 @@ export default function PrivacyPage() {
         <p>
           Email:{" "}
           <a
-            href="mailto:contact@archivecloud.com"
+            href="mailto:team@archivecloud.in"
             className="text-foreground underline underline-offset-4"
           >
-            contact@archivecloud.com
+            team@archivecloud.in
           </a>
         </p>
       </Section>

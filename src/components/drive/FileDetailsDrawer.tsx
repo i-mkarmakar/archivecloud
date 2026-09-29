@@ -1,9 +1,10 @@
 "use client";
 
-import { Button } from "@heroui/react";
 import { Archive, FileText, Picture, Play, Xmark } from "@gravity-ui/icons";
+import { Button } from "@heroui/react";
 import { useEffect, useMemo, useState } from "react";
 import { SectionSkeleton } from "@/components/drive/PageSkeletons";
+import { Portal } from "@/components/Portal";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { FileItem } from "@/data/drive-data";
 import { apiFetch, formatBytes, formatDate } from "@/lib/api";
@@ -273,20 +274,20 @@ export function FileDetailsDrawer({
   const canManageTags = Boolean(fileId) && !fileId.startsWith("linked:");
 
   return (
-    <>
+    <Portal>
       <button
         type="button"
         className={
           open
-            ? "fixed inset-0 z-40 bg-backdrop/30"
-            : "pointer-events-none fixed inset-0 z-40 bg-backdrop/0"
+            ? "fixed inset-0 z-[100] bg-backdrop/30"
+            : "pointer-events-none fixed inset-0 z-[100] bg-backdrop/0"
         }
         aria-label="Close file details"
         onClick={onClose}
       />
       <aside
         className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-overlay transition-transform duration-300",
+          "fixed right-0 top-0 z-[101] flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-overlay transition-transform duration-300",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
@@ -446,6 +447,6 @@ export function FileDetailsDrawer({
           </div>
         ) : null}
       </aside>
-    </>
+    </Portal>
   );
 }

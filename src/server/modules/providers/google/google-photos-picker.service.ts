@@ -211,11 +211,20 @@ export async function createPickerSession(
   return session;
 }
 
+function normalizePickerSessionId(sessionId: string) {
+  const trimmed = sessionId.trim();
+  try {
+    return decodeURIComponent(trimmed).replace(/^sessions\//i, "");
+  } catch {
+    return trimmed.replace(/^sessions\//i, "");
+  }
+}
+
 export async function getPickerSession(
   account: ConnectedAccount,
   sessionId: string,
 ): Promise<PickerSession> {
-  const id = sessionId.trim();
+  const id = normalizePickerSessionId(sessionId);
   if (!id) {
     throw new GooglePhotosPickerError(
       "VALIDATION_ERROR",
@@ -233,7 +242,7 @@ export async function deletePickerSession(
   account: ConnectedAccount,
   sessionId: string,
 ): Promise<void> {
-  const id = sessionId.trim();
+  const id = normalizePickerSessionId(sessionId);
   if (!id) {
     throw new GooglePhotosPickerError(
       "VALIDATION_ERROR",
@@ -285,7 +294,7 @@ export async function listPickedMediaItems(
   account: ConnectedAccount,
   sessionId: string,
 ): Promise<PickedMediaItem[]> {
-  const id = sessionId.trim();
+  const id = normalizePickerSessionId(sessionId);
   if (!id) {
     throw new GooglePhotosPickerError(
       "VALIDATION_ERROR",
