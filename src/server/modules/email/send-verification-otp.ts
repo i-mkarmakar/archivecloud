@@ -2,12 +2,15 @@ import "server-only";
 
 import { Resend } from "resend";
 import { env } from "@/server/config/env";
+import { prisma } from "@/server/config/prisma";
 
 type OtpEmailType =
   | "sign-in"
   | "email-verification"
   | "forget-password"
   | "change-email";
+
+const EMAIL_VERIFICATION_TEMPLATE_ID = "email-verification-otp";
 
 function otpSubject(type: OtpEmailType) {
   switch (type) {
@@ -70,6 +73,32 @@ function buildOtpEmailHtml(type: OtpEmailType, otp: string) {
   `.trim();
 }
 
+function firstName(name: string | null | undefined) {
+  const trimmed = name?.trim();
+  if (!trimmed) return undefined;
+  return trimmed.split(/\s+/)[0];
+}
+
+function otpDigitVariables(otp: string) {
+  const digits = otp.replace(/\D/g, "").padStart(6, "0").slice(-6);
+  return {
+    otp_1: Number(digits[0] ?? 0),
+    otp_2: Number(digits[1] ?? 0),
+    otp_3: Number(digits[2] ?? 0),
+    otp_4: Number(digits[3] ?? 0),
+    otp_5: Number(digits[4] ?? 0),
+    otp_6: Number(digits[5] ?? 0),
+  };
+}
+
+async function lookupFirstName(email: string) {
+  const user = await prisma.user.findFirst({
+    where: { email: email.trim().toLowerCase() },
+    select: { name: true },
+  });
+  return firstName(user?.name) ?? "there";
+}
+
 export async function sendVerificationOtpEmail({
   email,
   otp,
@@ -86,6 +115,26 @@ export async function sendVerificationOtpEmail({
   }
 
   const resend = new Resend(env.RESEND_API_KEY);
+
+  if (type === "email-verification") {
+    const { error } = await resend.emails.send({
+      from: env.RESEND_FROM_EMAIL,
+      to: email,
+      template: {
+        id: EMAIL_VERIFICATION_TEMPLATE_ID,
+        variables: {
+          first_name: await lookupFirstName(email),
+          ...otpDigitVariables(otp),
+        },
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || "Failed to send verification email.");
+    }
+    return;
+  }
+
   const { error } = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to: email,
