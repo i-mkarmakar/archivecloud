@@ -1,20 +1,20 @@
-import type { LucideIcon } from "lucide-react";
 import {
+  ArrowRightArrowLeft,
+  ChartPie,
   Cloud,
   Folder,
-  ArrowLeftRight,
-  Search,
-  Share2,
-  ChartPie,
-  Zap,
+  Magnifier,
+  NodesRight,
   ShieldCheck,
-} from "lucide-react";
+  Thunderbolt,
+} from "@gravity-ui/icons";
 import { SectionBadge } from "@/components/home/SectionBadge";
+import type { IconComponent } from "@/types/icons";
 
 const FEATURES: {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: IconComponent;
 }[] = [
   {
     title: "Unified File Management",
@@ -25,7 +25,7 @@ const FEATURES: {
   {
     title: "Cross-Cloud Search",
     description: "Find any file instantly, no matter which cloud it's in.",
-    icon: Search,
+    icon: Magnifier,
   },
   {
     title: "Virtual Folders",
@@ -37,12 +37,12 @@ const FEATURES: {
     title: "Move or Copy Files",
     description:
       "Transfer files between cloud accounts easily, without downloading.",
-    icon: ArrowLeftRight,
+    icon: ArrowRightArrowLeft,
   },
   {
     title: "Share & Collaborate",
     description: "Create shareable links and invite others, from any cloud.",
-    icon: Share2,
+    icon: NodesRight,
   },
   {
     title: "Combined Quota",
@@ -52,7 +52,7 @@ const FEATURES: {
   {
     title: "Smart Upload Routing",
     description: "Automatically upload to the account with enough free space.",
-    icon: Zap,
+    icon: Thunderbolt,
   },
   {
     title: "Secure & Private",
@@ -87,7 +87,7 @@ export function FeatureSection() {
               className="rounded-xl border border-[#E5EEF7] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(22,131,247,0.45)] sm:rounded-2xl sm:p-6"
             >
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-10 sm:rounded-xl">
-                <feature.icon className="size-4 sm:size-5" strokeWidth={1.75} />
+                <feature.icon className="size-4 sm:size-5" />
               </div>
               <h3 className="mt-2 text-xs font-semibold leading-snug text-[#0F172A] sm:mt-4 sm:text-[16px]">
                 {feature.title}

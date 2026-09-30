@@ -19,8 +19,6 @@ import { subscribeUserToNewsletter } from "@/server/modules/newsletter/subscribe
 const TURNSTILE_PROTECTED_ENDPOINTS = [
   "/sign-up/email",
   "/sign-in/email",
-  "/email-otp/send-verification-otp",
-  "/email-otp/request-password-reset",
 ] as const;
 
 export const auth = betterAuth({

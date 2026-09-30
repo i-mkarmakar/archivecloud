@@ -8,7 +8,7 @@ import {
   StatCardsSkeleton,
 } from "@/components/drive/PageSkeletons";
 import { apiFetch, formatBytes } from "@/lib/api";
-import { connectOAuthPopup } from "@/lib/oauth-connect";
+import { connectOAuthRedirect } from "@/lib/oauth-connect";
 import { cn } from "@/lib/utils";
 
 type StorageSummary = {
@@ -184,9 +184,9 @@ export function QuotaTrackerPage() {
 
   async function connectDrive() {
     try {
-      await connectOAuthPopup({
+      connectOAuthRedirect({
         connectUrlPath: "/connected-accounts/google/connect",
-        popupName: "google-drive-connect",
+        returnTo: "/quota",
       });
     } catch (e) {
       console.error(

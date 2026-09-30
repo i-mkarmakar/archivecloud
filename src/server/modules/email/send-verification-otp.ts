@@ -11,6 +11,7 @@ type OtpEmailType =
   | "change-email";
 
 const EMAIL_VERIFICATION_TEMPLATE_ID = "email-verification-otp";
+const PASSWORD_RESET_TEMPLATE_ID = "password-reset-otp";
 
 function otpSubject(type: OtpEmailType) {
   switch (type) {
@@ -116,12 +117,19 @@ export async function sendVerificationOtpEmail({
 
   const resend = new Resend(env.RESEND_API_KEY);
 
-  if (type === "email-verification") {
+  const templateId =
+    type === "email-verification"
+      ? EMAIL_VERIFICATION_TEMPLATE_ID
+      : type === "forget-password"
+        ? PASSWORD_RESET_TEMPLATE_ID
+        : null;
+
+  if (templateId) {
     const { error } = await resend.emails.send({
       from: env.RESEND_FROM_EMAIL,
       to: email,
       template: {
-        id: EMAIL_VERIFICATION_TEMPLATE_ID,
+        id: templateId,
         variables: {
           first_name: await lookupFirstName(email),
           ...otpDigitVariables(otp),

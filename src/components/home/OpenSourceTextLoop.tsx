@@ -4,7 +4,10 @@ import TextLoop from "@/components/home/TextLoop";
 
 export function OpenSourceTextLoop() {
   return (
-    <section className="w-full overflow-x-hidden" aria-label="Open source">
+    <section
+      className="relative z-10 -mt-px w-full overflow-x-hidden leading-none"
+      aria-label="Open source"
+    >
       <TextLoop
         text="Open Source ✦ Self-Hostable ✦ Apache 2.0 ✦ Your Clouds Your Control"
         shape="line"

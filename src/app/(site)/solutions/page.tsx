@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArchiveIcon,
-  FolderSyncIcon,
-  LayersIcon,
-  MoveRightIcon,
-  UsersIcon,
-} from "lucide-react";
+  Archive,
+  ArrowRight,
+  ArrowsRotateRight,
+  Layers,
+  Persons,
+} from "@gravity-ui/icons";
 import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata: Metadata = createPageMetadata(
@@ -21,7 +21,7 @@ const SOLUTIONS = [
       "Connect several Google Drive, OneDrive, Dropbox, and other accounts in one place. Browse, search, and upload with routing to accounts that still have free space.",
     href: "/home",
     linkLabel: "Open home",
-    icon: LayersIcon,
+    icon: Layers,
   },
   {
     title: "Migrate between clouds",
@@ -29,7 +29,7 @@ const SOLUTIONS = [
       "Copy or move files from one provider to another without downloading everything to your laptop first. Track jobs in Run History.",
     href: "/home",
     linkLabel: "Start a transfer",
-    icon: MoveRightIcon,
+    icon: ArrowRight,
   },
   {
     title: "Backup with folder sync",
@@ -37,7 +37,7 @@ const SOLUTIONS = [
       "Mirror a folder one-way or keep two locations in sync on a schedule. Polling detects content changes so backups stay current.",
     href: "/automation",
     linkLabel: "Set up automation",
-    icon: FolderSyncIcon,
+    icon: ArrowsRotateRight,
   },
   {
     title: "Organize across providers",
@@ -45,7 +45,7 @@ const SOLUTIONS = [
       "Use virtual folders and tags to structure files that live in different clouds: one library view without moving physical storage.",
     href: "/virtual-folders",
     linkLabel: "Virtual folders",
-    icon: ArchiveIcon,
+    icon: Archive,
   },
   {
     title: "Share with teammates",
@@ -53,7 +53,7 @@ const SOLUTIONS = [
       "Invite Archive Cloud users to files or folders, or publish a public link with preview and download. Manage everything from Shared.",
     href: "/shared",
     linkLabel: "Sharing",
-    icon: UsersIcon,
+    icon: Persons,
   },
 ] as const;
 

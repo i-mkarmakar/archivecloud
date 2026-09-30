@@ -14,6 +14,7 @@ import {
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
+const googleDriveShortcutMimeType = "application/vnd.google-apps.shortcut";
 const appFolderName = "archivecloud";
 const breakdownStaleMs = 60 * 60 * 1000;
 
@@ -374,26 +375,17 @@ export async function browseGoogleDriveFolder(
   const files: DriveBrowseFile[] = [];
   const providerFileIds: string[] = [];
 
-  async function listWithQuery(q: string, collectFolders: boolean) {
+  // Folders: always paginate fully (limit applies to files only).
+  {
+    const folderQuery = `${folderQueryParts.join(" and ")} and (mimeType = '${googleDriveFolderMimeType}' or (mimeType = '${googleDriveShortcutMimeType}' and shortcutDetails.targetMimeType = '${googleDriveFolderMimeType}'))`;
     let pageToken: string | undefined;
     do {
-      const pageSize = maxItems
-        ? Math.min(
-            100,
-            Math.max(
-              1,
-              maxItems - (collectFolders ? folders.length : files.length),
-            ),
-          )
-        : 100;
-      if (pageSize <= 0) return;
-
       const response = await drive.files.list({
-        q,
+        q: folderQuery,
         spaces: "drive",
         fields:
-          "nextPageToken,files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,thumbnailLink,hasThumbnail)",
-        pageSize,
+          "nextPageToken,files(id,name,mimeType,modifiedTime,shortcutDetails(targetId,targetMimeType))",
+        pageSize: 100,
         pageToken,
         includeItemsFromAllDrives: true,
         supportsAllDrives: true,
@@ -403,17 +395,57 @@ export async function browseGoogleDriveFolder(
       for (const file of response.data.files ?? []) {
         if (!file.id || !file.name) continue;
         if (file.mimeType === googleDriveFolderMimeType) {
-          if (collectFolders) {
-            folders.push({
-              id: file.id,
-              name: file.name,
-              modifiedTime: file.modifiedTime ?? new Date().toISOString(),
-            });
-            if (maxItems && folders.length >= maxItems) return;
-          }
+          folders.push({
+            id: file.id,
+            name: file.name,
+            modifiedTime: file.modifiedTime ?? new Date().toISOString(),
+          });
           continue;
         }
-        if (!collectFolders) continue;
+        if (
+          file.mimeType === googleDriveShortcutMimeType &&
+          file.shortcutDetails?.targetMimeType === googleDriveFolderMimeType &&
+          file.shortcutDetails.targetId
+        ) {
+          folders.push({
+            id: file.shortcutDetails.targetId,
+            name: file.name,
+            modifiedTime: file.modifiedTime ?? new Date().toISOString(),
+          });
+        }
+      }
+
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
+  }
+
+  // Files: honor maxItems and paginate until filled.
+  {
+    const fileQuery = queryParts.join(" and ");
+    let pageToken: string | undefined;
+    do {
+      const remaining = maxItems ? maxItems - files.length : 100;
+      if (maxItems && remaining <= 0) break;
+      const response = await drive.files.list({
+        q: fileQuery,
+        spaces: "drive",
+        fields:
+          "nextPageToken,files(id,name,mimeType,size,modifiedTime,quotaBytesUsed,thumbnailLink,hasThumbnail)",
+        pageSize: Math.min(100, Math.max(1, remaining)),
+        pageToken,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
+        orderBy: "folder,name",
+      });
+
+      for (const file of response.data.files ?? []) {
+        if (!file.id || !file.name) continue;
+        if (
+          file.mimeType === googleDriveFolderMimeType ||
+          file.mimeType === googleDriveShortcutMimeType
+        ) {
+          continue;
+        }
         providerFileIds.push(file.id);
         files.push({
           id: file.id,
@@ -423,20 +455,13 @@ export async function browseGoogleDriveFolder(
           modifiedTime: file.modifiedTime ?? new Date().toISOString(),
           hasThumbnail: Boolean(file.hasThumbnail || file.thumbnailLink),
         });
-        if (maxItems && files.length >= maxItems) return;
+        if (maxItems && files.length >= maxItems) break;
       }
 
-      pageToken = maxItems
-        ? undefined
-        : (response.data.nextPageToken ?? undefined);
+      if (maxItems && files.length >= maxItems) break;
+      pageToken = response.data.nextPageToken ?? undefined;
     } while (pageToken);
   }
-
-  await listWithQuery(
-    `${folderQueryParts.join(" and ")} and mimeType = '${googleDriveFolderMimeType}'`,
-    true,
-  );
-  await listWithQuery(queryParts.join(" and "), true);
 
   if (providerFileIds.length > 0) {
     const tracked = await prisma.file.findMany({
@@ -457,11 +482,19 @@ export async function browseGoogleDriveFolder(
     }
   }
 
-  folders.sort((a, b) => a.name.localeCompare(b.name));
+  // Dedupe by id (real folder + shortcut to same target).
+  const seenFolderIds = new Set<string>();
+  const uniqueFolders = folders.filter((folder) => {
+    if (seenFolderIds.has(folder.id)) return false;
+    seenFolderIds.add(folder.id);
+    return true;
+  });
+
+  uniqueFolders.sort((a, b) => a.name.localeCompare(b.name));
   files.sort((a, b) => a.name.localeCompare(b.name));
 
   const breadcrumbs = await buildGoogleDriveBreadcrumbs(drive, googleParentId);
-  return { folders, files, breadcrumbs };
+  return { folders: uniqueFolders, files, breadcrumbs };
 }
 
 export type GoogleAppFolderSyncResult = {
@@ -685,4 +718,90 @@ export async function makeGoogleDriveFilePublicReader(
     requestBody: { role: "reader", type: "anyone" },
   });
   return getGoogleDriveWebLinks(account, providerFileId);
+}
+
+export type GoogleSharedWithMeFolder = {
+  id: string;
+  name: string;
+  sharedBy: string | null;
+  updatedAt: string | null;
+  openUrl: string;
+};
+
+export type GoogleSharedWithMeFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: string;
+  sharedBy: string | null;
+  updatedAt: string | null;
+  openUrl: string;
+};
+
+export async function listGoogleSharedWithMe(
+  account: ConnectedAccount,
+): Promise<{
+  folders: GoogleSharedWithMeFolder[];
+  files: GoogleSharedWithMeFile[];
+}> {
+  const auth = await getAuthedGoogleClient(account);
+  const drive = google.drive({ version: "v3", auth });
+  const folders: GoogleSharedWithMeFolder[] = [];
+  const files: GoogleSharedWithMeFile[] = [];
+
+  let pageToken: string | undefined;
+  let pages = 0;
+  do {
+    const response = await drive.files.list({
+      q: "sharedWithMe = true and trashed = false",
+      spaces: "drive",
+      fields:
+        "nextPageToken,files(id,name,mimeType,size,quotaBytesUsed,modifiedTime,sharedWithMeTime,webViewLink,hasThumbnail,thumbnailLink,owners(displayName,emailAddress),sharingUser(displayName,emailAddress))",
+      pageSize: 100,
+      pageToken,
+      orderBy: "sharedWithMeTime desc",
+    });
+
+    for (const file of response.data.files ?? []) {
+      if (!file.id || !file.name) continue;
+      const sharedBy =
+        file.sharingUser?.displayName?.trim() ||
+        file.sharingUser?.emailAddress?.trim() ||
+        file.owners?.[0]?.displayName?.trim() ||
+        file.owners?.[0]?.emailAddress?.trim() ||
+        null;
+      const updatedAt = file.sharedWithMeTime ?? file.modifiedTime ?? null;
+      const openUrl =
+        file.webViewLink ??
+        (file.mimeType === googleDriveFolderMimeType
+          ? `https://drive.google.com/drive/folders/${file.id}`
+          : `https://drive.google.com/file/d/${file.id}/view`);
+
+      if (file.mimeType === googleDriveFolderMimeType) {
+        folders.push({
+          id: file.id,
+          name: file.name,
+          sharedBy,
+          updatedAt,
+          openUrl,
+        });
+        continue;
+      }
+
+      files.push({
+        id: file.id,
+        name: file.name,
+        mimeType: file.mimeType ?? "application/octet-stream",
+        sizeBytes: driveFileSizeBytes(file).toString(),
+        sharedBy,
+        updatedAt,
+        openUrl,
+      });
+    }
+
+    pageToken = response.data.nextPageToken ?? undefined;
+    pages += 1;
+  } while (pageToken && pages < 5);
+
+  return { folders, files };
 }

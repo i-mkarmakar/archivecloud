@@ -1,7 +1,14 @@
 "use client";
 
 import { Eye, EyeSlash } from "@gravity-ui/icons";
-import { toast } from "@heroui/react";
+import {
+  FieldError,
+  Form,
+  Input,
+  Label,
+  TextField,
+  toast,
+} from "@heroui/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -16,19 +23,47 @@ import {
 } from "@/components/auth/turnstile-field";
 import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldGroup, FieldSeparator } from "@/components/ui/field";
 import { markAppBoot } from "@/lib/app-boot";
 import { authClient } from "@/lib/auth-client";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
+import { validateEmail } from "@/lib/validate-email";
+import { validatePassword } from "@/lib/validate-password";
 import { cn } from "@/lib/utils";
 
 type AuthMode = "signin" | "signup";
+
+type FieldErrors = Partial<
+  Record<"firstName" | "lastName" | "email" | "password", string>
+>;
+
+function mapAuthFieldError(
+  code: string | undefined,
+  message: string,
+): FieldErrors | null {
+  const normalized = `${code ?? ""} ${message}`.toLowerCase();
+  if (
+    normalized.includes("already") ||
+    normalized.includes("exists") ||
+    code === "USER_ALREADY_EXISTS"
+  ) {
+    return { email: message || "An account with this email already exists." };
+  }
+  if (
+    normalized.includes("invalid email or password") ||
+    normalized.includes("invalid credentials") ||
+    code === "INVALID_EMAIL_OR_PASSWORD"
+  ) {
+    return { password: message || "Invalid email or password." };
+  }
+  if (normalized.includes("password") && !normalized.includes("email")) {
+    return { password: message };
+  }
+  if (normalized.includes("email")) {
+    return { email: message };
+  }
+  return null;
+}
 
 export function LoginForm({
   mode,
@@ -50,6 +85,7 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -63,6 +99,32 @@ export function LoginForm({
   function resetCaptcha() {
     setCaptchaToken(null);
     turnstileRef.current?.reset();
+  }
+
+  function clearFieldError(key: keyof FieldErrors) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function validateFields(): FieldErrors {
+    const next: FieldErrors = {};
+    if (!isSignIn) {
+      if (!firstName.trim()) next.firstName = "First name is required.";
+      if (!lastName.trim()) next.lastName = "Last name is required.";
+    }
+    const emailErr = validateEmail(email);
+    if (emailErr) next.email = emailErr;
+    if (!password) {
+      next.password = "Password is required.";
+    } else if (!isSignIn) {
+      const passwordErr = validatePassword(password);
+      if (passwordErr) next.password = passwordErr;
+    }
+    return next;
   }
 
   useEffect(() => {
@@ -93,13 +155,17 @@ export function LoginForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loading || googleLoading || !captchaReady) return;
-    setLoading(true);
 
+    const nextErrors = validateFields();
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setLoading(true);
     const fetchOptions = captchaFetchOptions(captchaToken);
 
     if (isSignIn) {
       const { data, error } = await authClient.signIn.email({
-        email,
+        email: email.trim(),
         password,
         fetchOptions,
       });
@@ -109,15 +175,21 @@ export function LoginForm({
         if (error.code === "EMAIL_NOT_VERIFIED") {
           toast.danger("Verify your email before signing in.");
           router.push(
-            `/verify-email?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(redirectPath)}`,
+            `/verify-email?email=${encodeURIComponent(email.trim())}&callbackUrl=${encodeURIComponent(redirectPath)}`,
           );
           return;
         }
-        toast.danger(
-          isCaptchaAuthError(error)
-            ? CAPTCHA_ERROR_MESSAGE
-            : (error.message ?? "Sign-in failed"),
-        );
+        if (isCaptchaAuthError(error)) {
+          toast.danger(CAPTCHA_ERROR_MESSAGE);
+          return;
+        }
+        const message = error.message ?? "Sign-in failed";
+        const mapped = mapAuthFieldError(error.code, message);
+        if (mapped) {
+          setFieldErrors(mapped);
+          return;
+        }
+        toast.danger(message);
         return;
       }
       if (data) {
@@ -126,9 +198,9 @@ export function LoginForm({
       return;
     }
 
-    const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(redirectPath)}`;
+    const verifyUrl = `/verify-email?email=${encodeURIComponent(email.trim())}&callbackUrl=${encodeURIComponent(redirectPath)}`;
     const { error } = await authClient.signUp.email({
-      email,
+      email: email.trim(),
       password,
       name: `${firstName.trim()} ${lastName.trim()}`.trim(),
       callbackURL: verifyUrl,
@@ -137,11 +209,17 @@ export function LoginForm({
     setLoading(false);
     resetCaptcha();
     if (error) {
-      toast.danger(
-        isCaptchaAuthError(error)
-          ? CAPTCHA_ERROR_MESSAGE
-          : (error.message ?? "Sign-up failed"),
-      );
+      if (isCaptchaAuthError(error)) {
+        toast.danger(CAPTCHA_ERROR_MESSAGE);
+        return;
+      }
+      const message = error.message ?? "Sign-up failed";
+      const mapped = mapAuthFieldError(error.code, message);
+      if (mapped) {
+        setFieldErrors(mapped);
+        return;
+      }
+      toast.danger(message);
       return;
     }
     toast.success("Check your email for a 6-digit verification code.");
@@ -160,7 +238,11 @@ export function LoginForm({
   }
 
   return (
-    <form className={cn("flex flex-col gap-4", className)} onSubmit={submit}>
+    <Form
+      className={cn("flex flex-col gap-4", className)}
+      validationBehavior="aria"
+      onSubmit={submit}
+    >
       <FieldGroup className="gap-3">
         <div className="mb-3 flex flex-col items-center gap-0.5 text-center">
           <h1 className="text-2xl font-bold">
@@ -193,52 +275,80 @@ export function LoginForm({
 
         {!isSignIn ? (
           <div className="grid grid-cols-2 gap-2">
-            <Field className="gap-1.5">
-              <FieldLabel htmlFor="firstName">First Name</FieldLabel>
-              <Input
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="John"
-                required
-              />
-            </Field>
-            <Field className="gap-1.5">
-              <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
-              <Input
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Doe"
-                required
-              />
-            </Field>
+            <TextField
+              name="firstName"
+              fullWidth
+              isRequired
+              isInvalid={Boolean(fieldErrors.firstName)}
+              value={firstName}
+              onChange={(value) => {
+                setFirstName(value);
+                clearFieldError("firstName");
+              }}
+              className="gap-1.5"
+            >
+              <Label>First Name</Label>
+              <Input placeholder="John" autoComplete="given-name" />
+              <FieldError>{fieldErrors.firstName}</FieldError>
+            </TextField>
+            <TextField
+              name="lastName"
+              fullWidth
+              isRequired
+              isInvalid={Boolean(fieldErrors.lastName)}
+              value={lastName}
+              onChange={(value) => {
+                setLastName(value);
+                clearFieldError("lastName");
+              }}
+              className="gap-1.5"
+            >
+              <Label>Last Name</Label>
+              <Input placeholder="Doe" autoComplete="family-name" />
+              <FieldError>{fieldErrors.lastName}</FieldError>
+            </TextField>
           </div>
         ) : null}
 
-        <Field className="gap-1.5">
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+        <TextField
+          name="email"
+          fullWidth
+          isRequired
+          isInvalid={Boolean(fieldErrors.email)}
+          value={email}
+          onChange={(value) => {
+            setEmail(value);
+            clearFieldError("email");
+          }}
+          className="gap-1.5"
+        >
+          <Label>Email</Label>
           <Input
-            id="email"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             placeholder="m@example.com"
-            required
+            autoComplete="email"
           />
-        </Field>
+          <FieldError>{fieldErrors.email}</FieldError>
+        </TextField>
 
-        <Field className="gap-1.5">
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+        <TextField
+          name="password"
+          fullWidth
+          isRequired
+          isInvalid={Boolean(fieldErrors.password)}
+          value={password}
+          onChange={(value) => {
+            setPassword(value);
+            clearFieldError("password");
+          }}
+          className="gap-1.5"
+        >
+          <Label>Password</Label>
           <div className="relative">
             <Input
-              id="password"
               type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={isSignIn ? undefined : 8}
+              autoComplete={isSignIn ? "current-password" : "new-password"}
               className="pr-9"
-              required
             />
             <button
               type="button"
@@ -253,6 +363,7 @@ export function LoginForm({
               )}
             </button>
           </div>
+          <FieldError>{fieldErrors.password}</FieldError>
           {isSignIn ? (
             <div className="mt-0.5 flex justify-end">
               <button
@@ -264,7 +375,7 @@ export function LoginForm({
               </button>
             </div>
           ) : null}
-        </Field>
+        </TextField>
 
         <div className="flex flex-col gap-3">
           <Field>
@@ -324,6 +435,6 @@ export function LoginForm({
           </p>
         </div>
       </FieldGroup>
-    </form>
+    </Form>
   );
 }

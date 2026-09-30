@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Minus, Plus } from "lucide-react";
+import { ChevronDown, Minus, Plus } from "@gravity-ui/icons";
 import { SectionBadge } from "@/components/home/SectionBadge";
 import { cn } from "@/lib/utils";
 

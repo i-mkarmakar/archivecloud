@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  DownloadIcon,
-  FolderPlusIcon,
-  LogInIcon,
-  RefreshCwIcon,
-  SearchIcon,
-  UploadIcon,
-} from "lucide-react";
+  ArrowDownToLine,
+  ArrowRotateRight,
+  CloudArrowUpIn,
+  FolderPlus,
+  Magnifier,
+  PlugConnection,
+} from "@gravity-ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import Link from "next/link";
@@ -80,42 +80,42 @@ const TOPICS = [
     id: "connect",
     title: "Connect Account",
     href: "/settings",
-    icon: LogInIcon,
+    icon: PlugConnection,
     keywords: ["connect", "account", "oauth", "login"],
   },
   {
     id: "sync",
     title: "File Sync",
     href: "/automation",
-    icon: RefreshCwIcon,
+    icon: ArrowRotateRight,
     keywords: ["sync", "automation", "mirror"],
   },
   {
     id: "upload",
     title: "Upload Files",
     href: "/all-files",
-    icon: UploadIcon,
+    icon: CloudArrowUpIn,
     keywords: ["upload", "files"],
   },
   {
     id: "download",
     title: "Download Files",
     href: "/all-files",
-    icon: DownloadIcon,
+    icon: ArrowDownToLine,
     keywords: ["download", "files"],
   },
   {
     id: "search",
     title: "Search Files",
     href: "/search",
-    icon: SearchIcon,
+    icon: Magnifier,
     keywords: ["search", "find"],
   },
   {
     id: "virtual-folders",
     title: "Virtual Folders",
     href: "/virtual-folders",
-    icon: FolderPlusIcon,
+    icon: FolderPlus,
     keywords: ["virtual", "folders", "organize"],
   },
 ] as const;
@@ -197,7 +197,7 @@ export function HelpPage() {
 
           <label className="relative mt-5 block w-full max-w-xl">
             <span className="sr-only">Search for help articles</span>
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-white/70" />
+            <Magnifier className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-white/70" />
             <input
               ref={inputRef}
               type="search"
@@ -264,10 +264,7 @@ export function HelpPage() {
                   "hover:border-neutral-300 hover:bg-neutral-50",
                 )}
               >
-                <topic.icon
-                  strokeWidth={1.75}
-                  className="size-5 shrink-0 text-primary"
-                />
+                <topic.icon className="size-5 shrink-0 text-primary" />
                 <span className="text-sm font-semibold text-neutral-900">
                   {topic.title}
                 </span>

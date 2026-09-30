@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Original ArchiveCloud-style Presentations icon -->
+  <rect x="3" y="2.5" width="18" height="19" rx="4" fill="#F4B52D"/>
+  <path d="M7 7.5C7 6.95 7.45 6.5 8 6.5H16C16.55 6.5 17 6.95 17 7.5V16.5C17 17.05 16.55 17.5 16 17.5H8C7.45 17.5 7 17.05 7 16.5V7.5Z" fill="#fff"/>
+  <path d="M9 15L11.4 12.6L13 14.2L15 11.8" fill="none" stroke="#F4B52D" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="9" cy="15" r=".7" fill="#F4B52D"/>
+  <circle cx="15" cy="11.8" r=".7" fill="#F4B52D"/>
+</svg>

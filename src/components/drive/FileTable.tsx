@@ -78,7 +78,12 @@ export function FileTable({
                   {mode === "starred" ? (
                     <Star className="h-4 w-4 fill-warning text-muted" />
                   ) : (
-                    <FileIcon kind={file.kind} />
+                    <FileIcon
+                      kind={file.kind}
+                      mimeType={file.mimeType}
+                      fileName={file.name}
+                      className="h-6 w-6"
+                    />
                   )}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -194,7 +199,12 @@ export function FileTable({
                     {mode === "starred" ? (
                       <Star className="h-4 w-4 shrink-0 fill-warning text-muted" />
                     ) : (
-                      <FileIcon kind={file.kind} />
+                      <FileIcon
+                        kind={file.kind}
+                        mimeType={file.mimeType}
+                        fileName={file.name}
+                        className="h-5 w-5"
+                      />
                     )}
                     <span
                       className="truncate max-w-[200px] lg:max-w-[280px]"
@@ -242,7 +252,7 @@ export function FileTable({
                 <td className="py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     {}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex gap-1.5">
+                    <div className="flex gap-1.5 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100">
                       <button
                         type="button"
                         title="Copy Link"

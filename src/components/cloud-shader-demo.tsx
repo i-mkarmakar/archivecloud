@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AppPreloader } from "@/components/AppPreloader";
+import { HeroDashboardPreview } from "@/components/home/HeroDashboardPreview";
+import { HeroGoogleSignupButton } from "@/components/home/HeroGoogleSignupButton";
 import { CloudShader } from "@/components/ui/cloud-shader";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
-import { HeroGoogleSignupButton } from "@/components/home/HeroGoogleSignupButton";
 
 export default function CloudShaderDemo() {
   // Cover white-on-white hero until WebGL sky has a chance to paint.
@@ -39,10 +40,8 @@ export default function CloudShaderDemo() {
           <ContainerScroll
             titleComponent={
               <div className="mx-auto flex max-w-4xl flex-col items-center px-4 text-center">
-                <div className="rounded-full border border-white/25 bg-white/15 backdrop-blur-sm">
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-[9px] font-medium tracking-wide text-white/90 sm:px-3 sm:py-1 sm:text-[13px]">
-                    Open source ✦ Self-hostable ✦ Your data, your control
-                  </span>
+                <div className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/15 px-2.5 py-1.5 leading-none text-[9px] font-medium tracking-wide text-white/90 backdrop-blur-sm sm:px-3.5 sm:py-2 sm:text-[13px]">
+                  Open source ✦ Self-hostable ✦ Your data, your control
                 </div>
 
                 <h1 className="mt-4 text-[2rem] leading-tight font-bold tracking-tight text-white drop-shadow-md sm:mt-6 sm:text-4xl md:text-6xl lg:text-7xl">
@@ -63,16 +62,7 @@ export default function CloudShaderDemo() {
               </div>
             }
           >
-            <img
-              src="/assets/archivecloud-dashboard.png"
-              alt="Archive Cloud dashboard"
-              width={2048}
-              height={1032}
-              decoding="async"
-              fetchPriority="high"
-              className="mx-auto h-auto w-full rounded-sm object-contain object-top sm:rounded-xl"
-              draggable={false}
-            />
+            <HeroDashboardPreview />
           </ContainerScroll>
         </div>
       </div>

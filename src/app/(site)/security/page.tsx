@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  KeyRoundIcon,
-  LockIcon,
-  ServerOffIcon,
-  ShieldCheckIcon,
-} from "lucide-react";
+import { CloudSlash, Key, Lock, ShieldCheck } from "@gravity-ui/icons";
 import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata: Metadata = createPageMetadata(
@@ -18,25 +13,25 @@ const SECURITY_POINTS = [
     title: "OAuth, not passwords",
     description:
       "Google Drive, Photos, Shared Drive, OneDrive, Dropbox, and pCloud connect with official OAuth. iCloud Drive and Photos use an Apple ID plus app-specific password (encrypted). Full iCloud browse needs CloudKit on the server. Secrets are never stored in plaintext logs.",
-    icon: KeyRoundIcon,
+    icon: Key,
   },
   {
     title: "Encrypted provider tokens",
     description:
       "Access and refresh tokens are encrypted at rest with a dedicated encryption key before they are stored in the database. Secrets are never logged.",
-    icon: LockIcon,
+    icon: Lock,
   },
   {
     title: "No disk dump of your files",
     description:
       "Uploads and cloud-to-cloud transfers stream through the backend into the destination provider. We do not keep a long-term copy of your file bytes on Archive Cloud disk.",
-    icon: ServerOffIcon,
+    icon: CloudSlash,
   },
   {
     title: "Share links with control",
     description:
       "Public share and preview tokens are stored as hashes where applicable. You can revoke shares and manage invites from your Shared page.",
-    icon: ShieldCheckIcon,
+    icon: ShieldCheck,
   },
 ] as const;
 

@@ -41,7 +41,7 @@ const scaleConfig: Record<
   }
 > = {
   xs: {
-    grid: "grid-cols-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-x-0.5 gap-y-0 sm:gap-x-1 sm:gap-y-0",
+    grid: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-x-0.5 gap-y-1 sm:gap-x-1 sm:gap-y-1",
     item: "min-h-0 min-w-0 px-0.5 py-0 sm:min-h-0 sm:px-1.5 sm:py-0",
     folderSlot: "h-14 w-full sm:h-[5.5rem]",
     folderScale: "scale-[0.22] sm:scale-[0.3]",
@@ -81,9 +81,10 @@ const scaleConfig: Record<
 /** Column counts matching Tailwind breakpoints used in `scaleConfig` grids. */
 function columnsForScale(sizeScale: FolderSizeScale, width: number): number {
   if (sizeScale === "xs") {
-    if (width >= 1280) return 5;
+    if (width >= 1280) return 6;
     if (width >= 768) return 4;
-    return 3;
+    if (width >= 640) return 3;
+    return 2;
   }
   if (sizeScale === "lg") {
     if (width >= 1280) return 3;
@@ -187,7 +188,7 @@ export function FolderGrid({
             >
               <button
                 type="button"
-                className="absolute right-0.5 top-0.5 z-10 flex h-8 w-8 items-center justify-center rounded-xl text-muted opacity-0 transition hover:bg-surface-secondary/80 group-hover:opacity-100"
+                className="absolute right-0.5 top-0.5 z-10 flex h-8 w-8 items-center justify-center rounded-xl text-muted opacity-100 transition hover:bg-surface-secondary/80 sm:opacity-0 sm:group-hover:opacity-100"
                 onClick={(event) => {
                   event.stopPropagation();
                   onFolderMenu?.(event, folder);
@@ -219,9 +220,9 @@ export function FolderGrid({
                 {folder.accountProvider ? (
                   <ProviderBrandIcon
                     name={folder.accountProvider}
-                    className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4"
+                    className="h-2.5 w-2.5 shrink-0 sm:h-4 sm:w-4"
                     fallback={
-                      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-[8px] font-bold text-primary sm:h-4 sm:w-4 sm:text-[10px]">
+                      <span className="flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-[6px] font-bold text-primary sm:h-4 sm:w-4 sm:text-[10px]">
                         {providerLabel(folder.accountProvider).charAt(0)}
                       </span>
                     }

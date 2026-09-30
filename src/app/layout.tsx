@@ -57,7 +57,10 @@ export default function RootLayout({
       data-theme="light"
       suppressHydrationWarning
     >
-      <body className="min-h-full font-[family-name:var(--font-manrope),ui-sans-serif,system-ui,sans-serif] antialiased">
+      <body
+        className="min-h-full font-[family-name:var(--font-manrope),ui-sans-serif,system-ui,sans-serif] antialiased"
+        suppressHydrationWarning
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

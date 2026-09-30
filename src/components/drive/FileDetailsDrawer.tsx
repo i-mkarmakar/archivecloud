@@ -1,8 +1,9 @@
 "use client";
 
-import { Archive, FileText, Picture, Play, Xmark } from "@gravity-ui/icons";
+import { Xmark } from "@gravity-ui/icons";
 import { Button } from "@heroui/react";
 import { useEffect, useMemo, useState } from "react";
+import { FileIcon } from "@/components/drive/FileIcon";
 import { SectionSkeleton } from "@/components/drive/PageSkeletons";
 import { Portal } from "@/components/Portal";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
@@ -120,47 +121,14 @@ function FileTypePreview({
             onError={() => setThumbFailed(true)}
           />
         </div>
-      ) : previewKind === "zip" ? (
-        <div className="flex flex-col items-center gap-2">
-          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#7c3aed] text-2xl font-extrabold tracking-wide text-white shadow-sm">
-            ZIP
-          </span>
-          <span className="text-sm font-medium text-[#7b879c]">
-            {typeLabel}
-          </span>
-        </div>
-      ) : previewKind === "pdf" ? (
-        <div className="flex flex-col items-center gap-2">
-          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#ef4444] text-white shadow-sm">
-            <Archive className="h-9 w-9" />
-          </span>
-          <span className="text-sm font-medium text-[#7b879c]">
-            {typeLabel}
-          </span>
-        </div>
-      ) : previewKind === "video" ? (
-        <div className="flex flex-col items-center gap-2">
-          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-white shadow-sm">
-            <Play className="h-9 w-9" />
-          </span>
-          <span className="text-sm font-medium text-[#7b879c]">
-            {typeLabel}
-          </span>
-        </div>
-      ) : previewKind === "image" ? (
-        <div className="flex flex-col items-center gap-2">
-          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#22c55e] text-white shadow-sm">
-            <Picture className="h-9 w-9" />
-          </span>
-          <span className="text-sm font-medium text-[#7b879c]">
-            {typeLabel}
-          </span>
-        </div>
       ) : (
         <div className="flex flex-col items-center gap-2">
-          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#64748b] text-white shadow-sm">
-            <FileText className="h-9 w-9" />
-          </span>
+          <FileIcon
+            kind={file.kind}
+            mimeType={file.mimeType}
+            fileName={file.name}
+            className="h-20 w-20"
+          />
           <span className="text-sm font-medium text-[#7b879c]">
             {typeLabel}
           </span>

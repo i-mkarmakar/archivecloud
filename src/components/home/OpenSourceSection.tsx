@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight } from "@gravity-ui/icons";
 import { DiscordLogo } from "@/components/drive/DiscordLogo";
 import { GithubLogo } from "@/components/drive/GithubLogo";
 import { SectionBadge } from "@/components/home/SectionBadge";
@@ -48,10 +48,7 @@ export function OpenSourceSection() {
                   className="flex items-start gap-2 text-xs text-[#334155] sm:gap-2.5 sm:text-[15px]"
                 >
                   <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full bg-[#2da44e] sm:size-4">
-                    <Check
-                      className="size-2 text-white sm:size-2.5"
-                      strokeWidth={3}
-                    />
+                    <Check className="size-2 text-white sm:size-2.5" />
                   </span>
                   {item}
                 </li>
@@ -66,10 +63,7 @@ export function OpenSourceSection() {
               >
                 <GithubLogo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 View on GitHub
-                <ChevronRight
-                  className="size-3.5 shrink-0 sm:size-4"
-                  strokeWidth={2.5}
-                />
+                <ChevronRight className="size-3.5 shrink-0 sm:size-4" />
               </a>
               <a
                 href={DISCORD_URL}

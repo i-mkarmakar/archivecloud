@@ -11,7 +11,7 @@ import {
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { ApiRequestError, apiFetch } from "@/lib/api";
 import {
-  connectOAuthPopup,
+  connectOAuthRedirect,
   openCenteredPopup,
   writePopupLoading,
 } from "@/lib/oauth-connect";
@@ -110,13 +110,10 @@ export const GooglePhotosImportPanel = forwardRef<
 
   async function reconnectGooglePhotos() {
     try {
-      await connectOAuthPopup({
+      connectOAuthRedirect({
         connectUrlPath: "/connected-accounts/google-photos/connect-url",
-        popupName: "google-photos-connect",
+        returnTo: `${window.location.pathname}${window.location.search}`,
       });
-      setNeedsReconnect(false);
-      setStatusMessage(null);
-      toast.success("Reconnect Google Photos in the popup, then try again.");
     } catch (error) {
       toast.danger(
         error instanceof Error

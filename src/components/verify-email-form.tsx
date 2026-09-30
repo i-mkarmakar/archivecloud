@@ -1,29 +1,23 @@
 "use client";
 
-import { toast } from "@heroui/react";
+import {
+  FieldError,
+  Form,
+  Input,
+  Label,
+  TextField,
+  toast,
+} from "@heroui/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/otp-input";
-import {
-  CAPTCHA_ERROR_MESSAGE,
-  captchaFetchOptions,
-  isCaptchaAuthError,
-  TURNSTILE_ENABLED,
-  TurnstileField,
-  type TurnstileFieldHandle,
-} from "@/components/auth/turnstile-field";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldGroup } from "@/components/ui/field";
 import { authClient } from "@/lib/auth-client";
 import { maskEmail } from "@/lib/mask-email";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
+import { validateEmail } from "@/lib/validate-email";
 import { cn } from "@/lib/utils";
 
 export function VerifyEmailForm({
@@ -41,18 +35,12 @@ export function VerifyEmailForm({
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
-  const [error, setError] = useState("");
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileFieldHandle>(null);
+  const [emailError, setEmailError] = useState("");
+  const [otpError, setOtpError] = useState("");
 
   const redirectPath = safeCallbackUrl(searchParams.get("callbackUrl"));
   const busy = verifying || resending;
-  const captchaReady = !TURNSTILE_ENABLED || Boolean(captchaToken);
-
-  function resetCaptcha() {
-    setCaptchaToken(null);
-    turnstileRef.current?.reset();
-  }
+  const emailFromQuery = Boolean(searchParams.get("email")?.trim());
 
   useEffect(() => {
     const emailParam = searchParams.get("email")?.trim();
@@ -68,28 +56,27 @@ export function VerifyEmailForm({
   }, [resendSeconds]);
 
   async function resendCode() {
-    if (busy || !captchaReady) return;
-    if (!email.trim()) {
-      toast.danger("Enter your email address.");
+    if (busy) return;
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setEmailError(emailErr);
       return;
     }
 
-    setError("");
+    setEmailError("");
+    setOtpError("");
     setResending(true);
     const { error: resendError } =
       await authClient.emailOtp.sendVerificationOtp({
         email: email.trim(),
         type: "email-verification",
-        fetchOptions: captchaFetchOptions(captchaToken),
       });
     setResending(false);
-    resetCaptcha();
 
     if (resendError) {
-      const message = isCaptchaAuthError(resendError)
-        ? CAPTCHA_ERROR_MESSAGE
-        : (resendError.message ?? "Failed to resend verification code.");
-      setError(message);
+      const message =
+        resendError.message ?? "Failed to resend verification code.";
+      setOtpError(message);
       toast.danger(message);
       return;
     }
@@ -101,13 +88,20 @@ export function VerifyEmailForm({
   async function verifyEmail(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setEmailError(emailErr);
+      return;
+    }
     if (otp.length !== 6) {
-      setError("Enter the 6-digit code from your email.");
+      setOtpError("Enter the 6-digit code from your email.");
       return;
     }
 
     setVerifying(true);
-    setError("");
+    setEmailError("");
+    setOtpError("");
 
     const { error: verifyError } = await authClient.emailOtp.verifyEmail({
       email: email.trim(),
@@ -117,8 +111,9 @@ export function VerifyEmailForm({
     setVerifying(false);
 
     if (verifyError) {
-      setError(verifyError.message ?? "Verification failed.");
-      toast.danger(verifyError.message ?? "Verification failed.");
+      const message = verifyError.message ?? "Verification failed.";
+      setOtpError(message);
+      toast.danger(message);
       return;
     }
 
@@ -130,8 +125,9 @@ export function VerifyEmailForm({
   }
 
   return (
-    <form
+    <Form
       className={cn("flex w-full max-w-sm flex-col gap-6", className)}
+      validationBehavior="aria"
       onSubmit={verifyEmail}
     >
       <FieldGroup>
@@ -144,39 +140,45 @@ export function VerifyEmailForm({
           </p>
         </div>
 
-        {!email ? (
-          <Field>
-            <FieldLabel htmlFor="verify-email">Email</FieldLabel>
+        {!emailFromQuery ? (
+          <TextField
+            name="email"
+            fullWidth
+            isRequired
+            isInvalid={Boolean(emailError)}
+            value={email}
+            onChange={(value) => {
+              setEmail(value);
+              setEmailError("");
+            }}
+          >
+            <Label>Email</Label>
             <Input
-              id="verify-email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
               placeholder="m@example.com"
-              required
+              autoComplete="email"
             />
-          </Field>
+            <FieldError>{emailError}</FieldError>
+          </TextField>
         ) : null}
 
         <Field className="items-center">
-          <FieldLabel className="w-full text-center">
-            Verification code
-          </FieldLabel>
+          <Label className="w-full text-center">Verification code</Label>
           <OtpInput
             className="mx-auto w-fit"
             value={otp}
             onChange={(value) => {
               setOtp(value);
-              setError("");
+              setOtpError("");
             }}
-            isInvalid={Boolean(error)}
+            isInvalid={Boolean(otpError)}
             isDisabled={busy}
             autoFocus
           />
-          {error ? (
-            <FieldDescription className="text-center text-destructive">
-              {error}
-            </FieldDescription>
+          {otpError ? (
+            <p className="text-center text-sm text-danger" role="alert">
+              {otpError}
+            </p>
           ) : null}
         </Field>
 
@@ -192,16 +194,12 @@ export function VerifyEmailForm({
           </Button>
         </Field>
 
-        <TurnstileField ref={turnstileRef} onTokenChange={setCaptchaToken} />
-
         <FieldDescription className="flex flex-wrap items-center justify-center gap-1 text-center">
           <span>Didn&apos;t receive a code?</span>
           <button
             type="button"
             className="font-medium text-foreground underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={
-              busy || resendSeconds > 0 || !email.trim() || !captchaReady
-            }
+            disabled={busy || resendSeconds > 0 || !email.trim()}
             aria-busy={resending}
             onClick={resendCode}
           >
@@ -219,6 +217,6 @@ export function VerifyEmailForm({
           </Link>
         </FieldDescription>
       </FieldGroup>
-    </form>
+    </Form>
   );
 }

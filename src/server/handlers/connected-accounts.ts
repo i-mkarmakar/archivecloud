@@ -143,7 +143,7 @@ async function createGoogleConnectUrl(
   const client = createOAuthClient(config);
   return client.generateAuthUrl({
     access_type: "offline",
-    prompt: "consent",
+    prompt: "select_account consent",
     include_granted_scopes: true,
     scope: config.scopes as string[],
     state,
@@ -617,11 +617,9 @@ export async function googleConnectHandler(request: Request) {
   const returnTo = safeAppPath(requestUrl.searchParams.get("returnTo"));
   const loginHintParam = requestUrl.searchParams.get("login_hint")?.trim();
   const alias = parseConnectAliasParam(request);
-  const userRow = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { email: true },
-  });
-  const loginHint = loginHintParam || userRow?.email || undefined;
+  // Only honor an explicit login_hint — defaulting to the app user email
+  // skips Google's account chooser (outer portal).
+  const loginHint = loginHintParam || undefined;
 
   const url = await createGoogleConnectUrl(user.id, request, { loginHint });
   if (url instanceof Response) return url;
@@ -882,7 +880,11 @@ export async function updateConnectedAccountHandler(
 
   const alias = normalizeConnectAlias(body.alias);
   if (!alias) {
-    return errorJson("VALIDATION_ERROR", "Alias is required.", 400);
+    return errorJson(
+      "VALIDATION_ERROR",
+      "Alias must use only letters, numbers, spaces, underscores, dots, and hyphens.",
+      400,
+    );
   }
 
   const account = await prisma.connectedAccount.update({

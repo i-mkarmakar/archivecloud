@@ -244,8 +244,8 @@ export function AddToVirtualFolderModal({
               autoFocus
               required
             />
-            <span className="text-xs font-normal text-muted">
-              {createName.length}/{MAX_NAME_LENGTH} characters
+            <span className="text-right text-xs font-normal text-muted">
+              {createName.length}/{MAX_NAME_LENGTH}
             </span>
           </label>
 
