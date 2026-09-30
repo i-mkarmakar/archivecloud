@@ -39,6 +39,7 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import { apiFetch, formatBytes } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { sessionUserToAuthUser } from "@/lib/auth-user";
+import { sanitizeConnectAliasInput } from "@/lib/connect-alias";
 import { getProfileImageUrl } from "@/lib/gravatar";
 import { fileToAvatarDataUrl } from "@/lib/profile-avatar";
 import { providerLabel } from "@/lib/providers";
@@ -1333,7 +1334,7 @@ export function SettingsPage() {
               className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               value={editAlias}
               onChange={(event) =>
-                setEditAlias(event.target.value.slice(0, 50))
+                setEditAlias(sanitizeConnectAliasInput(event.target.value))
               }
               maxLength={50}
               autoComplete="off"
@@ -1345,8 +1346,8 @@ export function SettingsPage() {
                 }
               }}
             />
-            <p className="text-xs text-muted">
-              {editAlias.length}/50 characters
+            <p className="text-right text-xs text-muted">
+              {editAlias.length}/50
             </p>
           </div>
           <div>
@@ -1413,18 +1414,18 @@ export function SettingsPage() {
 
           <div className="grid gap-3 sm:flex sm:justify-end">
             <Button
-              variant="outline"
-              onPress={() => setAccountToDisconnect(null)}
-              isDisabled={Boolean(disconnectingAccountId)}
-            >
-              Cancel
-            </Button>
-            <Button
               variant="danger"
               onPress={disconnect}
               isDisabled={Boolean(disconnectingAccountId)}
             >
               {disconnectingAccountId ? "Disconnecting..." : "Disconnect"}
+            </Button>
+            <Button
+              variant="outline"
+              onPress={() => setAccountToDisconnect(null)}
+              isDisabled={Boolean(disconnectingAccountId)}
+            >
+              Keep connected
             </Button>
           </div>
         </div>

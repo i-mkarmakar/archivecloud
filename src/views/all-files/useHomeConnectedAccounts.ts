@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import { type Dispatch, type SetStateAction, useEffect, useRef } from "react";
 import { apiFetch, isAbortError, isNetworkError } from "@/lib/api";
 import { writeHasConnectedAccountsHint } from "@/lib/connected-accounts-hint";
+import { OAUTH_CONNECT_MESSAGE_HANDLERS } from "@/lib/oauth-connect";
 import type { ConnectedAccount } from "@/views/all-files/types";
 
 function applyAccounts(
@@ -26,22 +27,48 @@ export function useHomeConnectedAccounts(args: {
     args;
   const loadAllRef = useRef(loadAll);
   loadAllRef.current = loadAll;
+  // Drop stale /connected-accounts responses so a slow first load cannot
+  // wipe accounts after a successful connect refresh.
+  const fetchSeqRef = useRef(0);
+  const refreshRef = useRef<() => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     const controller = new AbortController();
     const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
     const AUTO_SYNC_STORAGE_KEY = "archivecloud:last-drive-auto-sync";
 
+    function applyIfCurrent(seq: number, accounts: ConnectedAccount[]) {
+      if (seq !== fetchSeqRef.current) return false;
+      applyAccounts(accounts, setConnectedAccounts, setAccountsLoaded);
+      return true;
+    }
+
+    async function refreshConnectedAccounts() {
+      const seq = ++fetchSeqRef.current;
+      try {
+        const data = await apiFetch<{ accounts: ConnectedAccount[] }>(
+          "/connected-accounts",
+        );
+        applyIfCurrent(seq, data.accounts || []);
+      } catch (error) {
+        if (seq === fetchSeqRef.current) {
+          console.warn("Failed to refresh connected accounts:", error);
+        }
+      }
+    }
+    refreshRef.current = refreshConnectedAccounts;
+
     async function loadConnectedAccountsAndSync() {
+      const seq = ++fetchSeqRef.current;
       try {
         const data = await apiFetch<{ accounts: ConnectedAccount[] }>(
           "/connected-accounts",
           { signal: controller.signal },
         );
         if (controller.signal.aborted) return;
-        const accounts = data.accounts || [];
-        applyAccounts(accounts, setConnectedAccounts, setAccountsLoaded);
+        if (!applyIfCurrent(seq, data.accounts || [])) return;
 
+        const accounts = data.accounts || [];
         const hasGoogleDrive = accounts.some(
           (account) =>
             account.provider === "google_drive" &&
@@ -62,7 +89,7 @@ export function useHomeConnectedAccounts(args: {
         await new Promise<void>((resolve) => {
           window.setTimeout(resolve, 750);
         });
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || seq !== fetchSeqRef.current) return;
 
         setSyncingDrive(true);
         try {
@@ -73,7 +100,7 @@ export function useHomeConnectedAccounts(args: {
             body: JSON.stringify({}),
             signal: controller.signal,
           });
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || seq !== fetchSeqRef.current) return;
 
           sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, String(Date.now()));
 
@@ -98,23 +125,8 @@ export function useHomeConnectedAccounts(args: {
         }
       } catch (error) {
         if (isAbortError(error)) return;
-        setAccountsLoaded(true);
+        if (seq === fetchSeqRef.current) setAccountsLoaded(true);
         console.warn("Failed to load connected accounts:", error);
-      }
-    }
-
-    async function refreshConnectedAccounts() {
-      try {
-        const data = await apiFetch<{ accounts: ConnectedAccount[] }>(
-          "/connected-accounts",
-        );
-        applyAccounts(
-          data.accounts || [],
-          setConnectedAccounts,
-          setAccountsLoaded,
-        );
-      } catch (error) {
-        console.warn("Failed to refresh connected accounts:", error);
       }
     }
 
@@ -122,7 +134,16 @@ export function useHomeConnectedAccounts(args: {
       void refreshConnectedAccounts();
     }
 
+    function onOAuthMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const type = event.data?.type as string | undefined;
+      if (!type || !(type in OAUTH_CONNECT_MESSAGE_HANDLERS)) return;
+      if (event.data.status !== "success") return;
+      void refreshConnectedAccounts();
+    }
+
     window.addEventListener("archivecloud:storage-changed", onStorageChanged);
+    window.addEventListener("message", onOAuthMessage);
     void loadConnectedAccountsAndSync();
     return () => {
       controller.abort();
@@ -130,6 +151,7 @@ export function useHomeConnectedAccounts(args: {
         "archivecloud:storage-changed",
         onStorageChanged,
       );
+      window.removeEventListener("message", onOAuthMessage);
     };
   }, []);
 
@@ -164,5 +186,8 @@ export function useHomeConnectedAccounts(args: {
     }
   }
 
-  return { syncGoogleDrive };
+  return {
+    syncGoogleDrive,
+    refreshConnectedAccounts: () => refreshRef.current(),
+  };
 }

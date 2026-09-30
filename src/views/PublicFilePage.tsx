@@ -1,17 +1,12 @@
 "use client";
 
 import {
-  Archive,
   ArrowDownToLine,
   ArrowRotateLeft,
   ArrowUpRightFromSquare,
-  FileText,
   Flag,
-  LayoutColumns,
   Link as LinkIcon,
   Lock,
-  Picture,
-  Play,
   QrCode,
   Thunderbolt,
 } from "@gravity-ui/icons";
@@ -20,6 +15,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/drive/BrandLogo";
 import { DummyModal } from "@/components/drive/DummyModal";
+import { FileIcon } from "@/components/drive/FileIcon";
 import {
   QrCodeWithLogo,
   qrCodeImageUrl,
@@ -62,17 +58,13 @@ function typeBadgeLabel(
 }
 
 function fileGlyph(
-  kind: ReturnType<typeof getPreviewKind>,
   mimeType: string,
+  fileName: string,
   className = "h-10 w-10",
 ) {
-  if (kind === "image") return <Picture className={className} />;
-  if (kind === "video") return <Play className={className} />;
-  if (isSpreadsheetMimeType(mimeType))
-    return <LayoutColumns className={className} />;
-  if (kind === "document" || kind === "office")
-    return <FileText className={className} />;
-  return <Archive className={className} />;
+  return (
+    <FileIcon mimeType={mimeType} fileName={fileName} className={className} />
+  );
 }
 
 function UnsupportedPreview({
@@ -85,7 +77,11 @@ function UnsupportedPreview({
   return (
     <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-6 text-center text-muted">
       <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-foreground shadow-2xl shadow-black/30">
-        <Archive className="h-9 w-9" />
+        <FileIcon
+          mimeType={file.mimeType}
+          fileName={file.name}
+          className="h-9 w-9"
+        />
       </div>
       <h2 className="mt-6 text-xl font-bold text-accent-foreground">
         Preview not available
@@ -108,7 +104,7 @@ function StatusScreen({ title, message }: { title: string; message: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted p-6 text-foreground">
       <div className="max-w-md rounded-2xl border border-border bg-background p-6 text-center shadow-sm">
-        <Archive className="mx-auto h-10 w-10 text-muted-foreground" />
+        <FileIcon className="mx-auto h-10 w-10" />
         <h1 className="mt-4 text-xl font-bold">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{message}</p>
       </div>
@@ -268,7 +264,7 @@ export function PublicFilePage({
               Back
             </button>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-foreground">
-              {fileGlyph(kind, file.mimeType, "h-5 w-5")}
+              {fileGlyph(file.mimeType, file.name, "h-5 w-5")}
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-sm font-bold text-accent-foreground sm:text-base">
@@ -329,7 +325,7 @@ export function PublicFilePage({
         <div className="mx-auto grid w-full max-w-4xl gap-4 lg:grid-cols-2 lg:gap-4">
           <section className="rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              {fileGlyph(kind, file.mimeType, "h-6 w-6")}
+              {fileGlyph(file.mimeType, file.name, "h-6 w-6")}
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">

@@ -1,31 +1,30 @@
 "use client";
 
 import { Eye, EyeSlash } from "@gravity-ui/icons";
-import { toast } from "@heroui/react";
+import {
+  FieldError,
+  Form,
+  Input,
+  Label,
+  TextField,
+  toast,
+} from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/otp-input";
-import {
-  CAPTCHA_ERROR_MESSAGE,
-  captchaFetchOptions,
-  isCaptchaAuthError,
-  TURNSTILE_ENABLED,
-  TurnstileField,
-  type TurnstileFieldHandle,
-} from "@/components/auth/turnstile-field";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldGroup } from "@/components/ui/field";
 import { authClient } from "@/lib/auth-client";
+import { validateEmail } from "@/lib/validate-email";
+import { validatePassword } from "@/lib/validate-password";
 import { cn } from "@/lib/utils";
 
 type ForgotPasswordStep = "email" | "reset";
+
+type FieldErrors = Partial<
+  Record<"email" | "otp" | "password" | "confirmPassword", string>
+>;
 
 export function ForgotPasswordForm({
   initialEmail = "",
@@ -44,17 +43,18 @@ export function ForgotPasswordForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [sendingCode, setSendingCode] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileFieldHandle>(null);
 
-  const captchaReady = !TURNSTILE_ENABLED || Boolean(captchaToken);
-
-  function resetCaptcha() {
-    setCaptchaToken(null);
-    turnstileRef.current?.reset();
+  function clearFieldError(key: keyof FieldErrors) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -71,27 +71,24 @@ export function ForgotPasswordForm({
 
   async function sendResetCode(event?: FormEvent) {
     event?.preventDefault();
-    if (sendingCode || resetting || !captchaReady) return;
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      toast.danger("Enter your email address.");
+    if (sendingCode || resetting) return;
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setFieldErrors({ email: emailErr });
       return;
     }
+    setFieldErrors({});
 
     setSendingCode(true);
     const { error } = await authClient.emailOtp.requestPasswordReset({
-      email: trimmedEmail,
-      fetchOptions: captchaFetchOptions(captchaToken),
+      email: email.trim(),
     });
     setSendingCode(false);
-    resetCaptcha();
 
     if (error) {
-      toast.danger(
-        isCaptchaAuthError(error)
-          ? CAPTCHA_ERROR_MESSAGE
-          : (error.message ?? "Failed to send reset code."),
-      );
+      const message = error.message ?? "Failed to send reset code.";
+      setFieldErrors({ email: message });
       return;
     }
 
@@ -106,31 +103,41 @@ export function ForgotPasswordForm({
   async function resetPassword(event: FormEvent) {
     event.preventDefault();
     if (sendingCode || resetting) return;
-    const trimmedEmail = email.trim();
 
+    const next: FieldErrors = {};
     if (otp.trim().length < 6) {
-      toast.danger("Enter the 6-digit code from your email.");
-      return;
+      next.otp = "Enter the 6-digit code from your email.";
     }
-    if (password.length < 8) {
-      toast.danger("Password must be at least 8 characters.");
-      return;
+    const passwordErr = validatePassword(password);
+    if (passwordErr) next.password = passwordErr;
+    if (!confirmPassword) {
+      next.confirmPassword = "Confirm your password.";
+    } else if (password !== confirmPassword) {
+      next.confirmPassword = "Passwords do not match.";
     }
-    if (password !== confirmPassword) {
-      toast.danger("Passwords do not match.");
-      return;
-    }
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
 
     setResetting(true);
     const { error } = await authClient.emailOtp.resetPassword({
-      email: trimmedEmail,
+      email: email.trim(),
       otp: otp.trim(),
       password,
     });
     setResetting(false);
 
     if (error) {
-      toast.danger(error.message ?? "Failed to reset password.");
+      const message = error.message ?? "Failed to reset password.";
+      const lower = message.toLowerCase();
+      if (lower.includes("otp") || lower.includes("code")) {
+        setFieldErrors({ otp: message });
+        return;
+      }
+      if (lower.includes("password")) {
+        setFieldErrors({ password: message });
+        return;
+      }
+      toast.danger(message);
       return;
     }
 
@@ -152,26 +159,33 @@ export function ForgotPasswordForm({
         </div>
 
         {step === "email" ? (
-          <form className="grid gap-4" onSubmit={sendResetCode}>
-            <Field>
-              <FieldLabel htmlFor="reset-email">Email</FieldLabel>
+          <Form
+            className="grid gap-4"
+            validationBehavior="aria"
+            onSubmit={sendResetCode}
+          >
+            <TextField
+              name="email"
+              fullWidth
+              isRequired
+              isInvalid={Boolean(fieldErrors.email)}
+              value={email}
+              onChange={(value) => {
+                setEmail(value);
+                clearFieldError("email");
+              }}
+            >
+              <Label>Email</Label>
               <Input
-                id="reset-email"
                 type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
                 placeholder="m@example.com"
-                required
+                autoComplete="email"
               />
-            </Field>
-            <TurnstileField
-              ref={turnstileRef}
-              onTokenChange={setCaptchaToken}
-            />
+              <FieldError>{fieldErrors.email}</FieldError>
+            </TextField>
             <Field>
               <Button
                 type="submit"
-                disabled={!captchaReady}
                 isPending={sendingCode}
                 size="lg"
                 className="w-full"
@@ -179,65 +193,70 @@ export function ForgotPasswordForm({
                 {sendingCode ? "Sending code..." : "Send reset code"}
               </Button>
             </Field>
-          </form>
+          </Form>
         ) : (
-          <form className="grid gap-4" onSubmit={resetPassword}>
-            <Field>
-              <FieldLabel htmlFor="reset-email-readonly">Email</FieldLabel>
-              <Input
-                id="reset-email-readonly"
-                type="email"
-                value={email}
-                readOnly
-              />
-            </Field>
+          <Form
+            className="grid gap-4"
+            validationBehavior="aria"
+            onSubmit={resetPassword}
+          >
+            <TextField name="email" fullWidth isReadOnly value={email}>
+              <Label>Email</Label>
+              <Input type="email" />
+            </TextField>
 
-            <Field>
-              <FieldLabel>Verification code</FieldLabel>
+            <div className="grid gap-1.5">
+              <Label>Verification code</Label>
               <OtpInput
                 value={otp}
-                onChange={(value) => setOtp(value)}
+                onChange={(value) => {
+                  setOtp(value);
+                  clearFieldError("otp");
+                }}
+                isInvalid={Boolean(fieldErrors.otp)}
                 autoFocus
               />
-              <FieldDescription className="flex items-center justify-between gap-3">
-                <span>Check your inbox for the 6-digit code.</span>
-                <button
-                  type="button"
-                  className="shrink-0 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={
-                    sendingCode ||
-                    resetting ||
-                    resendSeconds > 0 ||
-                    !captchaReady
-                  }
-                  aria-busy={sendingCode}
-                  onClick={() => sendResetCode()}
-                >
-                  {sendingCode
-                    ? "Sending..."
-                    : resendSeconds > 0
-                      ? `Resend in ${resendSeconds}s`
-                      : "Resend code"}
-                </button>
-              </FieldDescription>
-            </Field>
+              {fieldErrors.otp ? (
+                <p className="text-sm text-danger" role="alert">
+                  {fieldErrors.otp}
+                </p>
+              ) : (
+                <FieldDescription className="flex items-center justify-between gap-3">
+                  <span>Check your inbox for the 6-digit code.</span>
+                  <button
+                    type="button"
+                    className="shrink-0 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={sendingCode || resetting || resendSeconds > 0}
+                    aria-busy={sendingCode}
+                    onClick={() => sendResetCode()}
+                  >
+                    {sendingCode
+                      ? "Sending..."
+                      : resendSeconds > 0
+                        ? `Resend in ${resendSeconds}s`
+                        : "Resend code"}
+                  </button>
+                </FieldDescription>
+              )}
+            </div>
 
-            <TurnstileField
-              ref={turnstileRef}
-              onTokenChange={setCaptchaToken}
-            />
-
-            <Field>
-              <FieldLabel htmlFor="reset-password">New password</FieldLabel>
+            <TextField
+              name="password"
+              fullWidth
+              isRequired
+              isInvalid={Boolean(fieldErrors.password)}
+              value={password}
+              onChange={(value) => {
+                setPassword(value);
+                clearFieldError("password");
+              }}
+            >
+              <Label>New password</Label>
               <div className="relative">
                 <Input
-                  id="reset-password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  minLength={8}
+                  autoComplete="new-password"
                   className="pr-9"
-                  required
                 />
                 <button
                   type="button"
@@ -252,21 +271,26 @@ export function ForgotPasswordForm({
                   )}
                 </button>
               </div>
-            </Field>
+              <FieldError>{fieldErrors.password}</FieldError>
+            </TextField>
 
-            <Field>
-              <FieldLabel htmlFor="reset-confirm-password">
-                Confirm new password
-              </FieldLabel>
+            <TextField
+              name="confirmPassword"
+              fullWidth
+              isRequired
+              isInvalid={Boolean(fieldErrors.confirmPassword)}
+              value={confirmPassword}
+              onChange={(value) => {
+                setConfirmPassword(value);
+                clearFieldError("confirmPassword");
+              }}
+            >
+              <Label>Confirm new password</Label>
               <div className="relative">
                 <Input
-                  id="reset-confirm-password"
                   type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  minLength={8}
+                  autoComplete="new-password"
                   className="pr-9"
-                  required
                 />
                 <button
                   type="button"
@@ -283,7 +307,8 @@ export function ForgotPasswordForm({
                   )}
                 </button>
               </div>
-            </Field>
+              <FieldError>{fieldErrors.confirmPassword}</FieldError>
+            </TextField>
 
             <Field>
               <Button
@@ -296,7 +321,7 @@ export function ForgotPasswordForm({
                 {resetting ? "Updating password..." : "Update password"}
               </Button>
             </Field>
-          </form>
+          </Form>
         )}
 
         <FieldDescription className="text-center">

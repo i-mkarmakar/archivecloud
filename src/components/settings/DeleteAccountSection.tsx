@@ -188,19 +188,19 @@ export function DeleteAccountSection({
           ) : (
             <>
               <Button
-                variant="secondary"
-                isDisabled={deleting}
-                onPress={collapse}
-              >
-                Cancel
-              </Button>
-              <Button
                 variant="danger"
                 isDisabled={!canDelete}
                 onPress={() => confirmDelete().catch(() => undefined)}
               >
                 <TrashBin className="h-4 w-4" />
                 {deleting ? "Deleting..." : "Delete My Account"}
+              </Button>
+              <Button
+                variant="secondary"
+                isDisabled={deleting}
+                onPress={collapse}
+              >
+                Keep my account
               </Button>
             </>
           )}

@@ -11,7 +11,7 @@ export function GoogleConnectedPage() {
           ? "Sign in to Archive Cloud, then connect Google Drive again."
           : reason === "session_mismatch"
             ? "This connect link belongs to a different account. Start connect from Settings while signed in."
-            : "Close this window and try again."
+            : "Try connecting again from Archive Cloud."
       }
     />
   );

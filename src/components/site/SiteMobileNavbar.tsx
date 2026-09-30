@@ -7,7 +7,7 @@ import { NAV_LINKS } from "@/components/site/nav-links";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import { Menu, X } from "lucide-react";
+import { Bars, Xmark } from "@gravity-ui/icons";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -109,7 +109,7 @@ export function SiteMobileNavbar({
           scrolled && "hover:bg-black/5",
         )}
       >
-        <Menu size={22} />
+        <Bars className="size-[22px]" />
       </button>
 
       {mounted
@@ -143,7 +143,7 @@ export function SiteMobileNavbar({
                       onClick={handleClose}
                       className="absolute top-4 right-6 flex size-9 cursor-pointer items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <X size={22} className="text-foreground" />
+                      <Xmark className="size-[22px] text-foreground" />
                     </button>
 
                     <motion.nav

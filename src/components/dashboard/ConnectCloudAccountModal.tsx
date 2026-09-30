@@ -1,13 +1,16 @@
 "use client";
 
 import { CircleInfo, Eye, EyeSlash } from "@gravity-ui/icons";
-import { Button, Drawer, toast, useOverlayState } from "@heroui/react";
+import { Button, Drawer, toast, Tooltip, useOverlayState } from "@heroui/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import { apiFetch } from "@/lib/api";
+import { sanitizeConnectAliasInput } from "@/lib/connect-alias";
 import {
   connectOAuthPopup,
+  connectOAuthRedirect,
+  isGoogleOAuthProvider,
   OAUTH_CONNECT_MESSAGE_HANDLERS,
 } from "@/lib/oauth-connect";
 import { PROVIDER_LABELS, type SupportedProviderId } from "@/lib/providers";
@@ -143,6 +146,10 @@ export function ConnectCloudAccountModal({
       if (!isOpen) onClose();
     },
   });
+  const onConnectedRef = useRef(onConnected);
+  const onCloseRef = useRef(onClose);
+  onConnectedRef.current = onConnected;
+  onCloseRef.current = onClose;
 
   const [alias, setAlias] = useState("");
   const [selectedId, setSelectedId] = useState<SupportedProviderId | null>(
@@ -191,37 +198,21 @@ export function ConnectCloudAccountModal({
     if (provider) setAlias(defaultAliasForProvider(provider.label));
   }
 
-  useEffect(() => {
-    if (!open) return;
-
-    function onMessage(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
-      const type = event.data?.type as string | undefined;
-      const config = type ? OAUTH_CONNECT_MESSAGE_HANDLERS[type] : undefined;
-      if (!config) return;
-
-      if (event.data.status === "success") {
-        toast.success(config.success);
-        notifyStorageChanged();
-        onConnected?.();
-        onClose();
-        if (
-          type === "GOOGLE_PHOTOS_CONNECTED" &&
-          typeof event.data.accountId === "string" &&
-          event.data.accountId
-        ) {
-          router.push(
-            `/home?accountId=${encodeURIComponent(event.data.accountId)}&photosHowto=1`,
-          );
-        }
-      } else {
-        toast.danger(config.failure);
-      }
+  function finishConnected(options?: {
+    type?: string;
+    accountId?: string;
+    toastMessage?: string;
+  }) {
+    if (options?.toastMessage) toast.success(options.toastMessage);
+    notifyStorageChanged();
+    onConnectedRef.current?.();
+    onCloseRef.current();
+    if (options?.type === "GOOGLE_PHOTOS_CONNECTED" && options.accountId) {
+      router.push(
+        `/home?accountId=${encodeURIComponent(options.accountId)}&photosHowto=1`,
+      );
     }
-
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [open, onClose, onConnected, router]);
+  }
 
   async function startOAuth(provider: ConnectProvider) {
     if (!provider.connectUrlPath || !provider.popupName) return;
@@ -232,10 +223,49 @@ export function ConnectCloudAccountModal({
         window.location.origin,
       );
       connectUrl.searchParams.set("alias", alias.trim());
-      await connectOAuthPopup({
-        connectUrlPath: `${connectUrl.pathname}${connectUrl.search}`,
+      const connectUrlPath = `${connectUrl.pathname}${connectUrl.search}`;
+
+      // Google: full-page OAuth (account chooser), not an in-app popup.
+      if (isGoogleOAuthProvider(provider.id)) {
+        const returnTo = `${window.location.pathname}${window.location.search}`;
+        connectOAuthRedirect({
+          connectUrlPath,
+          returnTo: returnTo.startsWith("/") ? returnTo : "/home",
+        });
+        return;
+      }
+
+      const result = await connectOAuthPopup({
+        connectUrlPath,
         popupName: provider.popupName,
       });
+
+      if (result.status === "redirect") return;
+
+      if (result.status === "success") {
+        const config = result.type
+          ? OAUTH_CONNECT_MESSAGE_HANDLERS[result.type]
+          : undefined;
+        finishConnected({
+          type: result.type,
+          accountId: result.accountId,
+          toastMessage: config?.success ?? `${provider.label} connected.`,
+        });
+        return;
+      }
+
+      if (result.status === "failure") {
+        const config = result.type
+          ? OAUTH_CONNECT_MESSAGE_HANDLERS[result.type]
+          : undefined;
+        toast.danger(config?.failure ?? `${provider.label} connection failed.`);
+        return;
+      }
+
+      // Popup closed without an explicit result — close drawer and refresh.
+      // Do not assume success (user may have cancelled).
+      notifyStorageChanged();
+      onCloseRef.current();
     } catch (error) {
       toast.danger(
         error instanceof Error
@@ -264,8 +294,8 @@ export function ConnectCloudAccountModal({
         toast.success(`${PROVIDER_LABELS[selected.id]} connected.`);
       }
       notifyStorageChanged();
-      onConnected?.();
-      onClose();
+      onConnectedRef.current?.();
+      onCloseRef.current();
     } catch (error) {
       toast.danger(
         error instanceof Error
@@ -297,27 +327,45 @@ export function ConnectCloudAccountModal({
         <Drawer.Content placement="right">
           <Drawer.Dialog className="h-full w-full max-w-lg sm:max-w-xl">
             <Drawer.CloseTrigger isDisabled={connecting} />
-            <Drawer.Header>
-              <Drawer.Heading>Connect Cloud Account</Drawer.Heading>
+            <Drawer.Header className="pb-2">
+              <Drawer.Heading className="text-xl font-bold tracking-tight text-foreground">
+                Connect Cloud Account
+              </Drawer.Heading>
             </Drawer.Header>
 
-            <Drawer.Body>
+            <Drawer.Body className="pt-1">
               {step === "pick" ? (
-                <div className="grid gap-5">
+                <div className="grid gap-6">
                   <div className="grid gap-1.5">
-                    <label
-                      htmlFor="connect-account-alias"
-                      className="flex items-center gap-1.5 text-sm font-medium text-foreground"
-                    >
-                      Account name (Alias)
-                      <span className="text-danger" aria-hidden>
-                        *
-                      </span>
-                      <CircleInfo
-                        className="h-3.5 w-3.5 text-muted"
-                        aria-hidden
-                      />
-                    </label>
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <label
+                        htmlFor="connect-account-alias"
+                        className="flex items-center gap-1.5"
+                      >
+                        Account name (Alias)
+                        <span className="text-danger" aria-hidden>
+                          *
+                        </span>
+                      </label>
+                      <Tooltip delay={0}>
+                        <Button
+                          isIconOnly
+                          aria-label="Alias naming rules"
+                          variant="tertiary"
+                          size="sm"
+                          className="h-5 w-5 min-w-5 text-muted"
+                        >
+                          <CircleInfo className="h-3.5 w-3.5" />
+                        </Button>
+                        <Tooltip.Content showArrow placement="right">
+                          <Tooltip.Arrow />
+                          <p>
+                            Only letters, numbers, spaces, underscores (_), dots
+                            (.), and hyphens (-) are allowed.
+                          </p>
+                        </Tooltip.Content>
+                      </Tooltip>
+                    </div>
                     <p className="text-xs text-muted">
                       You can change this later
                     </p>
@@ -327,13 +375,13 @@ export function ConnectCloudAccountModal({
                       placeholder="Enter account name"
                       value={alias}
                       onChange={(event) =>
-                        setAlias(event.target.value.slice(0, 50))
+                        setAlias(sanitizeConnectAliasInput(event.target.value))
                       }
                       autoComplete="off"
                       maxLength={50}
                     />
-                    <p className="text-xs text-muted">
-                      {alias.length}/50 characters
+                    <p className="text-right text-xs text-muted">
+                      {alias.length}/50
                     </p>
                   </div>
 

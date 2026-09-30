@@ -17,6 +17,30 @@ const FEATURES = [
   "Keep track of collaborative content in one inbox",
 ] as const;
 
+const NOTHING_FEATURES = [
+  "Track shared files across connected clouds in one place",
+  "Resume working on shared documents instantly",
+  "Filter and search shared items by type",
+] as const;
+
+function SharedEmptyArt() {
+  return (
+    <div
+      className="relative mb-6 flex h-28 w-44 items-center justify-center"
+      aria-hidden
+    >
+      <Folder className="absolute top-2 left-1 h-14 w-14 text-[#c9d2df]/70" />
+      <Cloud className="absolute right-1 bottom-0 h-14 w-14 text-[#c9d2df]/70" />
+      <div className="relative z-10 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]">
+        <span className="relative flex items-center justify-center">
+          <Person className="h-8 w-8 text-white" />
+          <ArrowUpRight className="absolute -top-0.5 -right-1 h-3.5 w-3.5 text-white" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function SharedNoAccountEmptyState({
   onConnected,
 }: {
@@ -27,19 +51,7 @@ export function SharedNoAccountEmptyState({
   return (
     <div className="flex min-h-[min(520px,70vh)] w-full flex-col items-center justify-center px-4 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
-        <div
-          className="relative mb-6 flex h-28 w-44 items-center justify-center"
-          aria-hidden
-        >
-          <Folder className="absolute left-1 top-2 h-14 w-14 text-[#c9d2df]/70" />
-          <Cloud className="absolute bottom-0 right-1 h-14 w-14 text-[#c9d2df]/70" />
-          <div className="relative z-10 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]">
-            <span className="relative flex items-center justify-center">
-              <Person className="h-8 w-8 text-white" />
-              <ArrowUpRight className="absolute -right-1 -top-0.5 h-3.5 w-3.5 text-white" />
-            </span>
-          </div>
-        </div>
+        <SharedEmptyArt />
 
         <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
           No cloud account connected
@@ -58,7 +70,7 @@ export function SharedNoAccountEmptyState({
         </ul>
 
         <Button
-          className="mt-8 h-11 min-w-[10.5rem] cursor-pointer rounded-xl border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] px-6 text-sm font-semibold"
+          className="mt-8 h-11 min-w-[10.5rem] cursor-pointer rounded-xl border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] px-6 text-sm font-semibold text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]"
           onPress={() => setModalOpen(true)}
         >
           Connect Account
@@ -73,6 +85,33 @@ export function SharedNoAccountEmptyState({
           onConnected?.();
         }}
       />
+    </div>
+  );
+}
+
+/** Shown when accounts are connected but nothing is shared with the user yet. */
+export function SharedNothingEmptyState() {
+  return (
+    <div className="flex min-h-[min(520px,70vh)] w-full flex-col items-center justify-center px-4 py-12">
+      <div className="flex w-full max-w-md flex-col items-center text-center">
+        <SharedEmptyArt />
+
+        <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
+          No shared files
+        </h2>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
+          Files that others have shared with you will automatically appear here.
+        </p>
+
+        <ul className="mt-6 w-full max-w-sm space-y-3 text-left">
+          {NOTHING_FEATURES.map((feature) => (
+            <li key={feature} className="flex items-start gap-2.5 text-sm">
+              <CircleCheckFill className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span className="text-foreground/90">{feature}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   SharedNoAccountEmptyState,
   SharedNoAccountEmptyStateSkeleton,
+  SharedNothingEmptyState,
 } from "@/components/dashboard/SharedNoAccountEmptyState";
 import { FileGrid } from "@/components/drive/FileGrid";
 import { FileTable } from "@/components/drive/FileTable";
@@ -28,7 +29,7 @@ import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { FileItem, FolderItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import { API_URL, apiFetch, formatBytes, formatDate } from "@/lib/api";
-import { type ApiFile, mapApiFileToItem, mimeToKind } from "@/lib/files";
+import { mimeToKind } from "@/lib/files";
 import { providerLabel } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
@@ -73,14 +74,6 @@ type CloudSharedFile = {
   sharedBy: string | null;
   updatedAt: string | null;
   openUrl: string;
-};
-
-type SharedLink = {
-  id: string;
-  url: string | null;
-  createdAt: string;
-  expiresAt: string | null;
-  file: ApiFile;
 };
 
 type ConnectedAccount = {
@@ -151,14 +144,13 @@ function cloudFileToItem(file: CloudSharedFile): FileItem {
     shared: 1,
     owner: file.sharedBy ? `Shared by ${file.sharedBy}` : "Shared with you",
     accountEmail: file.accountEmail,
+    accountProvider: "Google Drive",
     location: "Shared with me",
+    thumbnailUrl: `/connected-accounts/${encodeURIComponent(file.accountId)}/files/${encodeURIComponent(file.id)}/thumbnail`,
   };
 }
 
-function inviteFileToItem(
-  invite: Invite,
-  direction: "sent" | "received",
-): FileItem | null {
+function inviteFileToItem(invite: Invite): FileItem | null {
   const target = invite.target;
   if (!target || invite.targetType !== "file") return null;
   const mimeType = target.mimeType ?? "application/octet-stream";
@@ -171,17 +163,11 @@ function inviteFileToItem(
     date: formatDate(invite.createdAt),
     size: target.sizeBytes ? formatBytes(target.sizeBytes) : "—",
     sizeBytes: target.sizeBytes,
-    access:
-      direction === "sent"
-        ? `Shared with ${invite.email}`
-        : `${invite.role} access`,
+    access: `${invite.role} access`,
     kind: mimeToKind(mimeType, target.name),
     shared: 1,
-    owner:
-      direction === "sent"
-        ? `You → ${invite.user?.name || invite.email}`
-        : "Shared with you",
-    location: "Shared",
+    owner: "Shared with you",
+    location: "Shared with me",
     thumbnailUrl: `/files/${target.id}/thumbnail`,
   };
 }
@@ -222,11 +208,9 @@ export function SharedPage() {
     ? sortParam
     : "created_desc";
 
-  const [sentInvites, setSentInvites] = useState<Invite[]>([]);
   const [receivedInvites, setReceivedInvites] = useState<Invite[]>([]);
   const [cloudFolders, setCloudFolders] = useState<CloudSharedFolder[]>([]);
   const [cloudFiles, setCloudFiles] = useState<CloudSharedFile[]>([]);
-  const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([]);
   const [connectedAccounts, setConnectedAccounts] = useState<
     ConnectedAccount[]
   >([]);
@@ -252,23 +236,17 @@ export function SharedPage() {
   async function loadAllShared() {
     setLoading(true);
     try {
-      const [invitesData, cloudData, linksData, accountsData] =
-        await Promise.all([
-          apiFetch<{ sent: Invite[]; received: Invite[] }>("/invites"),
-          apiFetch<{
-            folders: CloudSharedFolder[];
-            files: CloudSharedFile[];
-          }>("/shared/cloud-folders"),
-          apiFetch<{ shares: SharedLink[] }>("/files/shared-links").catch(
-            () => ({ shares: [] as SharedLink[] }),
-          ),
-          apiFetch<{ accounts: ConnectedAccount[] }>("/connected-accounts"),
-        ]);
-      setSentInvites(invitesData.sent);
+      const [invitesData, cloudData, accountsData] = await Promise.all([
+        apiFetch<{ sent: Invite[]; received: Invite[] }>("/invites"),
+        apiFetch<{
+          folders: CloudSharedFolder[];
+          files: CloudSharedFile[];
+        }>("/shared/cloud-folders"),
+        apiFetch<{ accounts: ConnectedAccount[] }>("/connected-accounts"),
+      ]);
       setReceivedInvites(invitesData.received);
       setCloudFolders(cloudData.folders);
       setCloudFiles(cloudData.files ?? []);
-      setSharedLinks(linksData.shares);
       setConnectedAccounts(
         accountsData.accounts.filter(
           (account) => account.status === "connected",
@@ -299,25 +277,41 @@ export function SharedPage() {
       );
   }, []);
 
+  const accountsWithShared = useMemo(() => {
+    const ids = new Set([
+      ...cloudFolders.map((folder) => folder.accountId),
+      ...cloudFiles.map((file) => file.accountId),
+    ]);
+    return connectedAccounts.filter((account) => ids.has(account.id));
+  }, [cloudFiles, cloudFolders, connectedAccounts]);
+
   const selectedAccount = useMemo(
-    () => connectedAccounts.find((account) => account.id === filterAccountId),
-    [connectedAccounts, filterAccountId],
+    () => accountsWithShared.find((account) => account.id === filterAccountId),
+    [accountsWithShared, filterAccountId],
   );
   const activeSortLabel =
     FILE_SORT_OPTIONS.find((option) => option.value === activeSort)?.label ??
     "Created (Newest)";
+
+  useEffect(() => {
+    if (
+      !filterAccountId ||
+      !accountsLoaded ||
+      accountsWithShared.some((account) => account.id === filterAccountId)
+    ) {
+      return;
+    }
+    const next = new URLSearchParams(sp.toString());
+    next.delete("accountId");
+    const qs = next.toString();
+    router.replace(qs ? `/shared?${qs}` : "/shared");
+  }, [accountsLoaded, accountsWithShared, filterAccountId, router, sp]);
 
   const { folders, files, folderSources, fileSources } = useMemo(() => {
     const folderMap = new Map<string, FolderItem>();
     const fileMap = new Map<string, FileItem>();
     const sources = new Map<string, FolderSource>();
     const fileSrc = new Map<string, FileSource>();
-    const accountEmailById = new Map(
-      connectedAccounts.map((account) => [account.id, account.email]),
-    );
-    const accountIdByEmail = new Map(
-      connectedAccounts.map((account) => [account.email, account.id]),
-    );
 
     const filteredCloudFolders = filterAccountId
       ? cloudFolders.filter((folder) => folder.accountId === filterAccountId)
@@ -369,95 +363,10 @@ export function SharedPage() {
           sources.set(id, { kind: "app", owned: false });
         }
       }
-      const file = inviteFileToItem(invite, "received");
+      const file = inviteFileToItem(invite);
       if (file?.id && !fileMap.has(file.id)) {
         fileMap.set(file.id, file);
         fileSrc.set(file.id, { kind: "app" });
-      }
-    }
-
-    for (const invite of sentInvites) {
-      if (invite.targetType === "folder" && invite.target) {
-        const id = invite.target.id;
-        if (!folderMap.has(id)) {
-          folderMap.set(id, {
-            id,
-            name: invite.target.name,
-            updated: `Shared with ${invite.email}`,
-            color: defaultFolderColor,
-          });
-          sources.set(id, { kind: "app", owned: true });
-        } else {
-          const existing = folderMap.get(id);
-          if (existing && sources.get(id)?.kind === "app") {
-            folderMap.set(id, {
-              ...existing,
-              updated: "Shared with others",
-            });
-            sources.set(id, { kind: "app", owned: true });
-          }
-        }
-      }
-      const file = inviteFileToItem(invite, "sent");
-      if (file?.id) {
-        const existing = fileMap.get(file.id);
-        if (!existing) {
-          fileMap.set(file.id, file);
-          fileSrc.set(file.id, { kind: "app" });
-        } else if (!existing.owner?.startsWith("You")) {
-          fileMap.set(file.id, {
-            ...existing,
-            owner: file.owner,
-            access: file.access,
-          });
-        }
-      }
-    }
-
-    for (const share of sharedLinks) {
-      const item = mapApiFileToItem(share.file);
-      if (!item.id) continue;
-      const shareAccountId = share.file.connectedAccount?.email
-        ? accountIdByEmail.get(share.file.connectedAccount.email)
-        : undefined;
-      if (
-        filterAccountId &&
-        shareAccountId &&
-        shareAccountId !== filterAccountId
-      ) {
-        continue;
-      }
-      if (
-        filterAccountId &&
-        !shareAccountId &&
-        share.file.connectedAccount?.email &&
-        share.file.connectedAccount.email !==
-          accountEmailById.get(filterAccountId)
-      ) {
-        continue;
-      }
-
-      if (!fileMap.has(item.id)) {
-        fileMap.set(item.id, {
-          ...item,
-          owner: "You (public link)",
-          access: "Public link",
-          location: "Shared",
-        });
-        fileSrc.set(item.id, { kind: "app" });
-      } else {
-        const existing = fileMap.get(item.id);
-        if (existing) {
-          fileMap.set(item.id, {
-            ...existing,
-            owner: existing.owner?.startsWith("You")
-              ? existing.owner
-              : "You (public link)",
-            access: existing.access.includes("Shared")
-              ? existing.access
-              : "Public link",
-          });
-        }
       }
     }
 
@@ -474,16 +383,7 @@ export function SharedPage() {
       folderSources: sources,
       fileSources: fileSrc,
     };
-  }, [
-    activeSort,
-    cloudFiles,
-    cloudFolders,
-    connectedAccounts,
-    filterAccountId,
-    receivedInvites,
-    sentInvites,
-    sharedLinks,
-  ]);
+  }, [activeSort, cloudFiles, cloudFolders, filterAccountId, receivedInvites]);
 
   const filesByDay = useMemo(() => {
     const groups = new Map<string, FileItem[]>();
@@ -502,7 +402,12 @@ export function SharedPage() {
     if (!folder.id) return;
     const source = folderSources.get(folder.id);
     if (source?.kind === "cloud") {
-      window.open(source.openUrl, "_blank", "noopener");
+      const providerId = folder.id.startsWith("cloud:")
+        ? folder.id.slice("cloud:".length)
+        : folder.id;
+      router.push(
+        `/home?accountId=${encodeURIComponent(source.accountId)}&cloudFolder=${encodeURIComponent(providerId)}`,
+      );
       return;
     }
     router.push(`/home?folderId=${encodeURIComponent(folder.id)}`);
@@ -593,66 +498,68 @@ export function SharedPage() {
             <FileViewToggle mode={viewMode} onChange={setViewMode} />
           ) : (
             <div className="flex w-full max-w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2">
-              <Popover
-                isOpen={accountFilterOpen}
-                onOpenChange={setAccountFilterOpen}
-              >
-                <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[9.5rem] sm:max-w-[12rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
-                  <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-                    {selectedAccount ? (
-                      <AccountProviderIcon
-                        provider={selectedAccount.provider}
-                      />
-                    ) : null}
-                    <span className="truncate">
-                      {selectedAccount
-                        ? accountTitle(selectedAccount)
-                        : "All Accounts"}
+              {accountsWithShared.length > 0 ? (
+                <Popover
+                  isOpen={accountFilterOpen}
+                  onOpenChange={setAccountFilterOpen}
+                >
+                  <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[9.5rem] sm:max-w-[12rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
+                    <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                      {selectedAccount ? (
+                        <AccountProviderIcon
+                          provider={selectedAccount.provider}
+                        />
+                      ) : null}
+                      <span className="truncate">
+                        {selectedAccount
+                          ? accountTitle(selectedAccount)
+                          : "All Accounts"}
+                      </span>
                     </span>
-                  </span>
-                  <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
-                </Popover.Trigger>
-                <Popover.Content className="w-64 p-1.5">
-                  <Popover.Dialog>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                        !filterAccountId
-                          ? "bg-primary/10 font-semibold text-primary"
-                          : "font-medium text-foreground hover:bg-black/5",
-                      )}
-                      onClick={() => {
-                        setAccountFilterOpen(false);
-                        patchSharedParams({ accountId: null });
-                      }}
-                    >
-                      All Accounts
-                    </button>
-                    {connectedAccounts.map((account) => (
+                    <ChevronsExpandVertical className="h-3 w-3 shrink-0 text-muted" />
+                  </Popover.Trigger>
+                  <Popover.Content className="w-64 p-1.5">
+                    <Popover.Dialog>
                       <button
-                        key={account.id}
                         type="button"
                         className={cn(
                           "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                          filterAccountId === account.id
+                          !filterAccountId
                             ? "bg-primary/10 font-semibold text-primary"
                             : "font-medium text-foreground hover:bg-black/5",
                         )}
                         onClick={() => {
                           setAccountFilterOpen(false);
-                          patchSharedParams({ accountId: account.id });
+                          patchSharedParams({ accountId: null });
                         }}
                       >
-                        <AccountProviderIcon provider={account.provider} />
-                        <span className="min-w-0 flex-1 truncate">
-                          {accountTitle(account)}
-                        </span>
+                        All Accounts
                       </button>
-                    ))}
-                  </Popover.Dialog>
-                </Popover.Content>
-              </Popover>
+                      {accountsWithShared.map((account) => (
+                        <button
+                          key={account.id}
+                          type="button"
+                          className={cn(
+                            "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                            filterAccountId === account.id
+                              ? "bg-primary/10 font-semibold text-primary"
+                              : "font-medium text-foreground hover:bg-black/5",
+                          )}
+                          onClick={() => {
+                            setAccountFilterOpen(false);
+                            patchSharedParams({ accountId: account.id });
+                          }}
+                        >
+                          <AccountProviderIcon provider={account.provider} />
+                          <span className="min-w-0 flex-1 truncate">
+                            {accountTitle(account)}
+                          </span>
+                        </button>
+                      ))}
+                    </Popover.Dialog>
+                  </Popover.Content>
+                </Popover>
+              ) : null}
 
               <Popover isOpen={sortFilterOpen} onOpenChange={setSortFilterOpen}>
                 <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[10rem] sm:max-w-[13rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
@@ -718,6 +625,31 @@ export function SharedPage() {
             void loadAllShared().catch(() => undefined);
           }}
         />
+      ) : loading ? (
+        <>
+          <DriveSection
+            title="All Folders"
+            variant="plain"
+            open={foldersOpen}
+            onOpenChange={setFoldersOpen}
+          >
+            <FolderGridSkeleton count={4} label="Loading folders" />
+          </DriveSection>
+          <DriveSection
+            title="All files"
+            variant="plain"
+            open={filesOpen}
+            onOpenChange={setFilesOpen}
+          >
+            {viewMode === "grid" || viewMode === "calendar" ? (
+              <FileGridSkeleton label="Loading files" />
+            ) : (
+              <FileListSkeleton label="Loading files" />
+            )}
+          </DriveSection>
+        </>
+      ) : folders.length === 0 && files.length === 0 ? (
+        <SharedNothingEmptyState />
       ) : (
         <>
           <DriveSection
@@ -726,9 +658,7 @@ export function SharedPage() {
             open={foldersOpen}
             onOpenChange={setFoldersOpen}
           >
-            {loading ? (
-              <FolderGridSkeleton count={4} label="Loading folders" />
-            ) : folders.length > 0 ? (
+            {folders.length > 0 ? (
               <FolderGrid
                 items={folders}
                 mobileTwoColumns
@@ -750,16 +680,10 @@ export function SharedPage() {
             open={filesOpen}
             onOpenChange={setFilesOpen}
           >
-            {loading ? (
-              viewMode === "grid" || viewMode === "calendar" ? (
-                <FileGridSkeleton label="Loading files" />
-              ) : (
-                <FileListSkeleton label="Loading files" />
-              )
-            ) : files.length === 0 ? (
+            {files.length === 0 ? (
               <div className="flex min-h-[160px] items-center justify-center py-6">
                 <p className="text-center text-sm text-muted">
-                  No shared files yet. Share from Home or wait for invites.
+                  No shared files yet. Items shared with you will show up here.
                 </p>
               </div>
             ) : viewMode === "grid" ? (

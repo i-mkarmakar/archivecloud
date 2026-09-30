@@ -3,20 +3,28 @@
 import {
   ArrowRotateRight,
   CircleCheck,
-  CircleExclamation,
   Clock,
-  FolderArrowRight,
   Plus,
   Thunderbolt,
 } from "@gravity-ui/icons";
-import { Button, Card, Input, Skeleton, toast } from "@heroui/react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Button, Card, Skeleton, toast } from "@heroui/react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  NewSyncPairModal,
+  type CreateSyncPairPayload,
+} from "@/components/automation/NewSyncPairModal";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { AutoSyncRestrictedModal } from "@/components/drive/AutoSyncRestrictedModal";
 import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
 import { apiFetch } from "@/lib/api";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { isSupportedProviderId, providerLabel } from "@/lib/providers";
+import { isSupportedProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
 type ConnectedAccount = {
@@ -73,13 +81,13 @@ function StatCard({
     <Card className="relative overflow-hidden border border-border bg-white p-5 shadow-none">
       <div
         className={cn(
-          "absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full",
+          "absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full",
           iconClassName,
         )}
       >
         {icon}
       </div>
-      <p className="pr-12 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <p className="pr-12 text-[11px] font-bold tracking-wide text-muted uppercase">
         {label}
       </p>
       <p
@@ -103,9 +111,7 @@ function AutoSyncPageSkeleton() {
       aria-busy="true"
       aria-label="Loading Auto-Sync"
     >
-      <Skeleton animationType="none" className="h-[58px] w-full rounded-xl" />
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         {["stat-a", "stat-b", "stat-c"].map((id) => (
           <Card
             key={id}
@@ -113,7 +119,7 @@ function AutoSyncPageSkeleton() {
           >
             <Skeleton
               animationType="none"
-              className="absolute right-4 top-4 h-9 w-9 rounded-full"
+              className="absolute top-4 right-4 h-9 w-9 rounded-full"
             />
             <Skeleton animationType="none" className="h-3 w-24 rounded" />
             <Skeleton
@@ -140,84 +146,71 @@ function AutoSyncPageSkeleton() {
   );
 }
 
-function FolderSyncListSkeleton() {
+function AutoSyncEmptyState() {
   return (
-    <div
-      className="skeleton--shimmer relative mt-4 grid gap-3 overflow-hidden"
-      role="status"
-      aria-busy="true"
-      aria-label="Loading folder syncs"
-    >
-      {["row-a", "row-b", "row-c"].map((id) => (
-        <div
-          key={id}
-          className="rounded-2xl border border-border bg-surface-secondary p-4"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton
-                animationType="none"
-                className="h-4 w-48 max-w-full rounded"
-              />
-              <Skeleton
-                animationType="none"
-                className="h-3 w-36 max-w-full rounded"
-              />
-              <Skeleton
-                animationType="none"
-                className="h-3 w-28 max-w-full rounded"
-              />
-            </div>
-            <div className="flex shrink-0 flex-col gap-2">
-              <Skeleton animationType="none" className="h-8 w-20 rounded-lg" />
-              <Skeleton animationType="none" className="h-8 w-20 rounded-lg" />
-            </div>
-          </div>
+    <>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Active Pairs"
+          value="0"
+          hint="0 of 0 pairs syncing right now"
+          icon={<Thunderbolt className="h-4 w-4" />}
+          iconClassName="bg-primary/10 text-primary"
+        />
+        <StatCard
+          label="Sync Status"
+          value="No Pairs Yet"
+          hint="Create a sync pair to start mirroring files automatically."
+          valueClassName="text-xl sm:text-2xl"
+          icon={<CircleCheck className="h-4 w-4" />}
+          iconClassName="bg-[#f3f4f6] text-[#6b7280]"
+        />
+        <StatCard
+          label="Last Activity"
+          value="No activity yet"
+          hint="Most recent file synced across all your pairs."
+          valueClassName="text-xl sm:text-2xl"
+          icon={<Clock className="h-4 w-4" />}
+          iconClassName="bg-[#e8faf0] text-[#16a34a]"
+        />
+      </div>
+
+      <Card className="mt-5 flex min-h-[280px] items-center justify-center border border-border bg-white p-10 shadow-none sm:min-h-[340px]">
+        <div className="mx-auto max-w-md text-center">
+          <Thunderbolt className="mx-auto h-10 w-10 text-primary" />
+          <p className="mt-4 text-lg font-extrabold text-foreground">
+            No Active Auto-Sync Pairs
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Create your first instant folder sync pair to keep your cloud files
+            seamlessly mirrored in real-time across providers.
+          </p>
         </div>
-      ))}
-    </div>
+      </Card>
+    </>
   );
 }
 
 export function FolderSyncView() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
-
   const [folderSyncs, setFolderSyncs] = useState<FolderSyncItem[]>([]);
   const [folderSyncsLoading, setFolderSyncsLoading] = useState(true);
-  const [sourceAccountId, setSourceAccountId] = useState("");
-  const [sourceParentId, setSourceParentId] = useState("root");
-  const [folderDestAccountId, setFolderDestAccountId] = useState("");
-  const [destParentId, setDestParentId] = useState("root");
-  const [folderScheduleKind, setFolderScheduleKind] = useState<
-    "manual" | "daily" | "weekly"
-  >("manual");
-  const [folderDirection, setFolderDirection] = useState<"one_way" | "two_way">(
-    "one_way",
-  );
-  const [folderPollEnabled, setFolderPollEnabled] = useState(false);
   const [tickBusy, setTickBusy] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const { planId, hasFeature, canUpgrade, loaded: planLoaded } = useUserPlan();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [restrictedOpen, setRestrictedOpen] = useState(false);
   const hasFolderSync = hasFeature("folderSync");
 
-  useEffect(() => {
-    if (planLoaded && !hasFolderSync) {
-      setRestrictedOpen(true);
-    }
-  }, [planLoaded, hasFolderSync]);
-
-  function requestUpgradeOrCreate() {
+  function requestNewSyncPair() {
     if (!hasFolderSync) {
       setRestrictedOpen(true);
       return;
     }
-    document.getElementById("create-folder-sync")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    setCreateOpen(true);
   }
 
   const loadAccounts = useCallback(async () => {
@@ -230,10 +223,6 @@ export function FolderSyncView() {
         isSupportedProviderId(a.provider),
       );
       setAccounts(supported);
-      setSourceAccountId((prev) => prev || supported[0]?.id || "");
-      setFolderDestAccountId(
-        (prev) => prev || supported[1]?.id || supported[0]?.id || "",
-      );
     } catch (err) {
       toast.danger(
         err instanceof Error
@@ -285,43 +274,35 @@ export function FolderSyncView() {
     }
   }
 
-  async function createFolderSync() {
-    if (!hasFolderSync) {
-      if (canUpgrade) setUpgradeOpen(true);
-      return;
-    }
-    if (!sourceAccountId) {
-      toast.danger("Choose a source account.");
-      return;
-    }
-    if (!folderDestAccountId) {
-      toast.danger("Choose a destination account.");
-      return;
-    }
-
+  async function createFolderSync(payload: CreateSyncPairPayload) {
+    setCreating(true);
     try {
       await apiFetch("/sync/folder", {
         method: "POST",
         body: JSON.stringify({
-          sourceAccountId,
-          destAccountId: folderDestAccountId,
-          sourceParentId: sourceParentId.trim() || "root",
-          destParentId: destParentId.trim() || "root",
-          scheduleKind: folderScheduleKind,
-          direction: folderDirection,
-          pollEnabled: folderPollEnabled,
+          sourceAccountId: payload.sourceAccountId,
+          destAccountId: payload.destAccountId,
+          sourceParentId: payload.sourceParentId,
+          destParentId: payload.destParentId,
+          scheduleKind: "auto",
+          direction: payload.direction,
+          pollEnabled: true,
+          sourceLabel: payload.sourceLabel,
         }),
       });
       toast.success(
-        folderDirection === "two_way"
+        payload.direction === "two_way"
           ? "Two-way folder sync created."
           : "Folder sync created.",
       );
+      setCreateOpen(false);
       await loadFolderSyncs();
     } catch (err) {
       toast.danger(
         err instanceof Error ? err.message : "Failed to create folder sync",
       );
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -341,6 +322,32 @@ export function FolderSyncView() {
       toast.danger(err instanceof Error ? err.message : "Run failed");
     }
   }
+
+  const stats = useMemo(() => {
+    const active = folderSyncs.filter((s) => s.status === "active").length;
+    const total = folderSyncs.length;
+    const lastRun = folderSyncs
+      .map((s) => s.lastRunAt)
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+    return {
+      active,
+      total,
+      statusLabel:
+        total === 0 ? "No Pairs Yet" : active > 0 ? "Active" : "Paused",
+      statusHint:
+        total === 0
+          ? "Create a sync pair to start mirroring files automatically."
+          : `${active} of ${total} pairs syncing right now.`,
+      lastActivity: lastRun
+        ? new Date(lastRun).toLocaleString()
+        : "No activity yet",
+    };
+  }, [folderSyncs]);
+
+  const showEmpty =
+    planLoaded && !folderSyncsLoading && folderSyncs.length === 0;
 
   return (
     <>
@@ -362,7 +369,7 @@ export function FolderSyncView() {
               size="sm"
               variant="primary"
               className="h-8 px-3 text-[11px]"
-              onPress={requestUpgradeOrCreate}
+              onPress={requestNewSyncPair}
             >
               <Plus className="h-3.5 w-3.5" />
               New sync pair
@@ -371,46 +378,31 @@ export function FolderSyncView() {
         }
       />
 
-      {!planLoaded ? (
+      {!planLoaded || folderSyncsLoading ? (
         <AutoSyncPageSkeleton />
-      ) : !hasFolderSync ? (
+      ) : showEmpty ? (
+        <AutoSyncEmptyState />
+      ) : (
         <>
-          <div
-            role="alert"
-            className="mt-5 flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5"
-          >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white">
-              <CircleExclamation className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-red-600">
-                Auto-Sync Creation Restricted
-              </p>
-              <p className="mt-0.5 text-sm text-[#374151]">
-                Auto-Sync requires an active subscription or Thunder plan.
-              </p>
-            </div>
-          </div>
-
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <StatCard
               label="Active Pairs"
-              value="0"
-              hint="0 of 0 pairs syncing right now"
+              value={String(stats.active)}
+              hint={`${stats.active} of ${stats.total} pairs syncing right now`}
               icon={<Thunderbolt className="h-4 w-4" />}
               iconClassName="bg-primary/10 text-primary"
             />
             <StatCard
               label="Sync Status"
-              value="No Pairs Yet"
-              hint="Create a sync pair to start mirroring files automatically."
+              value={stats.statusLabel}
+              hint={stats.statusHint}
               valueClassName="text-xl sm:text-2xl"
               icon={<CircleCheck className="h-4 w-4" />}
               iconClassName="bg-[#f3f4f6] text-[#6b7280]"
             />
             <StatCard
               label="Last Activity"
-              value="No activity yet"
+              value={stats.lastActivity}
               hint="Most recent file synced across all your pairs."
               valueClassName="text-xl sm:text-2xl"
               icon={<Clock className="h-4 w-4" />}
@@ -418,166 +410,8 @@ export function FolderSyncView() {
             />
           </div>
 
-          <Card className="mt-5 flex min-h-[280px] items-center justify-center border border-border bg-white p-10 shadow-none sm:min-h-[340px]">
-            <div className="mx-auto max-w-md text-center">
-              <Thunderbolt className="mx-auto h-10 w-10 text-primary" />
-              <p className="mt-4 text-lg font-extrabold text-foreground">
-                No Active Auto-Sync Pairs
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                Create your first instant folder sync pair to keep your cloud
-                files seamlessly mirrored in real-time across providers.
-              </p>
-            </div>
-          </Card>
-        </>
-      ) : (
-        <div className="mt-6 grid gap-4 lg:grid-cols-[360px_1fr]">
-          <Card id="create-folder-sync" className="scroll-mt-4 p-5">
-            <div className="flex items-center gap-2">
-              <FolderArrowRight className="h-5 w-5 text-muted" />
-              <p className="font-extrabold">Create folder sync</p>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                  Source account
-                </p>
-                <select
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm"
-                  value={sourceAccountId}
-                  disabled={accountsLoading || accounts.length === 0}
-                  onChange={(e) => setSourceAccountId(e.target.value)}
-                >
-                  {accounts.length === 0 ? (
-                    <option value="">No accounts</option>
-                  ) : null}
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {providerLabel(a.provider)} · {a.displayName || a.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                  Source folder id
-                </p>
-                <Input
-                  value={sourceParentId}
-                  onChange={(e) => setSourceParentId(e.target.value)}
-                  placeholder="root"
-                />
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                  Destination account
-                </p>
-                <select
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm"
-                  value={folderDestAccountId}
-                  disabled={accountsLoading || accounts.length === 0}
-                  onChange={(e) => setFolderDestAccountId(e.target.value)}
-                >
-                  {accounts.length === 0 ? (
-                    <option value="">No accounts</option>
-                  ) : null}
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {providerLabel(a.provider)} · {a.displayName || a.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                  Destination folder id
-                </p>
-                <Input
-                  value={destParentId}
-                  onChange={(e) => setDestParentId(e.target.value)}
-                  placeholder="root"
-                />
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                  Direction
-                </p>
-                <select
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm"
-                  value={folderDirection}
-                  onChange={(e) =>
-                    setFolderDirection(e.target.value as typeof folderDirection)
-                  }
-                >
-                  <option value="one_way">
-                    One-way (source → destination)
-                  </option>
-                  <option value="two_way">Two-way (keep both in sync)</option>
-                </select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                  Schedule
-                </p>
-                <select
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm"
-                  value={folderScheduleKind}
-                  onChange={(e) =>
-                    setFolderScheduleKind(
-                      e.target.value as typeof folderScheduleKind,
-                    )
-                  }
-                >
-                  {(["manual", "daily", "weekly"] as const).map((k) => (
-                    <option key={k} value={k}>
-                      {humanScheduleKind(k)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={folderPollEnabled}
-                  onChange={(e) => setFolderPollEnabled(e.target.checked)}
-                />
-                <span>
-                  Auto-poll for changes (every ~5 min while page open / tick)
-                </span>
-              </label>
-
-              <Button
-                onPress={() => createFolderSync().catch(() => undefined)}
-                isDisabled={!sourceAccountId || !folderDestAccountId}
-              >
-                Create folder sync
-              </Button>
-            </div>
-
-            <p className="mt-4 text-xs text-muted">
-              Recursive sync: mirrors nested folders and copies missing files by
-              name. Two-way runs both directions on each run.
-            </p>
-          </Card>
-
-          <Card className="p-5">
+          <Card className="mt-5 p-5">
             <p className="font-extrabold">Folder syncs</p>
-
-            {folderSyncsLoading ? <FolderSyncListSkeleton /> : null}
-
-            {!folderSyncsLoading && folderSyncs.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">No folder syncs yet.</p>
-            ) : null}
-
             <div className="mt-4 grid gap-3">
               {folderSyncs.map((s) => (
                 <div
@@ -601,7 +435,7 @@ export function FolderSyncView() {
                             : ""}
                         </span>
                         {s.pollEnabled ? (
-                          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-soft-foreground">
+                          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent-soft-foreground uppercase">
                             Polling
                           </span>
                         ) : null}
@@ -738,7 +572,7 @@ export function FolderSyncView() {
                           </Button>
                         </>
                       ) : (
-                        <span className="text-xs font-bold uppercase text-muted">
+                        <span className="text-xs font-bold text-muted uppercase">
                           {s.status}
                         </span>
                       )}
@@ -748,8 +582,17 @@ export function FolderSyncView() {
               ))}
             </div>
           </Card>
-        </div>
+        </>
       )}
+
+      <NewSyncPairModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        accounts={accounts}
+        accountsLoading={accountsLoading}
+        creating={creating}
+        onCreate={createFolderSync}
+      />
 
       <AutoSyncRestrictedModal
         open={restrictedOpen}

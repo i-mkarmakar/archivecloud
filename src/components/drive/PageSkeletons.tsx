@@ -103,7 +103,6 @@ export function FolderGridSkeleton({
                 <Folder
                   color="blue"
                   size="sm"
-                  open
                   interactive={false}
                   animated={false}
                 />

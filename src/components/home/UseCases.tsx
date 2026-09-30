@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, User, Users } from "lucide-react";
+import { Briefcase, Person, Persons } from "@gravity-ui/icons";
 import { useEffect, useState } from "react";
 import { SectionBadge } from "@/components/home/SectionBadge";
 import { cn } from "@/lib/utils";
@@ -10,19 +10,19 @@ const CASES = [
     title: "For Individuals",
     description:
       "Keep your personal files, photos and documents organized across all your clouds.",
-    icon: User,
+    icon: Person,
   },
   {
     title: "For Teams",
     description:
       "Share, collaborate and manage team files without switching between accounts.",
-    icon: Users,
+    icon: Persons,
   },
   {
     title: "For Businesses",
     description:
       "Simplify file management, improve productivity and keep your data secure.",
-    icon: Building2,
+    icon: Briefcase,
   },
 ] as const;
 
@@ -55,7 +55,7 @@ function CaseCard({
             : "flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-11 sm:rounded-xl"
         }
       >
-        <item.icon className="size-4 sm:size-5" strokeWidth={1.75} />
+        <item.icon className="size-4 sm:size-5" />
       </div>
       <h3
         className={

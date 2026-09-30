@@ -1,7 +1,7 @@
 "use client";
 
 import confetti from "canvas-confetti";
-import { Loader2, RefreshCw } from "lucide-react";
+import { ArrowRotateRight } from "@gravity-ui/icons";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -185,7 +185,10 @@ function ConfirmingCard() {
   return (
     <div className={cardClassName()}>
       <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted">
-        <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
+        <ArrowRotateRight
+          className="size-7 animate-spin text-primary"
+          aria-hidden
+        />
       </div>
       <h1
         id="billing-success-title"
@@ -287,7 +290,10 @@ function PreparingInvoiceCard() {
   return (
     <div className={cardClassName()}>
       <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted">
-        <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
+        <ArrowRotateRight
+          className="size-7 animate-spin text-primary"
+          aria-hidden
+        />
       </div>
       <h1
         id="billing-success-title"
@@ -443,7 +449,7 @@ function TimedOutCard({
           onClick={onRefresh}
           className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground transition hover:bg-muted"
         >
-          <RefreshCw className="size-4" aria-hidden />
+          <ArrowRotateRight className="size-4" aria-hidden />
           Refresh
         </button>
         <div className="flex flex-wrap justify-center gap-2">

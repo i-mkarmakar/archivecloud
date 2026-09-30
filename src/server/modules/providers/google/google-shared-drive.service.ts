@@ -102,7 +102,7 @@ export function buildGoogleSharedDriveAuthUrl(params: {
   const client = createOAuthClient(params.config);
   return client.generateAuthUrl({
     access_type: "offline",
-    prompt: "consent",
+    prompt: "select_account consent",
     include_granted_scopes: true,
     scope: params.config.scopes as string[],
     state: params.state,

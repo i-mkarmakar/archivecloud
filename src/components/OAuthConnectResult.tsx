@@ -1,11 +1,12 @@
 "use client";
 
-import { Card } from "@heroui/react";
 import { CircleXmark } from "@gravity-ui/icons";
+import { Card } from "@heroui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { publishOAuthConnectResult } from "@/lib/oauth-connect";
 
-/** OAuth popup callback: notify opener and close. Success shows nothing. */
+/** OAuth callback page: notify opener (popup) or return to the app (full-page). */
 export function OAuthConnectResult({
   messageType,
   errorDetail,
@@ -21,16 +22,20 @@ export function OAuthConnectResult({
   const ok = status === "success";
 
   useEffect(() => {
-    window.opener?.postMessage(
-      { type: messageType, status, ...(accountId ? { accountId } : {}) },
-      window.location.origin,
-    );
+    publishOAuthConnectResult({
+      type: messageType,
+      status,
+      accountId,
+    });
     if (window.opener) {
       window.close();
+      window.setTimeout(() => {
+        if (!window.closed) router.replace("/home");
+      }, 250);
       return;
     }
-    router.replace("/settings");
-  }, [accountId, messageType, router, status]);
+    router.replace(ok ? "/home" : "/settings");
+  }, [accountId, messageType, ok, router, status]);
 
   if (ok) return null;
 

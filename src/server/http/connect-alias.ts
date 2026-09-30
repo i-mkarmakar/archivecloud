@@ -1,7 +1,10 @@
 import type { NextResponse } from "next/server";
+import {
+  CONNECT_ALIAS_MAX_LEN,
+  sanitizeConnectAliasInput,
+} from "@/lib/connect-alias";
 
 const CONNECT_ALIAS_COOKIE = "archivecloud_connect_alias";
-const MAX_ALIAS_LEN = 50;
 
 /** Decode accidental URL-encoding (My%20Google%20Photos → My Google Photos). */
 function decodeAliasEncoding(value: string): string {
@@ -28,9 +31,11 @@ export function parseConnectAliasParam(request: Request): string | null {
 export function normalizeConnectAlias(
   value: string | null | undefined,
 ): string | null {
-  const trimmed = decodeAliasEncoding(value?.trim() ?? "").trim();
+  const trimmed = sanitizeConnectAliasInput(
+    decodeAliasEncoding(value?.trim() ?? ""),
+  ).trim();
   if (!trimmed) return null;
-  return trimmed.slice(0, MAX_ALIAS_LEN);
+  return trimmed.slice(0, CONNECT_ALIAS_MAX_LEN);
 }
 
 /** Cookie value: `<state>.<urlencoded-alias>` so state can be verified on callback. */

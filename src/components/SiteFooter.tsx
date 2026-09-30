@@ -1,10 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "@gravity-ui/icons";
 import { BrandLogo } from "@/components/drive/BrandLogo";
 import { DiscordLogo } from "@/components/drive/DiscordLogo";
 import { GithubLogo } from "@/components/drive/GithubLogo";
-import { CookieSettingsLink } from "@/components/cookie-consent/cookie-settings-link";
 import { DISCORD_URL, GITHUB_REPO_URL } from "@/components/site/nav-links";
 
 const PRODUCT = [
@@ -31,12 +29,6 @@ const LEGAL = [
   { label: "Terms", href: "/terms-of-service" },
   { label: "Refunds", href: "/refund-policy" },
   { label: "Cookies", href: "/cookie-policy" },
-] as const;
-
-const SUPPORT = [
-  { label: "Help Center", href: "/help" },
-  { label: "Security", href: "/security" },
-  { label: "Support", href: "mailto:team@archivecloud.in" },
 ] as const;
 
 const MORE = [
@@ -69,11 +61,9 @@ const emphasisClass =
 function FooterColumn({
   title,
   links,
-  extra,
 }: {
   title: string;
   links: readonly FooterLink[];
-  extra?: ReactNode;
 }) {
   return (
     <div className="min-w-0">
@@ -115,7 +105,6 @@ function FooterColumn({
             </li>
           );
         })}
-        {extra}
       </ul>
     </div>
   );
@@ -124,8 +113,8 @@ function FooterColumn({
 export function SiteFooter() {
   return (
     <footer className="bg-white">
-      <div className="mx-auto max-w-[1100px] px-4 py-8 sm:px-8 sm:py-16 lg:px-10 lg:py-20">
-        <div className="max-w-md">
+      <div className="mx-auto flex max-w-[1100px] flex-col items-center px-4 py-8 sm:items-stretch sm:px-8 sm:py-16 lg:px-10 lg:py-20">
+        <div className="w-full max-w-md sm:max-w-md">
           <Link href="/" className="inline-flex items-center gap-2 sm:gap-2.5">
             <BrandLogo className="h-8 w-8 sm:h-10 sm:w-10" />
             <span className="text-base font-semibold tracking-tight text-[#111827] sm:text-lg">
@@ -160,19 +149,10 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 sm:mt-20 sm:grid-cols-3 sm:gap-x-10 sm:gap-y-10 lg:grid-cols-5 lg:gap-x-8">
+        <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-8 sm:mt-20 sm:max-w-none sm:grid-cols-3 sm:gap-x-10 sm:gap-y-10 lg:grid-cols-4 lg:gap-x-8">
           <FooterColumn title="Product" links={PRODUCT} />
           <FooterColumn title="Clouds" links={CLOUDS} />
-          <FooterColumn
-            title="Legal"
-            links={LEGAL}
-            extra={
-              <li className="min-w-0">
-                <CookieSettingsLink className={`cursor-pointer ${linkClass}`} />
-              </li>
-            }
-          />
-          <FooterColumn title="Support" links={SUPPORT} />
+          <FooterColumn title="Legal" links={LEGAL} />
           <FooterColumn title="More" links={MORE} />
         </div>
       </div>

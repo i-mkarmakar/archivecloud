@@ -2,11 +2,9 @@
 
 import { Layers, Magnifier, ShieldCheck } from "@gravity-ui/icons";
 import { Button, Skeleton } from "@heroui/react";
-import { useState } from "react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { SupportedProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
-import { ConnectCloudAccountModal } from "./ConnectCloudAccountModal";
 
 type QuickConnectProvider = {
   id: SupportedProviderId;
@@ -52,19 +50,10 @@ export const CONNECT_ONBOARDING_DESCRIPTION =
   "Your cloud accounts are more powerful with us. Connect your cloud accounts and reclaim your productive flow.";
 
 export function NoConnectedAccountsEmptyState({
-  onConnected,
+  onQuickConnect,
 }: {
-  onConnected?: () => void;
+  onQuickConnect?: (providerId: SupportedProviderId) => void;
 }) {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalProviderId, setModalProviderId] =
-    useState<SupportedProviderId | null>(null);
-
-  function quickConnect(provider: QuickConnectProvider) {
-    setModalProviderId(provider.id);
-    setModalOpen(true);
-  }
-
   return (
     <div className="w-full min-w-0 pb-10 pt-4">
       <div className="grid gap-3 sm:grid-cols-3">
@@ -112,27 +101,13 @@ export function NoConnectedAccountsEmptyState({
             <Button
               size="sm"
               className="h-7 w-auto cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] px-3 text-[11px]"
-              onPress={() => quickConnect(provider)}
+              onPress={() => onQuickConnect?.(provider.id)}
             >
               Quick connect
             </Button>
           </div>
         ))}
       </div>
-
-      <ConnectCloudAccountModal
-        open={modalOpen}
-        initialProviderId={modalProviderId}
-        onClose={() => {
-          setModalOpen(false);
-          setModalProviderId(null);
-        }}
-        onConnected={() => {
-          setModalOpen(false);
-          setModalProviderId(null);
-          onConnected?.();
-        }}
-      />
     </div>
   );
 }

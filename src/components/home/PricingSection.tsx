@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check } from "@gravity-ui/icons";
 import { SectionBadge } from "@/components/home/SectionBadge";
 import { cn } from "@/lib/utils";
 
@@ -144,14 +144,19 @@ export function PricingSection() {
                 )}
               >
                 {plan.thunderGif ? (
-                  <img
-                    src="/assets/Thunder.gif"
-                    alt=""
-                    aria-hidden
-                    className="h-5 w-5 object-contain sm:h-6 sm:w-6"
-                  />
-                ) : null}
-                {plan.title}
+                  <>
+                    Thunder
+                    <img
+                      src="/assets/Thunder.gif"
+                      alt=""
+                      aria-hidden
+                      className="h-5 w-5 object-contain sm:h-6 sm:w-6"
+                    />
+                    (Lifetime)
+                  </>
+                ) : (
+                  plan.title
+                )}
               </h3>
               <p className="mt-1 text-xs text-[#64748B] sm:text-sm">
                 {plan.description}
@@ -171,10 +176,7 @@ export function PricingSection() {
                     className="flex items-start gap-2 text-xs text-[#334155] sm:text-sm"
                   >
                     <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full bg-primary sm:size-4">
-                      <Check
-                        className="size-2 text-white sm:size-2.5"
-                        strokeWidth={3}
-                      />
+                      <Check className="size-2 text-white sm:size-2.5" />
                     </span>
                     {feature}
                   </li>

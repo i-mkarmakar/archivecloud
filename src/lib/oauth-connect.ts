@@ -28,6 +28,42 @@ export const OAUTH_CONNECT_MESSAGE_HANDLERS: Record<
   },
 };
 
+export const OAUTH_CONNECT_STORAGE_KEY = "archivecloud:oauth-connect-result";
+
+export type OAuthConnectResultPayload = {
+  type: string;
+  status: string;
+  accountId?: string;
+  at: number;
+};
+
+/** Notify opener via postMessage + localStorage (storage event survives lost opener). */
+export function publishOAuthConnectResult(payload: {
+  type: string;
+  status: string;
+  accountId?: string | null;
+}) {
+  const message = {
+    type: payload.type,
+    status: payload.status,
+    ...(payload.accountId ? { accountId: payload.accountId } : {}),
+  };
+  try {
+    window.opener?.postMessage(message, window.location.origin);
+  } catch {
+    // ignore
+  }
+  try {
+    const stored: OAuthConnectResultPayload = {
+      ...message,
+      at: Date.now(),
+    };
+    localStorage.setItem(OAUTH_CONNECT_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // ignore
+  }
+}
+
 /** Open a popup centered on the current browser window. */
 export function openCenteredPopup(
   url: string,
@@ -87,19 +123,163 @@ export function writePopupLoading(
   }
 }
 
-/** Open provider OAuth URL in a popup (or same tab if blocked). */
+export type OAuthPopupWaitResult = {
+  status: "success" | "failure" | "closed" | "redirect";
+  type?: string;
+  accountId?: string;
+};
+
+function readStoredOAuthResult(
+  startedAt: number,
+): OAuthConnectResultPayload | null {
+  try {
+    const raw = localStorage.getItem(OAUTH_CONNECT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as OAuthConnectResultPayload;
+    if (!parsed?.type || !parsed?.status || !parsed?.at) return null;
+    if (parsed.at < startedAt - 1000) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Wait until popup reports success/failure, writes storage, or is closed. */
+export function waitForOAuthPopupResult(
+  popup: Window,
+  options?: { timeoutMs?: number },
+): Promise<OAuthPopupWaitResult> {
+  const timeoutMs = options?.timeoutMs ?? 5 * 60 * 1000;
+  const startedAt = Date.now();
+
+  return new Promise((resolve) => {
+    let done = false;
+
+    function finish(result: OAuthPopupWaitResult) {
+      if (done) return;
+      done = true;
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
+      window.clearInterval(pollId);
+      window.clearTimeout(timeoutId);
+      try {
+        localStorage.removeItem(OAUTH_CONNECT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      resolve(result);
+    }
+
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const type = event.data?.type as string | undefined;
+      if (!type || !(type in OAUTH_CONNECT_MESSAGE_HANDLERS)) return;
+      const status = event.data.status === "success" ? "success" : "failure";
+      finish({
+        status,
+        type,
+        accountId:
+          typeof event.data.accountId === "string"
+            ? event.data.accountId
+            : undefined,
+      });
+    }
+
+    function onStorage(event: StorageEvent) {
+      if (event.key !== OAUTH_CONNECT_STORAGE_KEY || !event.newValue) return;
+      try {
+        const parsed = JSON.parse(event.newValue) as OAuthConnectResultPayload;
+        if (!parsed?.type || parsed.at < startedAt - 1000) return;
+        finish({
+          status: parsed.status === "success" ? "success" : "failure",
+          type: parsed.type,
+          accountId: parsed.accountId,
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    const pollId = window.setInterval(() => {
+      const stored = readStoredOAuthResult(startedAt);
+      if (stored) {
+        finish({
+          status: stored.status === "success" ? "success" : "failure",
+          type: stored.type,
+          accountId: stored.accountId,
+        });
+        return;
+      }
+      try {
+        if (popup.closed) {
+          finish({ status: "closed" });
+        }
+      } catch {
+        finish({ status: "closed" });
+      }
+    }, 400);
+
+    const timeoutId = window.setTimeout(() => {
+      finish({ status: "closed" });
+    }, timeoutMs);
+
+    window.addEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
+  });
+}
+
+/**
+ * Open provider OAuth in a popup and wait for completion.
+ * Falls back to same-tab redirect when popups are blocked.
+ */
 export async function connectOAuthPopup(options: {
   connectUrlPath: string;
   popupName: string;
-}): Promise<void> {
+}): Promise<OAuthPopupWaitResult> {
   const url = new URL(options.connectUrlPath, window.location.origin);
   if (url.pathname === "/connected-accounts/google/connect-url") {
     url.pathname = "/connected-accounts/google/connect";
   }
   const path = `${url.pathname}${url.search}`;
 
+  try {
+    localStorage.removeItem(OAUTH_CONNECT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+
   const popup = openCenteredPopup(path, options.popupName);
   if (!popup) {
     window.location.assign(path);
+    return { status: "redirect" };
   }
+  return waitForOAuthPopupResult(popup);
+}
+
+/** Same-tab Google OAuth (full account chooser), like All Cloud Hub. */
+export function connectOAuthRedirect(options: {
+  connectUrlPath: string;
+  returnTo?: string;
+}): void {
+  const url = new URL(options.connectUrlPath, window.location.origin);
+  if (url.pathname === "/connected-accounts/google/connect-url") {
+    url.pathname = "/connected-accounts/google/connect";
+  }
+  if (options.returnTo?.startsWith("/") && !options.returnTo.startsWith("//")) {
+    url.searchParams.set("returnTo", options.returnTo);
+  }
+  try {
+    localStorage.removeItem(OAUTH_CONNECT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+  window.location.assign(`${url.pathname}${url.search}`);
+}
+
+export function isGoogleOAuthProvider(providerId: string) {
+  return (
+    providerId === "google_drive" ||
+    providerId === "google_photos" ||
+    providerId === "google_shared_drive"
+  );
 }

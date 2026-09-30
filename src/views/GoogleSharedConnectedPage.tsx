@@ -13,7 +13,7 @@ export function GoogleSharedConnectedPage() {
             ? "This connect link belongs to a different account. Start connect from Settings while signed in."
             : reason === "no_shared_drives"
               ? "No shared drives were found on this Google account."
-              : "Close this window and try again."
+              : "Try connecting again from Archive Cloud."
       }
     />
   );

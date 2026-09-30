@@ -356,6 +356,10 @@ export function DashboardSidebar({
     <ConnectCloudAccountModal
       open={connectOpen}
       onClose={() => setConnectOpen(false)}
+      onConnected={() => {
+        setConnectOpen(false);
+        window.dispatchEvent(new Event("archivecloud:storage-changed"));
+      }}
     />
   );
 
@@ -373,11 +377,10 @@ export function DashboardSidebar({
           {edgeToggle}
 
           <div className="flex h-14 items-center justify-center px-2 pb-2 pt-4">
-            {planLoaded ? (
-              <BrandLogo className="h-10 w-10 shrink-0" thunder={hasThunder} />
-            ) : (
-              <span className="inline-block h-10 w-10 shrink-0" aria-hidden />
-            )}
+            <BrandLogo
+              className="h-10 w-10 shrink-0"
+              thunder={planLoaded && hasThunder}
+            />
           </div>
 
           {hideNewButton ? null : (
@@ -550,11 +553,10 @@ export function DashboardSidebar({
         {edgeToggle}
 
         <div className="flex h-14 min-w-0 items-center gap-2 px-3 pb-2 pt-4">
-          {planLoaded ? (
-            <BrandLogo className="h-10 w-10 shrink-0" thunder={hasThunder} />
-          ) : (
-            <span className="inline-block h-10 w-10 shrink-0" aria-hidden />
-          )}
+          <BrandLogo
+            className="h-10 w-10 shrink-0"
+            thunder={planLoaded && hasThunder}
+          />
           <span className="truncate text-xl font-extrabold leading-none tracking-tight text-foreground">
             Archive Cloud
           </span>
@@ -1062,13 +1064,6 @@ export function DashboardSidebar({
 
           <div className="grid gap-3 sm:flex sm:justify-end">
             <Button
-              variant="outline"
-              onPress={() => setAccountToDisconnect(null)}
-              isDisabled={disconnecting}
-            >
-              Cancel
-            </Button>
-            <Button
               variant="danger"
               onPress={() => {
                 void disconnectAccount();
@@ -1076,6 +1071,13 @@ export function DashboardSidebar({
               isDisabled={disconnecting}
             >
               {disconnecting ? "Disconnecting..." : "Disconnect"}
+            </Button>
+            <Button
+              variant="outline"
+              onPress={() => setAccountToDisconnect(null)}
+              isDisabled={disconnecting}
+            >
+              Keep connected
             </Button>
           </div>
         </div>

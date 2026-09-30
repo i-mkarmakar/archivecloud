@@ -26,6 +26,7 @@ import {
   NoConnectedAccountsEmptyState,
   NoConnectedAccountsEmptyStateSkeleton,
 } from "@/components/dashboard/NoConnectedAccountsEmptyState";
+import { ConnectCloudAccountModal } from "@/components/dashboard/ConnectCloudAccountModal";
 import {
   AddToVirtualFolderModal,
   type AddToVirtualFolderTarget,
@@ -72,7 +73,7 @@ import {
 import { mapApiFileToItem } from "@/lib/files";
 import { getFirstName, getTimeGreeting } from "@/lib/greeting";
 import { getPreviewKind, officeViewerUrl } from "@/lib/preview";
-import { providerLabel } from "@/lib/providers";
+import { providerLabel, type SupportedProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 import { AccountProviderIcon } from "@/views/all-files/AccountProviderIcon";
 import { AllFilesSelectionBar } from "@/views/all-files/AllFilesSelectionBar";
@@ -220,6 +221,11 @@ export function AllFilesPage() {
   >([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [hasAccountsHint] = useState(() => readHasConnectedAccountsHint());
+  /** Leave connect onboarding immediately after OAuth success (sidebar may update first). */
+  const [assumeConnected, setAssumeConnected] = useState(false);
+  const [homeConnectOpen, setHomeConnectOpen] = useState(false);
+  const [homeConnectProviderId, setHomeConnectProviderId] =
+    useState<SupportedProviderId | null>(null);
   const [selectedTargetAccountId, setSelectedTargetAccountId] = useState("");
   const [linkedFolders, setLinkedFolders] = useState<FolderItem[]>([]);
   const [linkedFiles, setLinkedFiles] = useState<FileItem[]>([]);
@@ -565,12 +571,13 @@ export function AllFilesPage() {
     }
   }
 
-  const { syncGoogleDrive } = useHomeConnectedAccounts({
-    loadAll,
-    setConnectedAccounts,
-    setAccountsLoaded,
-    setSyncingDrive,
-  });
+  const { syncGoogleDrive, refreshConnectedAccounts } =
+    useHomeConnectedAccounts({
+      loadAll,
+      setConnectedAccounts,
+      setAccountsLoaded,
+      setSyncingDrive,
+    });
 
   useEffect(() => {
     loadAll().catch((error) =>
@@ -1515,9 +1522,19 @@ export function AllFilesPage() {
       <span className="text-primary">{getFirstName(session?.user?.name)}</span>
     </>
   );
-  const hasConnectedAccounts = connectedAccounts.some(
-    (account) => account.status === "connected",
-  );
+  const hasConnectedAccounts =
+    assumeConnected ||
+    connectedAccounts.some((account) => account.status === "connected");
+
+  useEffect(() => {
+    if (
+      assumeConnected &&
+      connectedAccounts.some((account) => account.status === "connected")
+    ) {
+      setAssumeConnected(false);
+    }
+  }, [assumeConnected, connectedAccounts]);
+
   const showConnectOnboarding =
     accountsLoaded && !hasConnectedAccounts && !activeFolderId && !searchQuery;
   // Keep the home skeleton until accounts + linked browse are both ready —
@@ -1555,21 +1572,9 @@ export function AllFilesPage() {
               description={CONNECT_ONBOARDING_DESCRIPTION}
             />
             <NoConnectedAccountsEmptyState
-              onConnected={() => {
-                void apiFetch<{ accounts: ConnectedAccount[] }>(
-                  "/connected-accounts",
-                )
-                  .then((data) => {
-                    const accounts = data.accounts || [];
-                    setConnectedAccounts(accounts);
-                    setAccountsLoaded(true);
-                    writeHasConnectedAccountsHint(
-                      accounts.some(
-                        (account) => account.status === "connected",
-                      ),
-                    );
-                  })
-                  .catch(() => undefined);
+              onQuickConnect={(providerId) => {
+                setHomeConnectProviderId(providerId);
+                setHomeConnectOpen(true);
               }}
             />
           </>
@@ -1882,7 +1887,6 @@ export function AllFilesPage() {
                     items={displayFolders}
                     mobileTwoColumns
                     sizeScale="xs"
-                    previewRows={2}
                     onFolderMenu={openFolderMenu}
                     onFolderOpen={openFolder}
                     onDropItem={handleDropItem}
@@ -1912,7 +1916,6 @@ export function AllFilesPage() {
                 <FolderGrid
                   items={displayFolders}
                   sizeScale="xs"
-                  previewRows={2}
                   onFolderMenu={openFolderMenu}
                   onFolderOpen={openFolder}
                   onDropItem={handleDropItem}
@@ -2291,8 +2294,8 @@ export function AllFilesPage() {
               autoFocus
               required
             />
-            <span className="text-xs font-normal text-muted">
-              {renameValue.length}/{MAX_RENAME_LENGTH} characters
+            <span className="text-right text-xs font-normal text-muted">
+              {renameValue.length}/{MAX_RENAME_LENGTH}
             </span>
           </label>
           <div className="flex justify-end gap-3">
@@ -2393,8 +2396,8 @@ export function AllFilesPage() {
               autoFocus
               required
             />
-            <span className="text-xs font-normal text-muted">
-              {folderRenameValue.length}/{MAX_RENAME_LENGTH} characters
+            <span className="text-right text-xs font-normal text-muted">
+              {folderRenameValue.length}/{MAX_RENAME_LENGTH}
             </span>
           </label>
           {activeFolderForMenu?.id &&
@@ -2635,6 +2638,21 @@ export function AllFilesPage() {
       <GooglePhotosHowtoModal
         open={photosHowtoOpen}
         onClose={dismissPhotosHowto}
+      />
+      <ConnectCloudAccountModal
+        open={homeConnectOpen}
+        initialProviderId={homeConnectProviderId}
+        onClose={() => {
+          setHomeConnectOpen(false);
+          setHomeConnectProviderId(null);
+        }}
+        onConnected={() => {
+          setHomeConnectOpen(false);
+          setHomeConnectProviderId(null);
+          setAssumeConnected(true);
+          writeHasConnectedAccountsHint(true);
+          void refreshConnectedAccounts();
+        }}
       />
     </>
   );

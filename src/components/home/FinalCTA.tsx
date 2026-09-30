@@ -56,11 +56,14 @@ export function FinalCTA() {
         />
 
         <h2 className="relative z-10 text-2xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-          Your files. Your clouds. Your control.
+          Your files. Your clouds.
+          <br />
+          Your control.
         </h2>
         <p className="relative z-10 mx-auto mt-2 max-w-xl text-sm text-white/90 sm:mt-4 sm:text-lg">
-          Bring your cloud accounts together and manage your files from one
-          place.
+          Bring your cloud accounts together and
+          <br />
+          manage your files from one place.
         </p>
         <RainbowButton
           asChild

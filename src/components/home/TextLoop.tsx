@@ -122,8 +122,9 @@ export default function TextLoop({
 
   const viewH = useMemo(() => {
     if (shape !== "line") return VIEW_H;
-    return Math.ceil(Math.max(ribbonWidth, fontSize) + 8);
-  }, [shape, ribbonWidth, fontSize]);
+    // Tight to the ribbon so no transparent gap above/below the bar.
+    return Math.max(1, ribbonWidth);
+  }, [shape, ribbonWidth]);
 
   const d = useMemo(
     () => path || buildPath(shape, curviness, ribbonWidth, viewH),
@@ -238,7 +239,7 @@ export default function TextLoop({
 
   const loopText = unit.repeat(metrics.reps);
   const isLine = shape === "line";
-  const svgHeight = isLine ? Math.max(ribbonWidth, fontSize + 8) : undefined;
+  const svgHeight = isLine ? viewH : undefined;
 
   return (
     <div
@@ -261,8 +262,8 @@ export default function TextLoop({
           fill="none"
           stroke={ribbon ? ribbonColor : "none"}
           strokeWidth={ribbon ? ribbonWidth : 0}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          strokeLinecap={isLine ? "butt" : "round"}
+          strokeLinejoin={isLine ? "miter" : "round"}
         />
 
         <text ref={measureRef} className="text-loop-measure" style={textStyle}>

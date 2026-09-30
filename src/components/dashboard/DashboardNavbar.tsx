@@ -48,6 +48,7 @@ export function DashboardNavbar({
   onClearFilters,
   onOpenSidebar,
   showDesktopBrand = false,
+  forceDesktop = false,
 }: {
   searchValue: string;
   onSearchValueChange: (value: string) => void;
@@ -72,6 +73,8 @@ export function DashboardNavbar({
   onClearFilters: () => void;
   onOpenSidebar: () => void;
   showDesktopBrand?: boolean;
+  /** Use desktop chrome even below the lg breakpoint (e.g. scaled marketing preview). */
+  forceDesktop?: boolean;
 }) {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const { planId, canUpgrade, loaded: planLoaded, hasThunder } = useUserPlan();
@@ -123,37 +126,38 @@ export function DashboardNavbar({
     >
       <Header className="px-3 py-2.5 sm:px-6 sm:py-3 lg:px-8">
         <div className={cn(dashboardContentClassName, "flex flex-col gap-3")}>
-          <div className="flex items-center justify-between gap-2 sm:gap-3 lg:hidden">
-            <Button
-              variant="outline"
-              isIconOnly
-              size="sm"
-              aria-label="Open sidebar"
-              onPress={onOpenSidebar}
-            >
-              <Bars className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {planLoaded && canUpgrade ? upgradeButton : null}
-              <SystemInfoPopover />
+          {forceDesktop ? null : (
+            <div className="flex items-center justify-between gap-2 sm:gap-3 lg:hidden">
+              <Button
+                variant="outline"
+                isIconOnly
+                size="sm"
+                aria-label="Open sidebar"
+                onPress={onOpenSidebar}
+              >
+                <Bars className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                {planLoaded && canUpgrade ? upgradeButton : null}
+                <SystemInfoPopover />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="hidden lg:grid lg:grid-cols-[1fr_minmax(0,28rem)_1fr] lg:items-center lg:gap-4">
+          <div
+            className={cn(
+              forceDesktop
+                ? "grid grid-cols-[1fr_minmax(0,28rem)_1fr] items-center gap-4"
+                : "hidden lg:grid lg:grid-cols-[1fr_minmax(0,28rem)_1fr] lg:items-center lg:gap-4",
+            )}
+          >
             <div className="flex min-w-0 items-center justify-start">
               {showDesktopBrand ? (
                 <div className="flex items-center gap-2.5">
-                  {planLoaded ? (
-                    <BrandLogo
-                      className="h-8 w-8 shrink-0"
-                      thunder={hasThunder}
-                    />
-                  ) : (
-                    <span
-                      className="inline-block h-8 w-8 shrink-0"
-                      aria-hidden
-                    />
-                  )}
+                  <BrandLogo
+                    className="h-8 w-8 shrink-0"
+                    thunder={planLoaded && hasThunder}
+                  />
                   <span className="text-lg font-extrabold tracking-tight text-foreground">
                     Archive Cloud
                   </span>
@@ -161,7 +165,12 @@ export function DashboardNavbar({
               ) : null}
             </div>
             <DashboardSearchField {...searchProps} />
-            <div className="hidden items-center justify-end gap-4 lg:flex">
+            <div
+              className={cn(
+                "items-center justify-end gap-4",
+                forceDesktop ? "flex" : "hidden lg:flex",
+              )}
+            >
               {planLoaded && canUpgrade ? upgradeButton : null}
               <SystemInfoPopover />
             </div>
