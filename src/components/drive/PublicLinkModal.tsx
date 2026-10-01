@@ -12,7 +12,11 @@ import {
 import { Button, Switch, toast } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { ActionTooltip } from "@/components/drive/ActionTooltip";
-import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import {
   QrCodeWithLogo,
   qrCodeImageUrl,
@@ -418,8 +422,12 @@ export function PublicLinkModal({
             </div>
           ) : null}
 
-          <div className="flex justify-end">
-            <Button variant="outline" onPress={onClose}>
+          <div className={modalActionsClassName}>
+            <Button
+              variant="outline"
+              className={modalActionButtonClassName}
+              onPress={onClose}
+            >
               Close
             </Button>
           </div>

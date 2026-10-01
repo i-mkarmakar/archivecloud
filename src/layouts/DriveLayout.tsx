@@ -315,18 +315,14 @@ export function DriveLayout({ children }: { children: ReactNode }) {
           </Drawer.Backdrop>
         </Drawer>
 
-        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center lg:hidden">
-          <div className="pointer-events-auto">
-            <SidebarNewButton
-              safePathname={safePathname}
-              fab
-              disabled={
-                accounts.filter((account) => account.status === "connected")
-                  .length === 0
-              }
-            />
+        {accounts.filter((account) => account.status === "connected").length >
+        0 ? (
+          <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center lg:hidden">
+            <div className="pointer-events-auto">
+              <SidebarNewButton safePathname={safePathname} fab />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="relative z-0 flex min-w-0 flex-1 flex-col lg:h-svh">
           <DashboardNavbar

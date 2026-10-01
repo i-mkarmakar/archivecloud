@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ConnectCloudAccountModal } from "@/components/dashboard/ConnectCloudAccountModal";
 import { GooglePhotosHowtoModal } from "@/components/dashboard/GooglePhotosHowtoModal";
 import {
   type GooglePhotosImportHandle,
@@ -26,13 +27,16 @@ import {
   NoConnectedAccountsEmptyState,
   NoConnectedAccountsEmptyStateSkeleton,
 } from "@/components/dashboard/NoConnectedAccountsEmptyState";
-import { ConnectCloudAccountModal } from "@/components/dashboard/ConnectCloudAccountModal";
 import {
   AddToVirtualFolderModal,
   type AddToVirtualFolderTarget,
 } from "@/components/drive/AddToVirtualFolderModal";
 import { DriveSection } from "@/components/drive/DriveSection";
-import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import { EmptyAreaContextMenu } from "@/components/drive/EmptyAreaContextMenu";
 import { FileContextMenu } from "@/components/drive/FileContextMenu";
 import { FileDetailsDrawer } from "@/components/drive/FileDetailsDrawer";
@@ -1684,13 +1688,13 @@ export function AllFilesPage() {
                 )
               }
               actions={
-                <div className="flex w-full max-w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2">
+                <div className="flex w-full max-w-full flex-nowrap items-center gap-1.5 sm:w-auto sm:flex-wrap sm:justify-end sm:gap-2">
                   {!isCloudFolderView ? (
                     <Popover
                       isOpen={accountFilterOpen}
                       onOpenChange={setAccountFilterOpen}
                     >
-                      <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[9.5rem] sm:max-w-[12rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
+                      <Popover.Trigger className="inline-flex h-9 min-w-0 flex-1 cursor-pointer items-center justify-between gap-1 rounded-lg border border-border bg-white px-2 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[9.5rem] sm:max-w-[12rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
                         <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                           {selectedAccount ? (
                             <AccountProviderIcon
@@ -1787,7 +1791,7 @@ export function AllFilesPage() {
                     isOpen={sortFilterOpen}
                     onOpenChange={setSortFilterOpen}
                   >
-                    <Popover.Trigger className="inline-flex h-9 min-w-0 flex-[1_1_9rem] cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[10rem] sm:max-w-[13rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
+                    <Popover.Trigger className="inline-flex h-9 min-w-0 flex-1 cursor-pointer items-center justify-between gap-1 rounded-lg border border-border bg-white px-2 text-xs font-semibold text-foreground shadow-sm sm:h-10 sm:min-w-[10rem] sm:max-w-[13rem] sm:flex-none sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm">
                       <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                         <Sliders className="h-3.5 w-3.5 shrink-0 text-muted sm:h-4 sm:w-4" />
                         <span className="truncate">{activeSortLabel}</span>
@@ -2260,15 +2264,18 @@ export function AllFilesPage() {
             color={folderColor}
             onColorChange={setFolderColor}
           />
-          <div className="grid gap-3 pt-2 sm:flex sm:justify-end">
+          <div className={cn(modalActionsClassName, "pt-2")}>
             <Button
               type="button"
               variant="outline"
+              className={modalActionButtonClassName}
               onClick={() => setFolderOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit">Create Folder</Button>
+            <Button type="submit" className={modalActionButtonClassName}>
+              Create Folder
+            </Button>
           </div>
         </form>
       </DummyModal>
@@ -2298,15 +2305,18 @@ export function AllFilesPage() {
               {renameValue.length}/{MAX_RENAME_LENGTH}
             </span>
           </label>
-          <div className="flex justify-end gap-3">
+          <div className={modalActionsClassName}>
             <Button
               type="button"
               variant="outline"
+              className={modalActionButtonClassName}
               onClick={() => setRenameOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit">Rename</Button>
+            <Button type="submit" className={modalActionButtonClassName}>
+              Rename
+            </Button>
           </div>
         </form>
       </DummyModal>
@@ -2357,12 +2367,20 @@ export function AllFilesPage() {
         }
         onClose={() => setDeleteOpen(false)}
       >
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={deleteFile}>
+        <div className={modalActionsClassName}>
+          <Button
+            variant="danger"
+            className={modalActionButtonClassName}
+            onClick={deleteFile}
+          >
             Delete
+          </Button>
+          <Button
+            variant="outline"
+            className={modalActionButtonClassName}
+            onClick={() => setDeleteOpen(false)}
+          >
+            Cancel
           </Button>
         </div>
       </DummyModal>
@@ -2407,15 +2425,18 @@ export function AllFilesPage() {
               onColorChange={setFolderRenameColor}
             />
           ) : null}
-          <div className="flex justify-end gap-3">
+          <div className={modalActionsClassName}>
             <Button
               type="button"
               variant="outline"
+              className={modalActionButtonClassName}
               onClick={() => setFolderRenameOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit">Rename</Button>
+            <Button type="submit" className={modalActionButtonClassName}>
+              Rename
+            </Button>
           </div>
         </form>
       </DummyModal>
@@ -2453,21 +2474,23 @@ export function AllFilesPage() {
               All contents will be deleted permanently.
             </p>
           </div>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onPress={() => setFolderDeleteOpen(false)}
-            >
-              Cancel
-            </Button>
+          <div className={modalActionsClassName}>
             <Button
               variant="danger"
+              className={modalActionButtonClassName}
               onPress={() => {
                 void deleteFolder();
               }}
             >
               <TrashBin className="h-4 w-4" />
               Delete Folder
+            </Button>
+            <Button
+              variant="outline"
+              className={modalActionButtonClassName}
+              onPress={() => setFolderDeleteOpen(false)}
+            >
+              Cancel
             </Button>
           </div>
         </div>
@@ -2514,17 +2537,20 @@ export function AllFilesPage() {
               {inviteMessage}
             </p>
           ) : null}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className={cn(modalActionsClassName, "pt-2")}>
             <Button
               type="button"
               variant="outline"
+              className={modalActionButtonClassName}
               onClick={() => setInviteOpen(false)}
               isDisabled={inviting}
-              className={inviting ? "opacity-50" : undefined}
             >
               Cancel
             </Button>
-            <Button isDisabled={inviting}>
+            <Button
+              className={modalActionButtonClassName}
+              isDisabled={inviting}
+            >
               {inviting ? "Sending..." : "Send Invite"}
             </Button>
           </div>

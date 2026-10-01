@@ -419,10 +419,11 @@ export function NewSyncPairModal({
             <CircleInfo className="h-3.5 w-3.5 shrink-0" />
             All set. Review the summary on the right.
           </p>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-row gap-2 sm:justify-end">
             <Button
               size="sm"
               variant="outline"
+              className="min-w-0 flex-1 sm:flex-none"
               onPress={onClose}
               isDisabled={creating}
             >
@@ -431,6 +432,7 @@ export function NewSyncPairModal({
             <Button
               size="sm"
               variant="primary"
+              className="min-w-0 flex-1 sm:flex-none"
               isDisabled={!canCreate}
               onPress={() => {
                 void submit();

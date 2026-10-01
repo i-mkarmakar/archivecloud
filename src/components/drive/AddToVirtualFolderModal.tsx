@@ -9,8 +9,12 @@ import {
 } from "@gravity-ui/icons";
 import { Button, Input, toast } from "@heroui/react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { DummyModal } from "@/components/drive/DummyModal";
 import { ActionTooltip } from "@/components/drive/ActionTooltip";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -420,27 +424,37 @@ export function AddToVirtualFolderModal({
             </div>
           )}
 
-          <div className="flex justify-end gap-3">
-            <ActionTooltip label="Cancel">
-              <Button variant="outline" onPress={onClose} isDisabled={adding}>
-                Cancel
-              </Button>
-            </ActionTooltip>
-            <ActionTooltip
-              label={
-                empty
-                  ? "Create a virtual folder first"
-                  : "Add to selected virtual folder"
-              }
-            >
-              <Button
-                isDisabled={!canAdd || empty}
-                onPress={() => void handleAdd()}
+          <div className={modalActionsClassName}>
+            <div className={modalActionButtonClassName}>
+              <ActionTooltip label="Cancel">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onPress={onClose}
+                  isDisabled={adding}
+                >
+                  Cancel
+                </Button>
+              </ActionTooltip>
+            </div>
+            <div className={modalActionButtonClassName}>
+              <ActionTooltip
+                label={
+                  empty
+                    ? "Create a virtual folder first"
+                    : "Add to selected virtual folder"
+                }
               >
-                <Plus className="h-4 w-4" />
-                {adding ? "Adding…" : "Add to Virtual Folder"}
-              </Button>
-            </ActionTooltip>
+                <Button
+                  className="w-full"
+                  isDisabled={!canAdd || empty}
+                  onPress={() => void handleAdd()}
+                >
+                  <Plus className="h-4 w-4" />
+                  {adding ? "Adding…" : "Add to Virtual Folder"}
+                </Button>
+              </ActionTooltip>
+            </div>
           </div>
         </div>
       )}

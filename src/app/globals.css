@@ -475,7 +475,8 @@ button[aria-disabled="true"],
 @supports not selector(::-webkit-scrollbar) {
   html {
     scrollbar-width: thin;
-    scrollbar-color: rgb(15 23 42 / 45%) transparent;
+    scrollbar-color: color-mix(in srgb, var(--primary) 70%, transparent)
+      transparent;
   }
 }
 
@@ -499,13 +500,13 @@ html::-webkit-scrollbar-track-piece {
 }
 
 html::-webkit-scrollbar-thumb {
-  background-color: rgb(15 23 42 / 45%);
+  background-color: color-mix(in srgb, var(--primary) 70%, transparent);
   border-radius: 9999px;
   min-height: 48px;
 }
 
 html::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(15 23 42 / 60%);
+  background-color: var(--primary);
 }
 
 html::-webkit-scrollbar-button,
@@ -532,12 +533,12 @@ html::-webkit-scrollbar-corner {
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: rgb(15 23 42 / 45%);
+  background-color: color-mix(in srgb, var(--primary) 70%, transparent);
   border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(15 23 42 / 60%);
+  background-color: var(--primary);
 }
 
 *::-webkit-scrollbar-button,

@@ -15,18 +15,18 @@ import {
   WhenToRunStep,
 } from "./steps";
 import {
+  type BrowseFolder,
   buildAutoName,
+  type ConnectedAccountOption,
+  type CreateSchedulePayload,
   combineLocalToIso,
   defaultLocalDateTime,
   filesForAccount,
   formatFireLabel,
   localTimezone,
-  scheduleKindLabel,
-  type BrowseFolder,
-  type ConnectedAccountOption,
-  type CreateSchedulePayload,
   type ScheduleKind,
   type ScheduleOperation,
+  scheduleKindLabel,
 } from "./types";
 
 export type {
@@ -302,13 +302,19 @@ export function NewScheduleModal({
             <CircleInfo className="h-3.5 w-3.5 shrink-0" />
             All set. Review the summary on the right.
           </p>
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onPress={onClose}>
+          <div className="flex flex-row gap-2 sm:justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-w-0 flex-1 sm:flex-none"
+              onPress={onClose}
+            >
               Cancel
             </Button>
             <Button
               size="sm"
               variant="primary"
+              className="min-w-0 flex-1 sm:flex-none"
               isDisabled={!canSubmit || creating}
               onPress={() => {
                 void handleCreate();

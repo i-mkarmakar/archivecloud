@@ -4,7 +4,11 @@ import { Folder, Magnifier } from "@gravity-ui/icons";
 import { Button, toast } from "@heroui/react";
 import { useEffect, useMemo, useState } from "react";
 import { ActionTooltip } from "@/components/drive/ActionTooltip";
-import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { FolderItem } from "@/data/drive-data";
 import { apiFetch } from "@/lib/api";
@@ -565,29 +569,39 @@ export function MoveDestinationModal({
                 : "Select a destination folder (Open to browse inside)"}
             </p>
           </div>
-          <div className="flex shrink-0 justify-end gap-2">
-            <ActionTooltip label="Cancel move">
-              <Button type="button" variant="outline" onPress={onClose}>
-                Cancel
-              </Button>
-            </ActionTooltip>
-            <ActionTooltip
-              label={
-                canMoveHere
-                  ? "Move into the selected folder"
-                  : "Select a destination folder first"
-              }
-            >
-              <Button
-                type="button"
-                isDisabled={!canMoveHere || moving}
-                onPress={() => {
-                  void handleMoveHere();
-                }}
+          <div className={cn(modalActionsClassName, "shrink-0")}>
+            <div className={modalActionButtonClassName}>
+              <ActionTooltip label="Cancel move">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onPress={onClose}
+                >
+                  Cancel
+                </Button>
+              </ActionTooltip>
+            </div>
+            <div className={modalActionButtonClassName}>
+              <ActionTooltip
+                label={
+                  canMoveHere
+                    ? "Move into the selected folder"
+                    : "Select a destination folder first"
+                }
               >
-                {moving ? "Moving…" : "Move Here"}
-              </Button>
-            </ActionTooltip>
+                <Button
+                  type="button"
+                  className="w-full"
+                  isDisabled={!canMoveHere || moving}
+                  onPress={() => {
+                    void handleMoveHere();
+                  }}
+                >
+                  {moving ? "Moving…" : "Move Here"}
+                </Button>
+              </ActionTooltip>
+            </div>
           </div>
         </div>
       </div>

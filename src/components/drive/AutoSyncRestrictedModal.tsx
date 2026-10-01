@@ -51,11 +51,11 @@ export function AutoSyncRestrictedModal({
                 an active subscription or Thunder plan.
               </p>
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex flex-row gap-2 sm:justify-end">
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-[11px]"
+                  className="h-8 min-w-0 flex-1 px-3 text-[11px] sm:flex-none"
                   onPress={onClose}
                 >
                   Close
@@ -64,7 +64,7 @@ export function AutoSyncRestrictedModal({
                   <Button
                     size="sm"
                     variant="primary"
-                    className="h-8 px-3 text-[11px]"
+                    className="h-8 min-w-0 flex-1 px-3 text-[11px] sm:flex-none"
                     onPress={onUpgrade}
                   >
                     Upgrade to Enable

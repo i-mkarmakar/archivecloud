@@ -31,7 +31,7 @@ export function FileViewToggle({
             aria-pressed={active}
             onClick={() => onChange(option.id)}
             className={cn(
-              "flex h-full items-center justify-center px-2.5 transition sm:px-3 lg:px-3.5",
+              "flex h-full items-center justify-center px-2 transition sm:px-3 lg:px-3.5",
               index > 0 && "border-l border-border",
               active
                 ? "bg-primary text-primary-foreground"

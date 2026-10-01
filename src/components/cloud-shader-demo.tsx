@@ -35,6 +35,10 @@ export default function CloudShaderDemo() {
         }
       >
         <CloudShader className="absolute inset-0 h-full min-h-[40rem] w-full" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[1] bg-black/20"
+        />
 
         <div className="relative z-10">
           <ContainerScroll

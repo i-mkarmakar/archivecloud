@@ -9,8 +9,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import { DummyModal } from "@/components/drive/DummyModal";
 import { ActionTooltip } from "@/components/drive/ActionTooltip";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -191,8 +195,12 @@ export function ManageTagsModal({ open, target, onClose, onSaved }: Props) {
           <p className="text-sm text-muted">
             Tags are only available for files stored in Archive Cloud.
           </p>
-          <div className="flex justify-end">
-            <Button variant="outline" onPress={onClose}>
+          <div className={modalActionsClassName}>
+            <Button
+              variant="outline"
+              className={modalActionButtonClassName}
+              onPress={onClose}
+            >
               Close
             </Button>
           </div>
@@ -279,22 +287,31 @@ export function ManageTagsModal({ open, target, onClose, onSaved }: Props) {
             ) : null}
           </div>
 
-          <div className="flex justify-end gap-3">
-            <ActionTooltip label="Discard changes">
-              <Button
-                type="button"
-                variant="outline"
-                onPress={onClose}
-                isDisabled={saving}
-              >
-                Cancel
-              </Button>
-            </ActionTooltip>
-            <ActionTooltip label="Save tags">
-              <Button type="submit" isDisabled={loading || saving}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </ActionTooltip>
+          <div className={modalActionsClassName}>
+            <div className={modalActionButtonClassName}>
+              <ActionTooltip label="Discard changes">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onPress={onClose}
+                  isDisabled={saving}
+                >
+                  Cancel
+                </Button>
+              </ActionTooltip>
+            </div>
+            <div className={modalActionButtonClassName}>
+              <ActionTooltip label="Save tags">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  isDisabled={loading || saving}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </ActionTooltip>
+            </div>
           </div>
         </form>
       )}

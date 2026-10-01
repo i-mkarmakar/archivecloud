@@ -12,22 +12,26 @@ import {
 } from "@gravity-ui/icons";
 import { Button, Card, Input, toast } from "@heroui/react";
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
   useState,
-  type FormEvent,
 } from "react";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
+import {
+  type FileViewMode,
+  FileViewToggle,
+} from "@/components/drive/FileViewToggle";
+import { PageHeader } from "@/components/drive/PageHeader";
 import {
   FileGridSkeleton,
   FileListSkeleton,
 } from "@/components/drive/PageSkeletons";
-import { DummyModal } from "@/components/drive/DummyModal";
-import {
-  FileViewToggle,
-  type FileViewMode,
-} from "@/components/drive/FileViewToggle";
-import { PageHeader } from "@/components/drive/PageHeader";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import { apiFetch, formatBytes, formatDate } from "@/lib/api";
 import { isSupportedProviderId, providerLabel } from "@/lib/providers";
@@ -846,16 +850,21 @@ export function VirtualFoldersPage() {
             ) : null}
           </div>
 
-          <div className="flex justify-end gap-3 pt-1">
+          <div className={cn(modalActionsClassName, "pt-1")}>
             <Button
               type="button"
               variant="outline"
+              className={modalActionButtonClassName}
               onClick={closeCreateModal}
               isDisabled={creating}
             >
               Cancel
             </Button>
-            <Button type="submit" isDisabled={!nameValid || creating}>
+            <Button
+              type="submit"
+              className={modalActionButtonClassName}
+              isDisabled={!nameValid || creating}
+            >
               {creating ? "Creating…" : "Create Virtual Folder"}
             </Button>
           </div>

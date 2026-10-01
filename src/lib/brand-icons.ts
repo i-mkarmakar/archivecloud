@@ -8,6 +8,7 @@ const BRAND_ICON_SRC = {
   onedrive: "/brand/onedrive.svg",
   pcloud: "/brand/pcloud.svg",
   icloud: "/brand/icloud.svg",
+  "apple-photos": "/brand/apple-photos.svg",
   github: "/brand/github.svg",
 } as const;
 
@@ -21,7 +22,7 @@ const PROVIDER_BRAND_KEYS: Record<string, BrandIconName> = {
   onedrive: "onedrive",
   pcloud: "pcloud",
   icloud_drive: "icloud",
-  icloud_photos: "icloud",
+  icloud_photos: "apple-photos",
 };
 
 const SEARCH_ALIASES: Record<string, BrandIconName> = {
@@ -38,6 +39,12 @@ const SEARCH_ALIASES: Record<string, BrandIconName> = {
   "microsoft onedrive": "onedrive",
   pcloud: "pcloud",
   icloud: "icloud",
+  "icloud drive": "icloud",
+  "icloud-drive": "icloud",
+  "icloud photos": "apple-photos",
+  "icloud-photos": "apple-photos",
+  "apple photos": "apple-photos",
+  "apple-photos": "apple-photos",
   github: "github",
 };
 

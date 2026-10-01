@@ -1,9 +1,14 @@
 import { ArrowUpFromLine, Xmark } from "@gravity-ui/icons";
 import { Button, Input } from "@heroui/react";
 import type { DragEvent, FormEvent } from "react";
-import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import type { FolderItem } from "@/data/drive-data";
 import { formatBytes } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { ConnectedAccount } from "@/views/all-files/types";
 
 export function AllFilesUploadModal(props: {
@@ -157,22 +162,24 @@ export function AllFilesUploadModal(props: {
             ))}
           </div>
         ) : null}
-        <div className="grid gap-3 sm:flex sm:justify-end">
+        <div className={modalActionsClassName}>
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
             isDisabled={loading}
-            className={
+            className={cn(
+              modalActionButtonClassName,
               loading
                 ? "border-border text-foreground opacity-50"
-                : "border-border text-foreground"
-            }
+                : "border-border text-foreground",
+            )}
           >
             Cancel
           </Button>
           <Button
             type="submit"
+            className={modalActionButtonClassName}
             isDisabled={loading || selectedFiles.length === 0}
           >
             {loading
