@@ -19,6 +19,11 @@ export default function CloudShaderFlightHeroDemo() {
         </div>
       </motion.div>
 
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-20 bg-black/20"
+      />
+
       <motion.div
         className="pointer-events-none absolute -bottom-6 left-0 z-10 w-[95%] md:w-[85%]"
         animate={{ y: [0, -12, 0] }}

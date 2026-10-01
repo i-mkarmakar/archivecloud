@@ -105,13 +105,16 @@ export function SystemInfoPopover() {
 
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Popover.Trigger
+      <Button
+        isIconOnly
+        variant="ghost"
+        size="sm"
+        className="size-9 min-w-9 shrink-0 p-0"
         aria-label={
           unreadCount > 0
             ? `Notifications, ${unreadCount} unread`
             : "Notifications"
         }
-        className="inline-flex shrink-0 cursor-pointer rounded-full p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <NotificationBell
           interactive={false}
@@ -119,7 +122,7 @@ export function SystemInfoPopover() {
           size={36}
           color="red"
         />
-      </Popover.Trigger>
+      </Button>
       <Popover.Content
         placement="bottom end"
         className="w-[min(calc(100vw-2rem),24rem)] rounded-xl! p-0"

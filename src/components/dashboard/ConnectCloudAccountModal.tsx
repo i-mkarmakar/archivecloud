@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleInfo, Eye, EyeSlash } from "@gravity-ui/icons";
-import { Button, Drawer, toast, Tooltip, useOverlayState } from "@heroui/react";
+import { Button, Drawer, Tooltip, toast, useOverlayState } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
@@ -570,9 +570,10 @@ export function ConnectCloudAccountModal({
 
             <Drawer.Footer>
               {step === "pick" ? (
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-row gap-2 sm:justify-end">
                   <Button
                     variant="outline"
+                    className="min-w-0 flex-1 sm:flex-none"
                     onPress={onClose}
                     isDisabled={connecting}
                   >
@@ -580,6 +581,7 @@ export function ConnectCloudAccountModal({
                   </Button>
                   <Button
                     variant="primary"
+                    className="min-w-0 flex-1 sm:flex-none"
                     onPress={handleConnect}
                     isDisabled={!canConnect}
                   >
@@ -587,9 +589,10 @@ export function ConnectCloudAccountModal({
                   </Button>
                 </div>
               ) : (
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-row flex-wrap gap-2 sm:justify-end">
                   <Button
                     variant="outline"
+                    className="min-w-0 flex-1 sm:flex-none"
                     onPress={onClose}
                     isDisabled={connecting}
                   >
@@ -597,6 +600,7 @@ export function ConnectCloudAccountModal({
                   </Button>
                   <Button
                     variant="outline"
+                    className="min-w-0 flex-1 sm:flex-none"
                     onPress={() => setStep("pick")}
                     isDisabled={connecting}
                   >
@@ -604,6 +608,7 @@ export function ConnectCloudAccountModal({
                   </Button>
                   <Button
                     variant="primary"
+                    className="min-w-0 flex-[1_1_100%] sm:flex-none"
                     onPress={() => void submitCredentials()}
                     isDisabled={!credentialsReady || connecting}
                   >

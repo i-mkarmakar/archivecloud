@@ -2,13 +2,17 @@
 
 import { Flag } from "@gravity-ui/icons";
 import { Button, Label, ListBox, Select, toast } from "@heroui/react";
-import { useEffect, useRef, useState, type FormEvent, type Key } from "react";
+import { type FormEvent, type Key, useEffect, useRef, useState } from "react";
 import {
   TURNSTILE_ENABLED,
   TurnstileField,
   type TurnstileFieldHandle,
 } from "@/components/auth/turnstile-field";
-import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import { Input } from "@/components/ui/input";
 import { ABUSE_CATEGORIES } from "@/lib/abuse-categories";
 import { apiFetch } from "@/lib/api";
@@ -162,10 +166,11 @@ export function ReportAbuseModal({ open, onClose, shareUrl, fileName }: Props) {
           className="justify-start"
         />
 
-        <div className="flex justify-end gap-3 pt-1">
+        <div className={cn(modalActionsClassName, "pt-1")}>
           <Button
             type="button"
             variant="outline"
+            className={modalActionButtonClassName}
             isDisabled={submitting}
             onPress={onClose}
           >
@@ -173,7 +178,10 @@ export function ReportAbuseModal({ open, onClose, shareUrl, fileName }: Props) {
           </Button>
           <Button
             type="submit"
-            className="shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_45%,transparent)]"
+            className={cn(
+              modalActionButtonClassName,
+              "shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_45%,transparent)]",
+            )}
             isDisabled={!canSubmit}
           >
             <Flag className="h-3.5 w-3.5" />

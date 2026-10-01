@@ -15,7 +15,7 @@ export function GooglePhotosHowtoModal({
       open={open}
       title="Importing from Google Photos"
       onClose={onClose}
-      size="lg"
+      size="md"
       className="w-[min(100%,42rem)] sm:max-w-2xl"
       bodyClassName="gap-6"
     >

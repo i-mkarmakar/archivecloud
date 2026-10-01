@@ -26,7 +26,11 @@ import {
   useState,
 } from "react";
 import { ConnectCloudAccountModal } from "@/components/dashboard/ConnectCloudAccountModal";
-import { DummyModal } from "@/components/drive/DummyModal";
+import {
+  DummyModal,
+  modalActionButtonClassName,
+  modalActionsClassName,
+} from "@/components/drive/DummyModal";
 import { PageHeader } from "@/components/drive/PageHeader";
 import { SettingsPageSkeleton } from "@/components/drive/PageSkeletons";
 import { UpgradePlanModal } from "@/components/drive/UpgradePlanModal";
@@ -42,12 +46,12 @@ import { sessionUserToAuthUser } from "@/lib/auth-user";
 import { sanitizeConnectAliasInput } from "@/lib/connect-alias";
 import { getProfileImageUrl } from "@/lib/gravatar";
 import { fileToAvatarDataUrl } from "@/lib/profile-avatar";
-import { providerLabel } from "@/lib/providers";
 import {
   loadProviderOrder,
   PROVIDER_ORDER_CHANGED_EVENT,
   sortAccountsByProviderOrder,
 } from "@/lib/provider-order";
+import { providerLabel } from "@/lib/providers";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { cn } from "@/lib/utils";
 
@@ -1350,9 +1354,18 @@ export function SettingsPage() {
               {editAlias.length}/50
             </p>
           </div>
-          <div>
+          <div className={modalActionsClassName}>
+            <Button
+              variant="outline"
+              className={modalActionButtonClassName}
+              onPress={closeEditAlias}
+              isDisabled={savingAlias}
+            >
+              Cancel
+            </Button>
             <Button
               variant="primary"
+              className={modalActionButtonClassName}
               onPress={() => void saveAlias()}
               isDisabled={savingAlias || !editAlias.trim()}
             >
@@ -1365,28 +1378,26 @@ export function SettingsPage() {
       <DummyModal
         open={Boolean(accountToDisconnect)}
         title="Disconnect Cloud Account"
-        size="lg"
+        size="md"
         className="sm:min-w-[36rem]"
         onClose={() => {
           if (disconnectingAccountId) return;
           setAccountToDisconnect(null);
         }}
       >
-        <div className="grid gap-4">
+        <div className="grid gap-3 sm:gap-4">
           {accountToDisconnect ? (
             <p className="text-sm leading-relaxed text-muted">
-              Are you sure you want to disconnect the{" "}
+              Disconnect{" "}
               <span className="font-semibold text-foreground">
                 {accountToDisconnect.displayName?.trim() ||
                   `My ${providerLabel(accountToDisconnect.provider)}`}
-              </span>{" "}
-              cloud account from your Archive Cloud account? This action will
-              remove Archive Cloud&apos;s access to the account. You can
-              reconnect it at any time.
+              </span>
+              ? You can reconnect anytime.
             </p>
           ) : null}
 
-          <div className="rounded-xl bg-background-secondary p-4 text-sm text-muted">
+          <div className="rounded-xl bg-background-secondary px-3 py-3 text-sm text-muted sm:p-4">
             <p className="font-semibold text-foreground">
               {accountToDisconnect?.email}
             </p>
@@ -1401,20 +1412,20 @@ export function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 sm:px-3.5 sm:py-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
               <TriangleExclamation className="h-4 w-4 shrink-0" />
               Warning
             </div>
-            <p className="mt-1.5 text-sm leading-relaxed text-amber-800/90">
-              If you have any active schedule jobs, they will also be deleted
-              automatically.
+            <p className="mt-1 text-sm leading-relaxed text-amber-800/90 sm:mt-1.5">
+              Active schedule jobs for this account will be deleted.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:flex sm:justify-end">
+          <div className={modalActionsClassName}>
             <Button
               variant="danger"
+              className={modalActionButtonClassName}
               onPress={disconnect}
               isDisabled={Boolean(disconnectingAccountId)}
             >
@@ -1422,6 +1433,7 @@ export function SettingsPage() {
             </Button>
             <Button
               variant="outline"
+              className={modalActionButtonClassName}
               onPress={() => setAccountToDisconnect(null)}
               isDisabled={Boolean(disconnectingAccountId)}
             >

@@ -1,7 +1,7 @@
 "use client";
 
 import { Layers, Magnifier, ShieldCheck } from "@gravity-ui/icons";
-import { Button, Skeleton } from "@heroui/react";
+import { Skeleton } from "@heroui/react";
 import { ProviderBrandIcon } from "@/components/ProviderBrandIcon";
 import type { SupportedProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
@@ -56,13 +56,16 @@ export function NoConnectedAccountsEmptyState({
 }) {
   return (
     <div className="w-full min-w-0 pb-10 pt-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {FEATURES.map((feature) => {
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {FEATURES.map((feature, index) => {
           const Icon = feature.icon;
           return (
             <div
               key={feature.title}
-              className="rounded-xl border border-[#e8ecf2] bg-white px-4 py-4 shadow-sm"
+              className={cn(
+                "rounded-xl border border-[#e8ecf2] bg-white px-4 py-4 shadow-sm",
+                index === 2 && "col-span-2 sm:col-span-1",
+              )}
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f4f7fa]">
                 <Icon className={cn("h-5 w-5", feature.iconClass)} />
@@ -78,34 +81,32 @@ export function NoConnectedAccountsEmptyState({
         })}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
         {QUICK_CONNECT_PROVIDERS.map((provider) => (
-          <div
+          <button
             key={provider.id}
-            className="flex flex-col items-center gap-3 rounded-xl border border-[#e8ecf2] bg-white px-4 py-5 shadow-sm"
+            type="button"
+            onClick={() => onQuickConnect?.(provider.id)}
+            className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-[#E5EEF7] bg-white px-2 py-3 text-center shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:border-[#BFDFFF] hover:shadow-[0_12px_28px_-18px_rgba(22,131,247,0.45)] sm:gap-3 sm:px-4 sm:py-5"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center sm:h-8 sm:w-8">
               <ProviderBrandIcon
                 name={provider.id}
-                className="h-8 w-8"
+                className="h-7 w-7 sm:h-8 sm:w-8"
                 fallback={
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary sm:h-8 sm:w-8">
                     {provider.label.charAt(0)}
                   </span>
                 }
               />
             </span>
-            <p className="text-center text-sm font-semibold text-[#2d3748]">
+            <p className="text-center text-[11px] font-medium leading-tight text-[#0F172A] sm:text-sm sm:font-semibold sm:text-[#2d3748]">
               {provider.label}
             </p>
-            <Button
-              size="sm"
-              className="h-7 w-auto cursor-pointer border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] px-3 text-[11px]"
-              onPress={() => onQuickConnect?.(provider.id)}
-            >
+            <span className="pointer-events-none hidden h-7 w-auto items-center justify-center rounded-full bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] px-3 text-[11px] font-medium text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)] sm:inline-flex">
               Quick connect
-            </Button>
-          </div>
+            </span>
+          </button>
         ))}
       </div>
     </div>
@@ -120,11 +121,14 @@ export function NoConnectedAccountsEmptyStateSkeleton() {
       aria-busy="true"
       aria-label="Loading"
     >
-      <div className="grid gap-3 sm:grid-cols-3">
-        {["feature-a", "feature-b", "feature-c"].map((id) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {["feature-a", "feature-b", "feature-c"].map((id, index) => (
           <div
             key={id}
-            className="rounded-xl border border-[#e8ecf2] bg-white px-4 py-4 shadow-sm"
+            className={cn(
+              "rounded-xl border border-[#e8ecf2] bg-white px-4 py-4 shadow-sm",
+              index === 2 && "col-span-2 sm:col-span-1",
+            )}
           >
             <div className="flex h-9 w-9 items-center justify-center">
               <Skeleton animationType="none" className="h-9 w-9 rounded-lg" />
@@ -141,7 +145,7 @@ export function NoConnectedAccountsEmptyStateSkeleton() {
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
         {[
           "provider-a",
           "provider-b",
@@ -154,11 +158,20 @@ export function NoConnectedAccountsEmptyStateSkeleton() {
         ].map((id) => (
           <div
             key={id}
-            className="flex flex-col items-center gap-3 rounded-xl border border-[#e8ecf2] bg-white px-4 py-5 shadow-sm"
+            className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[#E5EEF7] bg-white px-2 py-3 shadow-sm sm:gap-3 sm:px-4 sm:py-5"
           >
-            <Skeleton animationType="none" className="h-8 w-8 rounded-lg" />
-            <Skeleton animationType="none" className="h-4 w-24 rounded-lg" />
-            <Skeleton animationType="none" className="h-7 w-28 rounded-lg" />
+            <Skeleton
+              animationType="none"
+              className="h-7 w-7 rounded-lg sm:h-8 sm:w-8"
+            />
+            <Skeleton
+              animationType="none"
+              className="h-3 w-16 rounded-lg sm:h-4 sm:w-24"
+            />
+            <Skeleton
+              animationType="none"
+              className="hidden h-7 w-28 rounded-lg sm:block"
+            />
           </div>
         ))}
       </div>

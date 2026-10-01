@@ -1,8 +1,8 @@
 "use client";
 
+import { Button, Modal, Switch, useOverlayState } from "@heroui/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Button, Modal, Switch, useOverlayState } from "@heroui/react";
 import {
   ALL_COOKIES_ACCEPTED,
   COOKIE_PREFERENCE_CATEGORIES,
@@ -69,7 +69,7 @@ export function CookieSettingsModal({
   return (
     <Modal state={state}>
       <Modal.Backdrop isDismissable>
-        <Modal.Container placement="center" scroll="inside" size="lg">
+        <Modal.Container placement="center" scroll="inside" size="md">
           <Modal.Dialog className="max-h-[calc(100dvh-2rem)] w-[min(100%,36rem)] overflow-hidden p-0 sm:w-full sm:max-w-xl">
             <div className="relative px-5 pt-5 pr-12 pb-1 sm:px-6 sm:pt-6">
               <Modal.CloseTrigger
@@ -159,24 +159,24 @@ export function CookieSettingsModal({
               </div>
             </Modal.Body>
 
-            <Modal.Footer className="flex flex-col gap-3 bg-white px-5 pt-2 pb-5 sm:flex-row sm:flex-wrap sm:justify-end sm:px-6 sm:pb-6">
+            <Modal.Footer className="flex flex-row flex-wrap gap-2 bg-white px-5 pt-2 pb-5 sm:justify-end sm:px-6 sm:pb-6">
               <Button
                 variant="danger"
-                className="w-full rounded-full sm:w-auto"
+                className="min-w-0 flex-1 rounded-full sm:w-auto sm:flex-none"
                 onPress={onRejectAll}
               >
                 Reject optional
               </Button>
               <Button
                 variant="outline"
-                className="w-full rounded-full sm:w-auto"
+                className="min-w-0 flex-1 rounded-full sm:w-auto sm:flex-none"
                 onPress={() => onSave(ALL_COOKIES_ACCEPTED)}
               >
                 Accept all
               </Button>
               <Button
                 variant="primary"
-                className="w-full rounded-full sm:w-auto"
+                className="min-w-0 flex-1 rounded-full sm:w-auto sm:flex-none"
                 onPress={() => onSave(categories)}
               >
                 Save preferences

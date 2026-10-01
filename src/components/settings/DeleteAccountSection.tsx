@@ -3,10 +3,10 @@
 import { TrashBin, TriangleExclamation } from "@gravity-ui/icons";
 import { Button, toast } from "@heroui/react";
 import { useEffect, useId, useRef, useState } from "react";
+import { resetUserPlanStore } from "@/hooks/useUserPlan";
 import { apiFetch } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { clearUserPlanCache } from "@/lib/user-plan-cache";
-import { resetUserPlanStore } from "@/hooks/useUserPlan";
 import { cn } from "@/lib/utils";
 
 const DELETE_REMOVALS = [
@@ -174,10 +174,11 @@ export function DeleteAccountSection({
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
+        <div className="mt-5 flex flex-row flex-wrap items-center gap-2 sm:gap-3">
           {!expanded ? (
             <Button
               variant="danger"
+              className="min-w-0 flex-1 sm:flex-none"
               aria-expanded={false}
               aria-controls={panelId}
               onPress={() => setExpanded(true)}
@@ -189,6 +190,7 @@ export function DeleteAccountSection({
             <>
               <Button
                 variant="danger"
+                className="min-w-0 flex-1 sm:flex-none"
                 isDisabled={!canDelete}
                 onPress={() => confirmDelete().catch(() => undefined)}
               >
@@ -197,6 +199,7 @@ export function DeleteAccountSection({
               </Button>
               <Button
                 variant="secondary"
+                className="min-w-0 flex-1 sm:flex-none"
                 isDisabled={deleting}
                 onPress={collapse}
               >

@@ -25,7 +25,8 @@ export type DashboardNavSection = {
   showAccountCount?: boolean;
 };
 
-export const dashboardContentClassName = "mx-auto w-full max-w-6xl";
+export const dashboardContentClassName =
+  "mx-auto w-full max-w-[22rem] sm:max-w-6xl";
 
 export const dashboardNavSections: DashboardNavSection[] = [
   {

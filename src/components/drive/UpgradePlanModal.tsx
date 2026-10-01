@@ -5,10 +5,10 @@ import { Button, Modal, toast, useOverlayState } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import {
+  isPlanRecommended,
+  PLANS,
   type PlanDefinition,
   type PlanId,
-  PLANS,
-  isPlanRecommended,
   planBillingHint,
   planPriceLabel,
   planTagline,
@@ -137,7 +137,7 @@ export function UpgradePlanModal({
     <Modal state={state}>
       <Modal.Backdrop isDismissable>
         <Modal.Container placement="center" scroll="inside" size="lg">
-          <Modal.Dialog className="max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-hidden p-0 sm:max-w-3xl">
+          <Modal.Dialog className="mx-3 max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] overflow-hidden p-0 sm:mx-0 sm:w-full sm:max-w-3xl">
             <div className="flex items-center justify-between bg-primary px-5 py-3.5 text-white">
               <h2 className="text-base font-bold">Upgrade Plan</h2>
               <Modal.CloseTrigger className="text-white hover:bg-white/15" />
