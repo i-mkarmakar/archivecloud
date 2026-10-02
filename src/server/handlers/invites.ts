@@ -56,7 +56,11 @@ async function resolveTargets(invites: InviteRecord[]) {
     .map((invite) => invite.targetId);
   const [files, folders] = await Promise.all([
     prisma.file.findMany({
-      where: { id: { in: fileIds }, status: "active" },
+      where: {
+        id: { in: fileIds },
+        status: "active",
+        connectedAccount: { status: "connected" },
+      },
       select: {
         id: true,
         name: true,
@@ -66,7 +70,14 @@ async function resolveTargets(invites: InviteRecord[]) {
       },
     }),
     prisma.folder.findMany({
-      where: { id: { in: folderIds }, deletedAt: null },
+      where: {
+        id: { in: folderIds },
+        deletedAt: null,
+        OR: [
+          { connectedAccountId: null },
+          { connectedAccount: { status: "connected" } },
+        ],
+      },
       select: { id: true, name: true },
     }),
   ]);

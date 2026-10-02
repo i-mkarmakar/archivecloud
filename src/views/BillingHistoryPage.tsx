@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightFromSquare, FileText } from "@gravity-ui/icons";
+import { Eye, FileArrowDown, FileText } from "@gravity-ui/icons";
 import { Button, Card, Skeleton, toast } from "@heroui/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -17,6 +17,9 @@ type BillingOrder = {
   currency: string;
   createdAt: string;
   checkoutId: string | null;
+  planLabel: string;
+  billingPeriod: string;
+  subscriptionStatus: string | null;
 };
 
 function formatMoney(amountCents: number, currency: string) {
@@ -30,11 +33,31 @@ function formatMoney(amountCents: number, currency: string) {
   }
 }
 
+function StatusPill({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "success" | "muted";
+}) {
+  return (
+    <span
+      className={
+        tone === "success"
+          ? "inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
+          : "inline-flex rounded-full bg-muted/15 px-2.5 py-0.5 text-xs font-semibold text-muted"
+      }
+    >
+      {label}
+    </span>
+  );
+}
+
 export function BillingHistoryPage() {
   const params = useSearchParams();
   const [orders, setOrders] = useState<BillingOrder[] | null>(null);
   const [error, setError] = useState("");
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (params?.get("portal_error") === "1") {
@@ -68,8 +91,8 @@ export function BillingHistoryPage() {
     };
   }, []);
 
-  async function downloadInvoice(order: BillingOrder) {
-    setDownloadingId(order.id);
+  async function openInvoice(order: BillingOrder) {
+    setBusyId(order.id);
     try {
       const data = await apiFetch<{
         invoiceNumber: string | null;
@@ -82,10 +105,10 @@ export function BillingHistoryPage() {
       toast.info("Invoice PDF is still preparing. Try again in a moment.");
     } catch (err) {
       toast.danger(
-        err instanceof Error ? err.message : "Could not download invoice",
+        err instanceof Error ? err.message : "Could not open invoice",
       );
     } finally {
-      setDownloadingId(null);
+      setBusyId(null);
     }
   }
 
@@ -129,41 +152,94 @@ export function BillingHistoryPage() {
       ) : null}
 
       {orders && orders.length > 0 ? (
-        <div className="space-y-3">
-          {orders.map((order) => (
-            <Card
-              key={order.id}
-              className="border border-border bg-background p-4"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    {order.invoiceNumber
-                      ? `Invoice ${order.invoiceNumber}`
-                      : "Payment"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {formatDate(order.createdAt)} ·{" "}
-                    {formatMoney(order.totalAmount, order.currency)} ·{" "}
-                    {order.paid ? "Paid" : order.status}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  isDisabled={
-                    downloadingId === order.id || !order.invoiceNumber
-                  }
-                  onPress={() => void downloadInvoice(order)}
-                >
-                  <ArrowUpRightFromSquare className="size-4" />
-                  {downloadingId === order.id ? "Opening…" : "Download invoice"}
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <Card className="overflow-hidden border border-border bg-background p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th className="px-4 py-3">No</th>
+                  <th className="px-4 py-3">Invoice Number</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3">Charged Amount</th>
+                  <th className="px-4 py-3">Invoice Status</th>
+                  <th className="px-4 py-3">Subscription Status</th>
+                  <th className="px-4 py-3">Payment Date</th>
+                  <th className="px-4 py-3">Billing Period</th>
+                  <th className="px-4 py-3 text-right">Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order, index) => (
+                  <tr
+                    key={order.id}
+                    className="border-b border-border/60 last:border-b-0"
+                  >
+                    <td className="px-4 py-3 text-muted">{index + 1}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {order.invoiceNumber ?? "—"}
+                    </td>
+                    <td className="max-w-[220px] truncate px-4 py-3 text-foreground">
+                      {order.planLabel}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-foreground">
+                      {formatMoney(order.totalAmount, order.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill
+                        label={order.paid ? "Paid" : order.status}
+                        tone={order.paid ? "success" : "muted"}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.subscriptionStatus ? (
+                        <StatusPill
+                          label={order.subscriptionStatus}
+                          tone="success"
+                        />
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted">
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 text-muted">
+                      {order.billingPeriod}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          isIconOnly
+                          aria-label="View invoice"
+                          isDisabled={
+                            busyId === order.id || !order.invoiceNumber
+                          }
+                          onPress={() => void openInvoice(order)}
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          isIconOnly
+                          aria-label="Download invoice"
+                          isDisabled={
+                            busyId === order.id || !order.invoiceNumber
+                          }
+                          onPress={() => void openInvoice(order)}
+                        >
+                          <FileArrowDown className="size-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       ) : null}
     </div>
   );

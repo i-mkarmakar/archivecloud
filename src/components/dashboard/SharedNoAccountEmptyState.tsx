@@ -1,20 +1,21 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  CircleCheckFill,
-  Cloud,
-  Folder,
-  Person,
-} from "@gravity-ui/icons";
+import { CircleCheckFill } from "@gravity-ui/icons";
 import { Button, Skeleton } from "@heroui/react";
 import { useState } from "react";
+import { EMPTY_STATE_PNG_CLASS } from "@/lib/utils";
 import { ConnectCloudAccountModal } from "./ConnectCloudAccountModal";
 
-const FEATURES = [
+const SHARED_FEATURES = [
   "Access shared files without leaving the website",
   "Search, filter, and preview items quickly",
   "Keep track of collaborative content in one inbox",
+] as const;
+
+const RECENT_FEATURES = [
+  "Access recent files without leaving the website",
+  "Search, filter, and preview items quickly",
+  "Keep track of your content in one inbox",
 ] as const;
 
 const NOTHING_FEATURES = [
@@ -23,27 +24,19 @@ const NOTHING_FEATURES = [
   "Filter and search shared items by type",
 ] as const;
 
-function SharedEmptyArt() {
-  return (
-    <div
-      className="relative mb-6 flex h-28 w-44 items-center justify-center"
-      aria-hidden
-    >
-      <Folder className="absolute top-2 left-1 h-14 w-14 text-[#c9d2df]/70" />
-      <Cloud className="absolute right-1 bottom-0 h-14 w-14 text-[#c9d2df]/70" />
-      <div className="relative z-10 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]">
-        <span className="relative flex items-center justify-center">
-          <Person className="h-8 w-8 text-white" />
-          <ArrowUpRight className="absolute -top-0.5 -right-1 h-3.5 w-3.5 text-white" />
-        </span>
-      </div>
-    </div>
-  );
+function EmptyArt({ src }: { src: string }) {
+  return <img src={src} alt="" className={EMPTY_STATE_PNG_CLASS} aria-hidden />;
 }
 
-export function SharedNoAccountEmptyState({
+function NoAccountEmptyState({
+  imageSrc,
+  description,
+  features,
   onConnected,
 }: {
+  imageSrc: string;
+  description: string;
+  features: readonly string[];
   onConnected?: () => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -51,17 +44,17 @@ export function SharedNoAccountEmptyState({
   return (
     <div className="flex min-h-[min(520px,70vh)] w-full flex-col items-center justify-center px-4 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
-        <SharedEmptyArt />
+        <EmptyArt src={imageSrc} />
 
         <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
           No cloud account connected
         </h2>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
-          Connect a cloud account to see files that others have shared with you.
+          {description}
         </p>
 
         <ul className="mt-6 w-full max-w-sm space-y-3 text-left">
-          {FEATURES.map((feature) => (
+          {features.map((feature) => (
             <li key={feature} className="flex items-start gap-2.5 text-sm">
               <CircleCheckFill className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <span className="text-foreground/90">{feature}</span>
@@ -89,12 +82,42 @@ export function SharedNoAccountEmptyState({
   );
 }
 
+export function SharedNoAccountEmptyState({
+  onConnected,
+}: {
+  onConnected?: () => void;
+}) {
+  return (
+    <NoAccountEmptyState
+      imageSrc="/blank/shared-with-me.png"
+      description="Connect a cloud account to see files that others have shared with you."
+      features={SHARED_FEATURES}
+      onConnected={onConnected}
+    />
+  );
+}
+
+export function RecentNoAccountEmptyState({
+  onConnected,
+}: {
+  onConnected?: () => void;
+}) {
+  return (
+    <NoAccountEmptyState
+      imageSrc="/blank/recents.png"
+      description="Connect a cloud account to see your recent files across all platforms."
+      features={RECENT_FEATURES}
+      onConnected={onConnected}
+    />
+  );
+}
+
 /** Shown when accounts are connected but nothing is shared with the user yet. */
 export function SharedNothingEmptyState() {
   return (
     <div className="flex min-h-[min(520px,70vh)] w-full flex-col items-center justify-center px-4 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
-        <SharedEmptyArt />
+        <EmptyArt src="/blank/shared-with-me.png" />
 
         <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
           No shared files
@@ -127,7 +150,7 @@ export function SharedNoAccountEmptyStateSkeleton() {
       <div className="flex w-full max-w-md flex-col items-center">
         <Skeleton
           animationType="none"
-          className="mb-6 h-[4.5rem] w-[4.5rem] rounded-full"
+          className="mb-6 h-36 w-40 rounded-lg object-contain sm:h-40 sm:w-[16.5rem]"
         />
         <Skeleton
           animationType="none"

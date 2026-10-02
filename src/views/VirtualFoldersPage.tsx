@@ -35,9 +35,26 @@ import {
 import { useFileViewMode } from "@/hooks/useFileViewMode";
 import { apiFetch, formatBytes, formatDate } from "@/lib/api";
 import { isSupportedProviderId, providerLabel } from "@/lib/providers";
-import { cn } from "@/lib/utils";
+import { cn, EMPTY_STATE_PNG_CLASS } from "@/lib/utils";
 
 const MAX_NAME_LENGTH = 100;
+
+const EMPTY_FEATURES = [
+  "Group project files from multiple clouds",
+  "Organize photos and documents by topic",
+  "Create custom views of your content",
+] as const;
+
+function VirtualFoldersEmptyArt() {
+  return (
+    <img
+      src="/blank/virtual-folder.png"
+      alt=""
+      className={EMPTY_STATE_PNG_CLASS}
+      aria-hidden
+    />
+  );
+}
 const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_THUMBNAIL_TYPES = new Set([
   "image/png",
@@ -634,31 +651,30 @@ export function VirtualFoldersPage() {
       {error ? <p className="mt-6 text-sm text-danger">{error}</p> : null}
 
       {!loading && !selectedFolder && folders.length === 0 ? (
-        <Card className="mt-6 px-6 py-12 text-center sm:px-10">
-          <Folder className="mx-auto h-10 w-10 text-accent" />
-          <p className="mt-4 text-xl font-extrabold tracking-tight">
-            Virtual Folders
-          </p>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-muted">
-            Virtual folders are smart collections. Add files from different
-            cloud accounts and folders into one view, without moving,
-            duplicating, or modifying the originals.
-          </p>
-          <ul className="mx-auto mt-5 max-w-md space-y-2 text-left text-sm text-muted">
-            <li>
-              • Group project files scattered across Google Drive, Dropbox,
-              OneDrive, and more
-            </li>
-            <li>
-              • Organize photos and documents by topic, not by storage location
-            </li>
-            <li>• Build custom views for faster browsing</li>
-          </ul>
-          <Button className="mx-auto mt-8" onClick={openCreateModal}>
-            <FolderPlus className="h-4 w-4" />
-            Create Virtual Folder
-          </Button>
-        </Card>
+        <div className="flex min-h-[min(520px,70vh)] w-full flex-col items-center justify-center px-4 py-12">
+          <div className="flex w-full max-w-lg flex-col items-center text-center">
+            <VirtualFoldersEmptyArt />
+            <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
+              You haven&apos;t created any virtual folders yet
+            </h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
+              A virtual folder works like a smart collection. Add files from
+              different cloud accounts and folders into one place without
+              moving, duplicating, or modifying the original files.
+            </p>
+            <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-3 text-xs leading-snug text-muted sm:grid-cols-3 sm:gap-4">
+              {EMPTY_FEATURES.map((feature) => (
+                <p key={feature}>{feature}</p>
+              ))}
+            </div>
+            <Button
+              className="mt-8 h-11 min-w-[10.5rem] cursor-pointer rounded-xl border-transparent bg-gradient-to-b from-primary to-[color-mix(in_srgb,var(--primary)_85%,black)] px-6 text-sm font-semibold text-primary-foreground shadow-[0_6px_14px_-8px_color-mix(in_oklch,var(--primary)_10%,transparent)]"
+              onPress={openCreateModal}
+            >
+              Create Virtual Folder
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {!loading && !selectedFolder && rootFolders.length > 0 ? (

@@ -261,7 +261,10 @@ export async function listVirtualFolderItemsHandler(
   if (folder instanceof Response) return folder;
 
   const items = await prisma.virtualFolderItem.findMany({
-    where: { virtualFolderId: folderId },
+    where: {
+      virtualFolderId: folderId,
+      connectedAccount: { status: "connected" },
+    },
     include: {
       connectedAccount: {
         select: {

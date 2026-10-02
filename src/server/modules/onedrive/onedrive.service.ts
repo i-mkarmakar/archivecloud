@@ -31,12 +31,6 @@ function isConfiguredEnvValue(
 }
 
 export async function ensureGlobalOneDriveProviderConfig(): Promise<ProviderConfig | null> {
-  const existing = await prisma.providerConfig.findFirst({
-    where: { userId: null, provider: "onedrive", status: "active" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (existing) return existing;
-
   const clientId = env.ONEDRIVE_CLIENT_ID?.trim();
   const clientSecret = env.ONEDRIVE_CLIENT_SECRET?.trim();
   const redirectUri = env.ONEDRIVE_REDIRECT_URI;
@@ -53,6 +47,35 @@ export async function ensureGlobalOneDriveProviderConfig(): Promise<ProviderConf
   ]);
   if (!hasClientId || !hasClientSecret) return null;
   if (!clientId || !clientSecret) return null;
+
+  const existing = await prisma.providerConfig.findFirst({
+    where: { userId: null, provider: "onedrive", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    const sameId = decryptText(existing.clientIdEncrypted) === clientId;
+    const sameSecret =
+      decryptText(existing.clientSecretEncrypted) === clientSecret;
+    const sameRedirect = existing.redirectUri === redirectUri;
+    const sameScopes =
+      JSON.stringify(existing.scopes) === JSON.stringify(onedriveOAuthScopes);
+    if (sameId && sameSecret && sameRedirect && sameScopes) return existing;
+
+    await prisma.providerConfig.update({
+      where: { id: existing.id },
+      data: {
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
+        redirectUri,
+        scopes: onedriveOAuthScopes,
+        status: "active",
+      },
+    });
+    return prisma.providerConfig.findUniqueOrThrow({
+      where: { id: existing.id },
+    });
+  }
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "onedrive", status: "active" },

@@ -655,13 +655,32 @@ export async function resumableStatusHandler(
       });
     }
 
+    if (session.status === "failed") {
+      return json({ status: "failed", offset: "0" });
+    }
+
     if (!session.googleSessionUri || !session.targetConnectedAccountId) {
       return json({ status: "uploading", offset: "0" });
     }
 
-    const account = await prisma.connectedAccount.findFirstOrThrow({
-      where: { id: session.targetConnectedAccountId, userId: user.id },
+    const account = await prisma.connectedAccount.findFirst({
+      where: {
+        id: session.targetConnectedAccountId,
+        userId: user.id,
+        status: "connected",
+      },
     });
+    if (!account) {
+      await prisma.uploadSession.update({
+        where: { id: session.id },
+        data: {
+          status: "failed",
+          errorMessage: "Connected account was disconnected.",
+          completedAt: new Date(),
+        },
+      });
+      return json({ status: "failed", offset: "0" });
+    }
     const queryRes = await queryGoogleDriveResumableStatus({
       account,
       sessionUri: session.googleSessionUri,
@@ -732,9 +751,28 @@ export async function resumableChunkHandler(
     );
   }
 
-  const account = await prisma.connectedAccount.findFirstOrThrow({
-    where: { id: session.targetConnectedAccountId, userId: user.id },
+  const account = await prisma.connectedAccount.findFirst({
+    where: {
+      id: session.targetConnectedAccountId,
+      userId: user.id,
+      status: "connected",
+    },
   });
+  if (!account) {
+    await prisma.uploadSession.update({
+      where: { id: session.id },
+      data: {
+        status: "failed",
+        errorMessage: "Connected account was disconnected.",
+        completedAt: new Date(),
+      },
+    });
+    return errorJson(
+      "ACCOUNT_DISCONNECTED",
+      "Connected account was disconnected.",
+      400,
+    );
+  }
   const putRes = await putGoogleDriveResumableChunk({
     account,
     sessionUri: session.googleSessionUri,

@@ -155,6 +155,7 @@ async function resolveShareableFile(
       userId,
       status: "active",
       deletedAt: null,
+      connectedAccount: { status: "connected" },
     },
   });
 }
@@ -248,6 +249,7 @@ export async function listFilesHandler(request: Request) {
     userId: user.id,
     status: "active",
     deletedAt: null,
+    connectedAccount: { status: "connected" },
     ...(query.folderId ? { folderId: query.folderId } : {}),
     ...(query.q ? { name: { contains: query.q } } : {}),
     ...(query.accountId ? { connectedAccountId: query.accountId } : {}),
@@ -459,6 +461,7 @@ export async function listTrashFilesHandler(request: Request) {
     where: {
       userId: user.id,
       status: "deleted",
+      connectedAccount: { status: "connected" },
       ...(query.q ? { name: { contains: query.q } } : {}),
     },
     include: {
@@ -576,6 +579,10 @@ export async function listSharedLinksHandler(request: Request) {
       userId: user.id,
       enabled: true,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      file: {
+        status: "active",
+        connectedAccount: { status: "connected" },
+      },
     },
     include: {
       file: {
@@ -586,6 +593,7 @@ export async function listSharedLinksHandler(request: Request) {
               provider: true,
               displayName: true,
               avatarUrl: true,
+              status: true,
             },
           },
           folder: { select: { id: true, name: true } },
@@ -595,15 +603,13 @@ export async function listSharedLinksHandler(request: Request) {
     orderBy: { createdAt: "desc" },
   });
   return json({
-    shares: shares
-      .filter((share) => share.file.status === "active")
-      .map((share) => ({
-        id: share.id,
-        url: null as string | null,
-        createdAt: share.createdAt.toISOString(),
-        expiresAt: share.expiresAt?.toISOString() ?? null,
-        file: { ...share.file, sizeBytes: share.file.sizeBytes.toString() },
-      })),
+    shares: shares.map((share) => ({
+      id: share.id,
+      url: null as string | null,
+      createdAt: share.createdAt.toISOString(),
+      expiresAt: share.expiresAt?.toISOString() ?? null,
+      file: { ...share.file, sizeBytes: share.file.sizeBytes.toString() },
+    })),
   });
 }
 

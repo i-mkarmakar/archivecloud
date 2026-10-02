@@ -14,7 +14,7 @@ import {
   googleDriveOAuthScopes,
 } from "@/server/modules/providers/google/google.service";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
-import { encryptText } from "@/server/utils/crypto";
+import { decryptText, encryptText } from "@/server/utils/crypto";
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
 const appFolderName = "archivecloud";
@@ -54,12 +54,6 @@ function requireSharedDriveId(account: ConnectedAccount) {
 }
 
 export async function ensureGlobalGoogleSharedDriveProviderConfig(): Promise<ProviderConfig | null> {
-  const existing = await prisma.providerConfig.findFirst({
-    where: { userId: null, provider: "google_shared_drive", status: "active" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (existing) return existing;
-
   const clientId = env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
   const redirectUri = resolveGoogleSharedDriveRedirectUri();
@@ -76,6 +70,36 @@ export async function ensureGlobalGoogleSharedDriveProviderConfig(): Promise<Pro
   ]);
   if (!hasClientId || !hasClientSecret) return null;
   if (!clientId || !clientSecret) return null;
+
+  const existing = await prisma.providerConfig.findFirst({
+    where: { userId: null, provider: "google_shared_drive", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    const sameId = decryptText(existing.clientIdEncrypted) === clientId;
+    const sameSecret =
+      decryptText(existing.clientSecretEncrypted) === clientSecret;
+    const sameRedirect = existing.redirectUri === redirectUri;
+    const sameScopes =
+      JSON.stringify(existing.scopes) ===
+      JSON.stringify(googleSharedDriveOAuthScopes);
+    if (sameId && sameSecret && sameRedirect && sameScopes) return existing;
+
+    await prisma.providerConfig.update({
+      where: { id: existing.id },
+      data: {
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
+        redirectUri,
+        scopes: googleSharedDriveOAuthScopes,
+        status: "active",
+      },
+    });
+    return prisma.providerConfig.findUniqueOrThrow({
+      where: { id: existing.id },
+    });
+  }
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "google_shared_drive", status: "active" },

@@ -130,16 +130,26 @@ export async function listFoldersHandler(request: Request) {
     where: {
       userId: user.id,
       deletedAt: null,
+      AND: [
+        {
+          OR: [
+            { connectedAccountId: null },
+            { connectedAccount: { status: "connected" } },
+          ],
+        },
+        ...(query.accountId
+          ? [
+              {
+                OR: [
+                  { connectedAccountId: query.accountId },
+                  { connectedAccountId: null },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(excludeSharedIds.length > 0
         ? { id: { notIn: excludeSharedIds } }
-        : {}),
-      ...(query.accountId
-        ? {
-            OR: [
-              { connectedAccountId: query.accountId },
-              { connectedAccountId: null },
-            ],
-          }
         : {}),
       ...(query.all === "1"
         ? {}

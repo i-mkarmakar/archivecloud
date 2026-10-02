@@ -20,6 +20,9 @@ async function findSharedFile(token: string) {
   if (!share) return { kind: "missing" as const };
   if (!share.enabled) return { kind: "disabled" as const };
   if (share.file.status !== "active") return { kind: "missing" as const };
+  if (share.file.connectedAccount?.status !== "connected") {
+    return { kind: "missing" as const };
+  }
   return {
     kind: "ok" as const,
     file: share.file,

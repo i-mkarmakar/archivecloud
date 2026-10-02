@@ -33,12 +33,6 @@ function isConfiguredEnvValue(
 }
 
 export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig | null> {
-  const existing = await prisma.providerConfig.findFirst({
-    where: { userId: null, provider: "google_drive", status: "active" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (existing) return existing;
-
   const clientId = env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
   const redirectUri = env.GOOGLE_REDIRECT_URI;
@@ -54,6 +48,36 @@ export async function ensureGlobalGoogleProviderConfig(): Promise<ProviderConfig
 
   if (!hasClientId || !hasClientSecret) return null;
   if (!clientId || !clientSecret) return null;
+
+  const existing = await prisma.providerConfig.findFirst({
+    where: { userId: null, provider: "google_drive", status: "active" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    const sameId = decryptText(existing.clientIdEncrypted) === clientId;
+    const sameSecret =
+      decryptText(existing.clientSecretEncrypted) === clientSecret;
+    const sameRedirect = existing.redirectUri === redirectUri;
+    const sameScopes =
+      JSON.stringify(existing.scopes) ===
+      JSON.stringify(googleDriveOAuthScopes);
+    if (sameId && sameSecret && sameRedirect && sameScopes) return existing;
+
+    await prisma.providerConfig.update({
+      where: { id: existing.id },
+      data: {
+        clientIdEncrypted: encryptText(clientId),
+        clientSecretEncrypted: encryptText(clientSecret),
+        redirectUri,
+        scopes: googleDriveOAuthScopes,
+        status: "active",
+      },
+    });
+    return prisma.providerConfig.findUniqueOrThrow({
+      where: { id: existing.id },
+    });
+  }
 
   await prisma.providerConfig.updateMany({
     where: { userId: null, provider: "google_drive", status: "active" },

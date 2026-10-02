@@ -22,6 +22,7 @@ export async function getAccessibleFile(
     where: {
       id: fileId,
       userId,
+      connectedAccount: { status: "connected" },
       ...(activeOnly ? { status: "active" as const } : {}),
     },
     include,
@@ -40,6 +41,7 @@ export async function getAccessibleFile(
     where: {
       id: fileId,
       status: "active",
+      connectedAccount: { status: "connected" },
     },
     include,
   });

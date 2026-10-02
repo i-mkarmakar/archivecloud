@@ -130,19 +130,6 @@ export const auth = betterAuth({
         input: false,
         returned: true,
       },
-      developerModeEnabled: {
-        type: "boolean",
-        required: false,
-        defaultValue: false,
-        input: false,
-        returned: true,
-      },
-      developerModeEnabledAt: {
-        type: "date",
-        required: false,
-        input: false,
-        returned: true,
-      },
     },
   },
   account: {
