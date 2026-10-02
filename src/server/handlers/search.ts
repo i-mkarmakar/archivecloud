@@ -27,6 +27,7 @@ export async function universalSearchHandler(request: Request) {
         status: "active",
         deletedAt: null,
         isArchived: false,
+        connectedAccount: { status: "connected" },
         name: { contains: query.q, mode: "insensitive" },
         ...(query.accountId ? { connectedAccountId: query.accountId } : {}),
       },

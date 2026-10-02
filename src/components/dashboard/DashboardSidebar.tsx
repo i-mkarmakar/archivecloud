@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  ChevronsExpandVertical,
   EllipsisVertical,
   Gear,
   Grip,
@@ -278,6 +279,12 @@ export function DashboardSidebar({
     }));
   }
 
+  function closeProvider(provider: string) {
+    setOpenProviders((prev) =>
+      prev[provider] ? { ...prev, [provider]: false } : prev,
+    );
+  }
+
   function isAccountActive(accountId: string) {
     return (
       safePathname === "/home" && searchParams.get("accountId") === accountId
@@ -285,7 +292,13 @@ export function DashboardSidebar({
   }
 
   function toggleSection(id: string) {
-    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+    setOpenSections((prev) => {
+      const currentlyOpen = prev[id] !== false;
+      if (id === "linked-storage" && currentlyOpen) {
+        setOpenProviders({});
+      }
+      return { ...prev, [id]: !currentlyOpen };
+    });
   }
 
   useEffect(() => {
@@ -452,7 +465,10 @@ export function DashboardSidebar({
                                             key={account.id}
                                             href={href}
                                             title={accountTitle(account)}
-                                            onClick={onNavigate}
+                                            onClick={() => {
+                                              closeProvider(group.provider);
+                                              onNavigate?.();
+                                            }}
                                             aria-label={accountTitle(account)}
                                             className={cn(
                                               "mx-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-transparent transition-colors",
@@ -598,7 +614,9 @@ export function DashboardSidebar({
                     <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888ea8]">
                       {sectionTitle}
                     </span>
-                    {isOpen ? (
+                    {section.id === "linked-storage" ? (
+                      <ChevronsExpandVertical className="h-3.5 w-3.5 shrink-0 text-[#888ea8]" />
+                    ) : isOpen ? (
                       <ChevronUp className="h-3.5 w-3.5 shrink-0 text-[#888ea8]" />
                     ) : (
                       <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#888ea8]" />
@@ -763,7 +781,10 @@ export function DashboardSidebar({
                                           ) : null}
                                           <Link
                                             href={href}
-                                            onClick={onNavigate}
+                                            onClick={() => {
+                                              closeProvider(group.provider);
+                                              onNavigate?.();
+                                            }}
                                             title={accountTitle(account)}
                                             className={cn(
                                               "flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-1 pr-8 pl-2.5 text-sm",

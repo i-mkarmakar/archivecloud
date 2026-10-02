@@ -11,6 +11,7 @@ import {
 } from "@/components/drive/PageSkeletons";
 import type { FileItem } from "@/data/drive-data";
 import { useFileViewMode } from "@/hooks/useFileViewMode";
+import { EMPTY_STATE_PNG_CLASS } from "@/lib/utils";
 
 export function WorkspaceFileList({
   files,
@@ -22,6 +23,7 @@ export function WorkspaceFileList({
   storageKey = "archivecloud:workspace-view",
   emptyTitle,
   emptyDescription,
+  emptyImage,
   selectedFileIds,
   allSelected,
   onToggleFile,
@@ -38,6 +40,7 @@ export function WorkspaceFileList({
   storageKey?: string;
   emptyTitle: string;
   emptyDescription: string;
+  emptyImage?: string;
   selectedFileIds?: Set<string>;
   allSelected?: boolean;
   onToggleFile?: (file: FileItem) => void;
@@ -66,8 +69,22 @@ export function WorkspaceFileList({
           </p>
         </div>
       ) : files.length === 0 ? (
-        <div className="flex min-h-[200px] items-center justify-center py-8">
-          <div className="text-center">
+        <div
+          className={
+            emptyImage
+              ? "flex min-h-[min(520px,70vh)] w-full flex-col items-center justify-center px-4 py-12"
+              : "flex min-h-[200px] items-center justify-center py-8"
+          }
+        >
+          <div className="flex w-full max-w-lg flex-col items-center text-center">
+            {emptyImage ? (
+              <img
+                src={emptyImage}
+                alt=""
+                className={EMPTY_STATE_PNG_CLASS}
+                aria-hidden
+              />
+            ) : null}
             <p className="font-extrabold">{emptyTitle}</p>
             <p className="mt-1 text-sm text-muted">{emptyDescription}</p>
           </div>

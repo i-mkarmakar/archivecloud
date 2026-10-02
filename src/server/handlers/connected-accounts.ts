@@ -974,6 +974,55 @@ export async function disconnectAccountHandler(
       where: { connectedAccountId: accountId, status: "active" },
       data: { status: "stopped" },
     });
+    await tx.uploadSession.updateMany({
+      where: {
+        userId: user.id,
+        targetConnectedAccountId: accountId,
+        status: { notIn: ["completed", "failed"] },
+      },
+      data: {
+        status: "failed",
+        errorMessage: "Connected account was disconnected.",
+        completedAt: new Date(),
+      },
+    });
+
+    const accountFiles = await tx.file.findMany({
+      where: { connectedAccountId: accountId },
+      select: { id: true },
+    });
+    const accountFolders = await tx.folder.findMany({
+      where: { connectedAccountId: accountId },
+      select: { id: true },
+    });
+    const fileIds = accountFiles.map((file) => file.id);
+    const folderIds = accountFolders.map((folder) => folder.id);
+
+    if (fileIds.length > 0 || folderIds.length > 0) {
+      await tx.workspaceInvite.updateMany({
+        where: {
+          inviterId: user.id,
+          revokedAt: null,
+          OR: [
+            ...(fileIds.length > 0
+              ? [{ targetType: "file", targetId: { in: fileIds } }]
+              : []),
+            ...(folderIds.length > 0
+              ? [{ targetType: "folder", targetId: { in: folderIds } }]
+              : []),
+          ],
+        },
+        data: { revokedAt: new Date(), status: "revoked" },
+      });
+    }
+
+    // Hard-delete library rows so disconnect never leaves Home/Trash orphans.
+    await tx.virtualFolderItem.deleteMany({
+      where: { connectedAccountId: accountId },
+    });
+    await tx.file.deleteMany({ where: { connectedAccountId: accountId } });
+    await tx.folder.deleteMany({ where: { connectedAccountId: accountId } });
+
     await tx.connectedAccount.update({
       where: { id: accountId },
       data: {
@@ -1437,10 +1486,55 @@ export async function deleteConnectedAccountItemHandler(
     const { deleteProviderFile } = await import(
       "@/server/modules/providers/operations"
     );
+    const providerFileId = decodeURIComponent(itemId);
     await deleteProviderFile({
       account,
-      providerFileId: decodeURIComponent(itemId),
+      providerFileId,
     });
+    const matchedFiles = await prisma.file.findMany({
+      where: {
+        userId: user.id,
+        connectedAccountId: accountId,
+        providerFileId,
+        status: "active",
+      },
+      select: { id: true },
+    });
+    const matchedFileIds = matchedFiles.map((file) => file.id);
+    await prisma.$transaction([
+      prisma.file.updateMany({
+        where: { id: { in: matchedFileIds } },
+        data: { status: "deleted", deletedAt: new Date() },
+      }),
+      prisma.fileShare.updateMany({
+        where: { fileId: { in: matchedFileIds }, enabled: true },
+        data: { enabled: false },
+      }),
+      prisma.workspaceInvite.updateMany({
+        where: {
+          inviterId: user.id,
+          revokedAt: null,
+          targetType: "file",
+          targetId: { in: matchedFileIds },
+        },
+        data: { revokedAt: new Date(), status: "revoked" },
+      }),
+      prisma.folder.updateMany({
+        where: {
+          userId: user.id,
+          connectedAccountId: accountId,
+          providerFolderId: providerFileId,
+          deletedAt: null,
+        },
+        data: { deletedAt: new Date() },
+      }),
+      prisma.virtualFolderItem.deleteMany({
+        where: {
+          connectedAccountId: accountId,
+          providerFileId,
+        },
+      }),
+    ]);
     return json({ status: "ok" });
   } catch (error) {
     return errorJson(

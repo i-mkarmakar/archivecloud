@@ -3,6 +3,7 @@
 import {
   Bell,
   Camera,
+  ChevronDown,
   CircleInfo,
   Envelope,
   FileText,
@@ -13,7 +14,14 @@ import {
   TrashBin,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import { Button, Switch, toast } from "@heroui/react";
+import {
+  Button,
+  Dropdown,
+  Label,
+  type Selection,
+  Switch,
+  toast,
+} from "@heroui/react";
 import Link from "next/link";
 import {
   type ChangeEvent,
@@ -114,6 +122,12 @@ type RoutingPolicy = {
   priorityAccountIds: string[];
   roundRobinCursor: number;
 };
+
+const ROUTING_MODE_OPTIONS: { id: RoutingMode; label: string }[] = [
+  { id: "most_available", label: "Most available space" },
+  { id: "round_robin", label: "Round robin" },
+  { id: "priority", label: "Priority order" },
+];
 
 type SettingsPrefs = {
   newsletter: boolean;
@@ -1059,26 +1073,50 @@ export function SettingsPage() {
               </p>
               {hasSmartDistribution ? (
                 <div className="mt-4 grid gap-3 sm:max-w-md">
-                  <label className="grid gap-2 text-sm font-semibold text-foreground">
+                  <div className="grid gap-2 text-sm font-semibold text-foreground">
                     Routing mode
-                    <select
-                      className="h-11 rounded-xl border border-border bg-white px-3 text-sm font-medium"
-                      value={routingPolicy.mode}
-                      disabled={routingSaving}
-                      onChange={(event) =>
-                        void saveRoutingPolicy({
-                          ...routingPolicy,
-                          mode: event.target.value as RoutingMode,
-                        })
-                      }
-                    >
-                      <option value="most_available">
-                        Most available space
-                      </option>
-                      <option value="round_robin">Round robin</option>
-                      <option value="priority">Priority order</option>
-                    </select>
-                  </label>
+                    <Dropdown>
+                      <Button
+                        variant="secondary"
+                        className="h-11 w-full justify-between rounded-xl border border-border bg-white px-3 text-sm font-medium"
+                        isDisabled={routingSaving}
+                      >
+                        {ROUTING_MODE_OPTIONS.find(
+                          (o) => o.id === routingPolicy.mode,
+                        )?.label ?? "Most available space"}
+                        <ChevronDown className="size-4 shrink-0 text-muted" />
+                      </Button>
+                      <Dropdown.Popover className="min-w-[220px]">
+                        <Dropdown.Menu
+                          selectionMode="single"
+                          selectedKeys={new Set([routingPolicy.mode])}
+                          onSelectionChange={(keys: Selection) => {
+                            if (keys === "all") return;
+                            const key = [...keys][0];
+                            if (
+                              typeof key === "string" &&
+                              ROUTING_MODE_OPTIONS.some((o) => o.id === key)
+                            ) {
+                              void saveRoutingPolicy({
+                                ...routingPolicy,
+                                mode: key as RoutingMode,
+                              });
+                            }
+                          }}
+                        >
+                          {ROUTING_MODE_OPTIONS.map((option) => (
+                            <Dropdown.Item
+                              key={option.id}
+                              id={option.id}
+                              textValue={option.label}
+                            >
+                              <Label>{option.label}</Label>
+                            </Dropdown.Item>
+                          ))}
+                        </Dropdown.Menu>
+                      </Dropdown.Popover>
+                    </Dropdown>
+                  </div>
                   <p className="text-xs text-muted">
                     Set account priority order on the{" "}
                     <Link

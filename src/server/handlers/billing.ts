@@ -328,26 +328,36 @@ export async function listBillingHistoryHandler(request: Request) {
   const polar = createPolarClient();
   const externalId = user.id.trim();
 
-  const pages = await Promise.all([
-    polar.orders.list({
-      externalCustomerId: externalId,
-      limit: 50,
-      sorting: ["-created_at"],
+  const [pages, subscription] = await Promise.all([
+    Promise.all([
+      polar.orders.list({
+        externalCustomerId: externalId,
+        limit: 50,
+        sorting: ["-created_at"],
+      }),
+      user.id !== externalId
+        ? polar.orders.list({
+            externalCustomerId: user.id,
+            limit: 50,
+            sorting: ["-created_at"],
+          })
+        : Promise.resolve(null),
+      dbUser.polarCustomerId
+        ? polar.orders.list({
+            customerId: dbUser.polarCustomerId,
+            limit: 50,
+            sorting: ["-created_at"],
+          })
+        : Promise.resolve(null),
+    ]),
+    prisma.billingSubscription.findFirst({
+      where: {
+        userId: user.id,
+        status: { in: ["active", "trialing", "past_due", "lifetime"] },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { status: true },
     }),
-    user.id !== externalId
-      ? polar.orders.list({
-          externalCustomerId: user.id,
-          limit: 50,
-          sorting: ["-created_at"],
-        })
-      : Promise.resolve(null),
-    dbUser.polarCustomerId
-      ? polar.orders.list({
-          customerId: dbUser.polarCustomerId,
-          limit: 50,
-          sorting: ["-created_at"],
-        })
-      : Promise.resolve(null),
   ]);
 
   const byId = new Map<string, (typeof pages)[0]["result"]["items"][number]>();
@@ -357,6 +367,10 @@ export async function listBillingHistoryHandler(request: Request) {
       byId.set(item.id, item);
     }
   }
+
+  const subscriptionStatus = subscription?.status
+    ? subscription.status.toUpperCase()
+    : null;
 
   const items = [...byId.values()]
     .filter((order) =>
@@ -370,16 +384,31 @@ export async function listBillingHistoryHandler(request: Request) {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-    .map((order) => ({
-      id: order.id,
-      invoiceNumber: order.invoiceNumber,
-      status: order.status,
-      paid: order.paid,
-      totalAmount: order.totalAmount,
-      currency: order.currency,
-      createdAt: order.createdAt.toISOString(),
-      checkoutId: order.checkoutId,
-    }));
+    .map((order) => {
+      const meta = order.metadata ?? {};
+      const planRaw =
+        typeof meta.planId === "string"
+          ? meta.planId
+          : typeof meta.plan_id === "string"
+            ? meta.plan_id
+            : "thunder";
+      const planId = normalizePlanId(planRaw);
+      // ponytail: Thunder is lifetime-only; wire real periods if subscriptions return
+      const planName = planId === "thunder" ? "Thunder Plan" : "Free Plan";
+      return {
+        id: order.id,
+        invoiceNumber: order.invoiceNumber,
+        status: order.status,
+        paid: order.paid,
+        totalAmount: order.totalAmount,
+        currency: order.currency,
+        createdAt: order.createdAt.toISOString(),
+        checkoutId: order.checkoutId,
+        planLabel: `1 × ${planName} (Lifetime)`,
+        billingPeriod: "Lifetime",
+        subscriptionStatus,
+      };
+    });
 
   return json({ items });
 }

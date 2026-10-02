@@ -15,8 +15,6 @@ model User {
   emailVerified          Boolean              @default(false) @map("email_verified")
   image                  String?              @db.Text
   status                 String               @default("active") @db.VarChar(32)
-  developerModeEnabled   Boolean              @default(false) @map("developer_mode_enabled")
-  developerModeEnabledAt DateTime?            @map("developer_mode_enabled_at")
   planId                 String               @default("free") @map("plan_id") @db.VarChar(32)
   polarCustomerId        String?              @map("polar_customer_id") @db.VarChar(191)
   notificationPrefs      Json                 @default("{\"defaultNotifications\":true,\"announcements\":true}") @map("notification_prefs")
