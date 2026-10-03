@@ -204,6 +204,11 @@ export async function previewFileByTokenHandler(
   const token = params?.token;
   if (!token)
     return errorJson("PREVIEW_NOT_FOUND", "Preview token not found.", 404);
+  const { enforcePublicShareRateLimit } = await import(
+    "@/server/modules/files/public-rate-limit"
+  );
+  const limited = enforcePublicShareRateLimit({ request, token });
+  if (limited) return limited;
   const preview = await prisma.filePreviewToken.findFirst({
     where: { tokenHash: hashToken(token), expiresAt: { gt: new Date() } },
     include: { file: { include: { connectedAccount: true } } },

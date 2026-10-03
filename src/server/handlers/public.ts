@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { errorJson, json } from "@/server/http/responses";
+import { enforcePublicShareRateLimit } from "@/server/modules/files/public-rate-limit";
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import { hashToken } from "@/server/utils/crypto";
 
@@ -40,12 +41,14 @@ function parsePublicToken(params?: Record<string, string>) {
 }
 
 export async function getPublicFileHandler(
-  _request: Request,
+  request: Request,
   _user?: unknown,
   params?: Record<string, string>,
 ) {
   const token = parsePublicToken(params);
   if (token instanceof Response) return token;
+  const limited = enforcePublicShareRateLimit({ request, token });
+  if (limited) return limited;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
     return errorJson(
@@ -81,6 +84,8 @@ export async function downloadPublicFileHandler(
 ) {
   const token = parsePublicToken(params);
   if (token instanceof Response) return token;
+  const limited = enforcePublicShareRateLimit({ request, token });
+  if (limited) return limited;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
     return errorJson(
@@ -106,6 +111,8 @@ export async function previewPublicFileHandler(
 ) {
   const token = parsePublicToken(params);
   if (token instanceof Response) return token;
+  const limited = enforcePublicShareRateLimit({ request, token });
+  if (limited) return limited;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
     return errorJson(

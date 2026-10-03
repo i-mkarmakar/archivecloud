@@ -106,11 +106,84 @@ const envSchema = z.object({
     return value;
   }, z.boolean().optional()),
 
+  /**
+   * When true, whole-account catalog indexing is allowed and Dropbox accounts
+   * flagged for Full Dropbox reconnect show "Reconnect to see all your files".
+   * Default off until Phase 2+ is ready.
+   */
+  WHOLE_ACCOUNT_INDEXING_ENABLED: z.preprocess((value) => {
+    if (value === undefined || value === "") return false;
+    if (typeof value === "boolean") return value;
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === "true" || normalized === "1" || normalized === "yes") {
+      return true;
+    }
+    if (normalized === "false" || normalized === "0" || normalized === "no") {
+      return false;
+    }
+    return value;
+  }, z.boolean().default(false)),
+
+  /**
+   * Dropbox app console access type. Only `"full"` clears dropboxNeedsFullAccess
+   * on connect/reconnect. Default `"app"` (App folder).
+   */
+  DROPBOX_ACCESS_TYPE: z.preprocess(
+    (value) => {
+      if (value === undefined || value === "") return "app";
+      return String(value).trim().toLowerCase();
+    },
+    z.enum(["app", "full"]).default("app"),
+  ),
+
+  /** Soft-delete abort threshold after a successful full scan (percent 1–100). */
+  INDEX_RECONCILE_MAX_REMOVAL_PCT: z.coerce
+    .number()
+    .min(1)
+    .max(100)
+    .default(20),
+
+  /** Full-scan lock becomes resumable after this many minutes without a heartbeat. */
+  INDEX_SCAN_STALE_MINUTES: z.coerce.number().min(1).max(180).default(10),
+
+  /** Max cron auto-starts while indexNeedsFullScan is set (manual start still allowed). */
+  INDEX_FULL_SCAN_MAX_ATTEMPTS: z.coerce.number().min(1).max(50).default(5),
+
+  /** Base backoff minutes for cron full-scan retries (doubles each attempt). */
+  INDEX_FULL_SCAN_BACKOFF_MINUTES: z.coerce
+    .number()
+    .min(1)
+    .max(1440)
+    .default(5),
+
   /** Cloudflare Turnstile secret (server-only). When unset, captcha is disabled. */
   TURNSTILE_SECRET_KEY: optionalNonEmptyString,
 
   /** Optional GitHub PAT for star-count API rate limits (server-only). */
   GITHUB_TOKEN: optionalNonEmptyString,
+
+  /**
+   * Optional cookieless origin for public file bytes (e.g. https://files.example.com).
+   * Not wired yet — report-only until a separate host is deployed.
+   */
+  PUBLIC_FILES_ORIGIN: z.string().url().optional(),
+
+  /** Sliding-window public share rate limits (metadata + byte routes). */
+  PUBLIC_SHARE_RATE_LIMIT_PER_IP: z.coerce
+    .number()
+    .min(1)
+    .max(10_000)
+    .default(120),
+  PUBLIC_SHARE_RATE_LIMIT_PER_TOKEN: z.coerce
+    .number()
+    .min(1)
+    .max(10_000)
+    .default(60),
+  PUBLIC_SHARE_RATE_WINDOW_MS: z.coerce
+    .number()
+    .min(1_000)
+    .max(3_600_000)
+    .default(60_000),
 });
 
 const isNextBuild =
