@@ -7,15 +7,11 @@ import type {
 } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
+import { dropboxOAuthScopes } from "@/server/modules/providers/scopes";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
-export const dropboxOAuthScopes = [
-  "account_info.read",
-  "files.metadata.read",
-  "files.content.read",
-  "files.content.write",
-];
+export { dropboxOAuthScopes };
 
 const APP_FOLDER = "/archivecloud";
 const DROPBOX_AUTH_URL = "https://www.dropbox.com/oauth2/authorize";
@@ -484,6 +480,7 @@ export async function getDropboxFileMetadata(
 export async function downloadDropboxFileStream(
   account: ConnectedAccount,
   pathOrId: string,
+  signal?: AbortSignal,
 ) {
   const accessToken = await getDropboxAccessToken(account);
   const response = await fetch(`${DROPBOX_CONTENT}/files/download`, {
@@ -492,12 +489,18 @@ export async function downloadDropboxFileStream(
       Authorization: `Bearer ${accessToken}`,
       "Dropbox-API-Arg": JSON.stringify({ path: pathOrId }),
     },
+    signal,
   });
   if (!response.ok || !response.body) {
     const text = await response.text();
     throw new Error(`Dropbox download failed: ${text}`);
   }
-  return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+  return {
+    stream: Readable.fromWeb(
+      response.body as import("stream/web").ReadableStream,
+    ),
+    contentLength: response.headers.get("content-length"),
+  };
 }
 
 export async function streamDropboxThumbnailResponse(

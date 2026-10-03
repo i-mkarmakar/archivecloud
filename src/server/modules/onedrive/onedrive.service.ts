@@ -7,14 +7,11 @@ import type {
 } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
+import { onedriveOAuthScopes } from "@/server/modules/providers/scopes";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
-export const onedriveOAuthScopes = [
-  "offline_access",
-  "User.Read",
-  "Files.ReadWrite.All",
-];
+export { onedriveOAuthScopes };
 
 const APP_FOLDER_NAME = "archivecloud";
 const AUTH_URL =
@@ -472,15 +469,22 @@ export async function getOneDriveFileMetadata(
 export async function downloadOneDriveFileStream(
   account: ConnectedAccount,
   itemId: string,
+  signal?: AbortSignal,
 ) {
   const response = await graphFetch(
     account,
     `/me/drive/items/${encodeURIComponent(itemId)}/content`,
+    { signal },
   );
   if (!response.ok || !response.body) {
     throw new Error(`OneDrive download failed: ${await response.text()}`);
   }
-  return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+  return {
+    stream: Readable.fromWeb(
+      response.body as import("stream/web").ReadableStream,
+    ),
+    contentLength: response.headers.get("content-length"),
+  };
 }
 
 function toBody(chunk: Buffer): BodyInit {

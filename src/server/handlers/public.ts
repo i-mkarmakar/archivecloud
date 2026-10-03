@@ -20,6 +20,7 @@ async function findSharedFile(token: string) {
   if (!share) return { kind: "missing" as const };
   if (!share.enabled) return { kind: "disabled" as const };
   if (share.file.status !== "active") return { kind: "missing" as const };
+  if (share.file.isShortcut) return { kind: "missing" as const };
   if (share.file.connectedAccount?.status !== "connected") {
     return { kind: "missing" as const };
   }
@@ -62,7 +63,7 @@ export async function getPublicFileHandler(
       id: file.id,
       name: file.name,
       mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes.toString(),
+      sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
       createdAt: file.createdAt,
       provider: file.provider,
       sharedBy: {
@@ -94,7 +95,7 @@ export async function downloadPublicFileHandler(
   return streamProviderFileResponse(
     result.file,
     request.headers.get("range") ?? undefined,
-    { disposition: "attachment" },
+    { disposition: "attachment", signal: request.signal },
   );
 }
 
@@ -119,6 +120,6 @@ export async function previewPublicFileHandler(
   return streamProviderFileResponse(
     result.file,
     request.headers.get("range") ?? undefined,
-    { disposition: "inline" },
+    { disposition: "inline", signal: request.signal },
   );
 }

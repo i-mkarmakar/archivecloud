@@ -4,6 +4,8 @@ import { Readable } from "node:stream";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { errorJson } from "@/server/http/responses";
+import { destroyStreamOnAbort } from "@/server/modules/files/abort-stream";
+import { applyContentLengthHeader } from "@/server/modules/files/content-length";
 import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
 import { publicStreamErrorResponse } from "@/server/modules/files/public-stream-errors";
 import {
@@ -13,7 +15,11 @@ import {
 import { pullProviderFile } from "@/server/modules/providers/operations";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
-type StreamOptions = { disposition?: "inline" | "attachment" };
+export type StreamOptions = {
+  disposition?: "inline" | "attachment";
+  /** Client disconnect — aborts upstream provider fetch. */
+  signal?: AbortSignal;
+};
 
 async function findPhotosImportDest(file: FileWithAccount) {
   return prisma.transferJob.findFirst({
@@ -58,16 +64,19 @@ async function streamGooglePhotosImportedFileResponse(
       job.destAccount,
       job.destProviderFileId,
       file.name,
+      options.signal,
     );
+    destroyStreamOnAbort(pulled.stream, options.signal);
     const headers = new Headers();
     applyPublicByteSafetyHeaders(headers, {
       mimeType: pulled.mimeType || file.mimeType,
       fileName: pulled.name || file.name,
       preferredDisposition: options.disposition ?? "attachment",
     });
-    if (pulled.sizeBytes > 0n) {
-      headers.set("Content-Length", pulled.sizeBytes.toString());
-    }
+    applyContentLengthHeader(headers, {
+      providerContentLength: pulled.providerContentLength,
+      sizeBytes: pulled.sizeBytes,
+    });
     headers.set("Cache-Control", "private, max-age=300");
     const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
     return new Response(webStream, { status: 200, headers });
@@ -145,16 +154,19 @@ export async function streamProviderFileResponse(
       file.connectedAccount,
       file.providerFileId,
       file.name,
+      options.signal,
     );
+    destroyStreamOnAbort(pulled.stream, options.signal);
     const headers = new Headers();
     applyPublicByteSafetyHeaders(headers, {
       mimeType: pulled.mimeType || file.mimeType,
       fileName: pulled.name || file.name,
       preferredDisposition: options.disposition ?? "attachment",
     });
-    if (pulled.sizeBytes > 0n) {
-      headers.set("Content-Length", pulled.sizeBytes.toString());
-    }
+    applyContentLengthHeader(headers, {
+      providerContentLength: pulled.providerContentLength,
+      sizeBytes: pulled.sizeBytes,
+    });
     headers.set("Cache-Control", "private, max-age=60");
     const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
     return new Response(webStream, { status: 200, headers });

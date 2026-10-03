@@ -3,12 +3,16 @@ import "server-only";
 import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";
+import { cancelWebStreamOnAbort } from "@/server/modules/files/abort-stream";
 import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
 import { publicStreamErrorResponse } from "@/server/modules/files/public-stream-errors";
 import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
-type StreamOptions = { disposition?: "inline" | "attachment" };
+type StreamOptions = {
+  disposition?: "inline" | "attachment";
+  signal?: AbortSignal;
+};
 
 export type GoogleProviderFile = {
   providerFileId: string;
@@ -108,6 +112,7 @@ export async function streamGoogleFileResponse(
       ...headers,
       ...(range && !exportTarget ? { Range: range } : {}),
     },
+    signal: options.signal,
   });
 
   if (!response.ok) {
@@ -134,6 +139,7 @@ export async function streamGoogleFileResponse(
   if (contentLength) outHeaders.set("Content-Length", contentLength);
   if (contentRange) outHeaders.set("Content-Range", contentRange);
 
+  cancelWebStreamOnAbort(response.body, options.signal);
   return new Response(response.body, {
     status: response.status,
     headers: outHeaders,
@@ -166,6 +172,7 @@ export async function streamGoogleProviderFileResponse(
       ...headers,
       ...(range && !exportTarget ? { Range: range } : {}),
     },
+    signal: options.signal,
   });
 
   if (!response.ok) {
@@ -192,6 +199,7 @@ export async function streamGoogleProviderFileResponse(
   if (contentLength) outHeaders.set("Content-Length", contentLength);
   if (contentRange) outHeaders.set("Content-Range", contentRange);
 
+  cancelWebStreamOnAbort(response.body, options.signal);
   return new Response(response.body, {
     status: response.status,
     headers: outHeaders,

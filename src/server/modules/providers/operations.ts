@@ -83,6 +83,8 @@ export type PulledFile = {
   mimeType: string;
   name: string;
   sizeBytes: bigint;
+  /** Provider response Content-Length header when present. */
+  providerContentLength?: string | null;
 };
 
 function guessMimeFromName(name: string) {
@@ -214,6 +216,7 @@ export async function pullProviderFile(
   account: ConnectedAccount,
   providerFileId: string,
   fileName?: string,
+  signal?: AbortSignal,
 ): Promise<PulledFile> {
   switch (account.provider) {
     case "google_drive":
@@ -259,30 +262,48 @@ export async function pullProviderFile(
     case "dropbox": {
       const meta = await getDropboxFileMetadata(account, providerFileId);
       const name = fileName?.trim() || meta.name || "untitled";
+      const downloaded = await downloadDropboxFileStream(
+        account,
+        providerFileId,
+        signal,
+      );
       return {
-        stream: await downloadDropboxFileStream(account, providerFileId),
+        stream: downloaded.stream,
         mimeType: guessDropboxMimeType(name),
         name,
         sizeBytes: BigInt(meta.size ?? 0),
+        providerContentLength: downloaded.contentLength,
       };
     }
     case "onedrive": {
       const meta = await getOneDriveFileMetadata(account, providerFileId);
+      const downloaded = await downloadOneDriveFileStream(
+        account,
+        providerFileId,
+        signal,
+      );
       return {
-        stream: await downloadOneDriveFileStream(account, providerFileId),
+        stream: downloaded.stream,
         mimeType: meta.file?.mimeType ?? "application/octet-stream",
         name: fileName?.trim() || meta.name || "untitled",
         sizeBytes: BigInt(meta.size ?? 0),
+        providerContentLength: downloaded.contentLength,
       };
     }
     case "pcloud": {
       const { metadata } = await getPCloudFileMetadata(account, providerFileId);
       const name = fileName?.trim() || metadata.name || "untitled";
+      const downloaded = await downloadPCloudFileStream(
+        account,
+        providerFileId,
+        signal,
+      );
       return {
-        stream: await downloadPCloudFileStream(account, providerFileId),
+        stream: downloaded.stream,
         mimeType: metadata.contenttype ?? guessMimeFromName(name),
         name,
         sizeBytes: BigInt(metadata.size ?? 0),
+        providerContentLength: downloaded.contentLength,
       };
     }
     case "icloud_drive":

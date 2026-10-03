@@ -5,7 +5,10 @@ import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import { getAccessibleFile } from "@/server/lib/file-access";
+import {
+  assertFileContentActionsAllowed,
+  getAccessibleFile,
+} from "@/server/lib/file-access";
 import { serializeFile, touchFileAccess } from "@/server/lib/file-serialize";
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import { streamDbFileThumbnail } from "@/server/modules/files/stream-thumbnail";
@@ -207,10 +210,12 @@ export async function previewFileByTokenHandler(
   });
   if (preview?.file.status !== "active")
     return errorJson("PREVIEW_NOT_FOUND", "Preview token not found.", 404);
+  const blocked = assertFileContentActionsAllowed(preview.file);
+  if (blocked) return blocked;
   return streamProviderFileResponse(
     preview.file,
     request.headers.get("range") ?? undefined,
-    { disposition: "inline" },
+    { disposition: "inline", signal: request.signal },
   );
 }
 
@@ -491,7 +496,7 @@ export async function listTrashFilesHandler(request: Request) {
   return json({
     files: page.map((file) => ({
       ...file,
-      sizeBytes: file.sizeBytes.toString(),
+      sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
     })),
     nextCursor,
   });
@@ -608,7 +613,11 @@ export async function listSharedLinksHandler(request: Request) {
       url: null as string | null,
       createdAt: share.createdAt.toISOString(),
       expiresAt: share.expiresAt?.toISOString() ?? null,
-      file: { ...share.file, sizeBytes: share.file.sizeBytes.toString() },
+      file: {
+        ...share.file,
+        sizeBytes:
+          share.file.sizeBytes == null ? null : share.file.sizeBytes.toString(),
+      },
     })),
   });
 }
@@ -628,10 +637,27 @@ export async function syncGoogleFilesHandler(request: Request) {
     },
     select: { id: true },
   });
+
+  if (env.WHOLE_ACCOUNT_INDEXING_ENABLED) {
+    const { startOrResumeGoogleDriveIndex } = await import(
+      "@/server/modules/indexing/google-drive-index"
+    );
+    const results = [];
+    for (const account of accounts) {
+      results.push(
+        await startOrResumeGoogleDriveIndex({
+          userId: user.id,
+          accountId: account.id,
+        }),
+      );
+    }
+    return json({ status: "ok", mode: "whole_account", results });
+  }
+
   const results = [];
   for (const account of accounts)
     results.push(await syncGoogleAppFolderFiles(account.id, user.id));
-  return json({ status: "ok", results });
+  return json({ status: "ok", mode: "app_folder", results });
 }
 
 export async function getFileHandler(
@@ -826,9 +852,11 @@ export async function shareFileHandler(
     },
     { createIfMissing: true },
   );
-  if (!file || ("virtual" in file && file.virtual)) {
+  if (!file || "virtual" in file) {
     return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   }
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
 
   const existingShare = await prisma.fileShare.findFirst({
     where: {
@@ -1036,6 +1064,8 @@ export async function createPreviewTokenHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId, { activeOnly: true });
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   await touchFileAccess(user.id, file.id, "PREVIEW_FILE");
   const token = randomToken(32);
   await prisma.filePreviewToken.create({
@@ -1062,6 +1092,8 @@ export async function getViewUrlHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId);
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   const links = await getGoogleDriveWebLinks(
     file.connectedAccount,
     file.providerFileId,
@@ -1082,6 +1114,8 @@ export async function downloadFileHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId);
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   await touchFileAccess(user.id, file.id, "DOWNLOAD_FILE");
   return streamProviderFileResponse(
     file,
@@ -1101,6 +1135,8 @@ export async function thumbnailFileHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId, { activeOnly: true });
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   return streamDbFileThumbnail(file);
 }
 
