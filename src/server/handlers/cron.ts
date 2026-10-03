@@ -53,6 +53,91 @@ export async function cronTickHandler(request: Request) {
   );
   const onedrive = await renewExpiringOneDriveSubscriptions(20);
 
+  let catalog: {
+    resumed: number;
+    fullScanStarted: number;
+    incremental: Array<{ accountId: string; status: string; applied: number }>;
+  } = { resumed: 0, fullScanStarted: 0, incremental: [] };
+
+  if (env.WHOLE_ACCOUNT_INDEXING_ENABLED) {
+    const { resumeStaleGoogleDriveScans, startNeededGoogleDriveFullScans } =
+      await import("@/server/modules/indexing/google-drive-index");
+    const {
+      resumeStaleOneDriveScans,
+      startNeededOneDriveFullScans,
+      runOneDriveIncrementalSync,
+    } = await import("@/server/modules/indexing/onedrive-index");
+    const {
+      resumeStaleDropboxScans,
+      startNeededDropboxFullScans,
+      runDropboxIncrementalSync,
+    } = await import("@/server/modules/indexing/dropbox-index");
+    const resumedGoogle = await resumeStaleGoogleDriveScans(10);
+    const resumedOneDrive = await resumeStaleOneDriveScans(10);
+    const resumedDropbox = await resumeStaleDropboxScans(10);
+    const fullGoogle = await startNeededGoogleDriveFullScans(10);
+    const fullOneDrive = await startNeededOneDriveFullScans(10);
+    const fullDropbox = await startNeededDropboxFullScans(10);
+
+    const { prisma } = await import("@/server/config/prisma");
+    const { runGoogleDriveIncrementalSync } = await import(
+      "@/server/modules/indexing/google-drive-incremental"
+    );
+    const { accountNeedsReconnect } = await import(
+      "@/server/modules/providers/scopes"
+    );
+    const accounts = await prisma.connectedAccount.findMany({
+      where: {
+        provider: { in: ["google_drive", "onedrive", "dropbox"] },
+        status: "connected",
+        indexChangesPageToken: { not: null },
+        indexNeedsFullScan: false,
+        indexStatus: { notIn: ["auth_error", "running"] },
+      },
+      select: {
+        id: true,
+        provider: true,
+        scopes: true,
+        dropboxNeedsFullAccess: true,
+      },
+      take: 20,
+      orderBy: { updatedAt: "asc" },
+    });
+    const incremental: Array<{
+      accountId: string;
+      status: string;
+      applied: number;
+    }> = [];
+    for (const account of accounts) {
+      if (
+        accountNeedsReconnect(account, { wholeAccountIndexingEnabled: true })
+          .needsReconnect
+      ) {
+        continue;
+      }
+      const result =
+        account.provider === "onedrive"
+          ? await runOneDriveIncrementalSync({ accountId: account.id })
+          : account.provider === "dropbox"
+            ? await runDropboxIncrementalSync({ accountId: account.id })
+            : await runGoogleDriveIncrementalSync({ accountId: account.id });
+      incremental.push({
+        accountId: account.id,
+        status: result.status,
+        applied: result.applied,
+      });
+    }
+    catalog = {
+      resumed:
+        resumedGoogle.resumed +
+        resumedOneDrive.resumed +
+        resumedDropbox.resumed,
+      fullScanStarted:
+        fullGoogle.started + fullOneDrive.started + fullDropbox.started,
+      incremental,
+    };
+  }
+
   return json({
     ok: true,
     at: new Date().toISOString(),
@@ -60,5 +145,6 @@ export async function cronTickHandler(request: Request) {
     sync,
     watches,
     onedrive,
+    catalog,
   });
 }

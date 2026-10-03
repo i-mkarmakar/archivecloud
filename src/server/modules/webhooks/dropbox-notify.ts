@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
+import { scheduleCatalogIncrementalSync } from "@/server/modules/indexing/trigger-catalog-sync";
 import { scheduleFolderSyncsForAccount } from "@/server/modules/webhooks/trigger-account-syncs";
 
 /** True when Dropbox webhooks can be verified (real secret configured). */
@@ -74,6 +75,8 @@ export async function handleDropboxAccountNotifications(
     });
 
     scheduleFolderSyncsForAccount(account.id, "dropbox_webhook");
+    // Catalog incremental sync is separate from FolderSync (same trailing debounce).
+    scheduleCatalogIncrementalSync(account.id, "dropbox_webhook");
   }
 
   return { matched: accounts.length };

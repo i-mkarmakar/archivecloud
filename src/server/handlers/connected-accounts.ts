@@ -27,6 +27,10 @@ import {
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import { streamAccountFileThumbnail } from "@/server/modules/files/stream-thumbnail";
 import {
+  getGoogleDriveIndexStatus,
+  startOrResumeGoogleDriveIndex,
+} from "@/server/modules/indexing/google-drive-index";
+import {
   buildOneDriveAuthUrl,
   ensureGlobalOneDriveProviderConfig,
   exchangeOneDriveCode,
@@ -49,6 +53,7 @@ import {
   ensureProviderChildFolder,
   syncProviderQuota,
 } from "@/server/modules/providers/operations";
+import { accountNeedsReconnect } from "@/server/modules/providers/scopes";
 import { ensureDropboxWebhookCursor } from "@/server/modules/webhooks/dropbox-notify";
 import {
   ensureGoogleDriveWatch,
@@ -194,9 +199,14 @@ export async function listConnectedAccountsHandler(request: Request) {
             })
             .catch(() => undefined);
         }
+        const reconnect = accountNeedsReconnect(account, {
+          wholeAccountIndexingEnabled: env.WHOLE_ACCOUNT_INDEXING_ENABLED,
+        });
         return {
           ...account,
           displayName,
+          needsReconnect: reconnect.needsReconnect,
+          needsReconnectReason: reconnect.reason,
           storageAccount: storageAccount
             ? serializeStorageAccount(storageAccount)
             : null,
@@ -548,6 +558,8 @@ export async function dropboxCallbackHandler(request: Request) {
         ),
         scopes: oauthState.providerConfig.scopes as string[],
         status: "connected",
+        // App-folder tokens need reconnect after console cutover.
+        dropboxNeedsFullAccess: env.DROPBOX_ACCESS_TYPE !== "full",
       },
       update: {
         providerConfigId: oauthState.providerConfigId,
@@ -561,6 +573,10 @@ export async function dropboxCallbackHandler(request: Request) {
         ),
         scopes: oauthState.providerConfig.scopes as string[],
         status: "connected",
+        // Only clear when console is Full Dropbox.
+        ...(env.DROPBOX_ACCESS_TYPE === "full"
+          ? { dropboxNeedsFullAccess: false }
+          : {}),
       },
     });
 
@@ -761,6 +777,14 @@ export async function googleCallbackHandler(request: Request) {
         tokenExpiresAt: new Date(tokens.expiry_date ?? Date.now() + 3600_000),
         scopes: oauthState.providerConfig.scopes as string[],
         status: "connected",
+        lastError: null,
+        // Clear indexing auth halt so cron/manual scan can resume after reconnect.
+        ...(existingAccount?.indexStatus === "auth_error"
+          ? {
+              indexStatus: "idle",
+              indexLastError: null,
+            }
+          : {}),
       },
     });
     await prisma.oauthState.update({
@@ -899,10 +923,15 @@ export async function updateConnectedAccountHandler(
     storageAccount,
     ...safe
   } = account;
+  const reconnect = accountNeedsReconnect(account, {
+    wholeAccountIndexingEnabled: env.WHOLE_ACCOUNT_INDEXING_ENABLED,
+  });
 
   return json({
     account: {
       ...safe,
+      needsReconnect: reconnect.needsReconnect,
+      needsReconnectReason: reconnect.reason,
       storageAccount: storageAccount
         ? serializeStorageAccount(storageAccount)
         : null,
@@ -1031,6 +1060,20 @@ export async function disconnectAccountHandler(
         refreshTokenEncrypted: null,
         tokenExpiresAt: null,
         lastError: null,
+        // Stop any running scan + clear catalog index state.
+        indexStatus: "idle",
+        indexFilesIndexed: 0,
+        indexPageToken: null,
+        indexScanId: null,
+        indexLastError: null,
+        indexStartedAt: null,
+        indexFinishedAt: null,
+        indexHeartbeatAt: null,
+        indexChangesPageToken: null,
+        indexNeedsFullScan: false,
+        indexFullScanAttempts: 0,
+        indexFullScanNextAttemptAt: null,
+        indexRootProviderId: null,
       },
     });
 
@@ -1543,4 +1586,134 @@ export async function deleteConnectedAccountItemHandler(
       400,
     );
   }
+}
+
+export async function startAccountIndexHandler(
+  request: Request,
+  _user?: AuthUser,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const accountId = params?.id;
+  if (!accountId) {
+    return errorJson("VALIDATION_ERROR", "Account id required.", 400);
+  }
+
+  const account = await prisma.connectedAccount.findFirst({
+    where: { id: accountId, userId: user.id, status: "connected" },
+    select: { provider: true },
+  });
+  if (!account) {
+    return errorJson("ACCOUNT_NOT_FOUND", "Connected account not found.", 404);
+  }
+
+  let result:
+    | Awaited<ReturnType<typeof startOrResumeGoogleDriveIndex>>
+    | { error: string; code: string };
+  if (account.provider === "google_drive") {
+    result = await startOrResumeGoogleDriveIndex({
+      userId: user.id,
+      accountId,
+    });
+  } else if (account.provider === "onedrive") {
+    const { startOrResumeOneDriveIndex } = await import(
+      "@/server/modules/indexing/onedrive-index"
+    );
+    result = await startOrResumeOneDriveIndex({
+      userId: user.id,
+      accountId,
+    });
+  } else if (account.provider === "dropbox") {
+    const { startOrResumeDropboxIndex } = await import(
+      "@/server/modules/indexing/dropbox-index"
+    );
+    result = await startOrResumeDropboxIndex({
+      userId: user.id,
+      accountId,
+    });
+  } else {
+    return errorJson(
+      "UNSUPPORTED_PROVIDER",
+      "Whole-account indexing is not available for this provider yet.",
+      400,
+    );
+  }
+
+  if ("error" in result) {
+    const status =
+      result.code === "FEATURE_DISABLED"
+        ? 403
+        : result.code === "SCAN_IN_PROGRESS"
+          ? 409
+          : result.code === "NEEDS_RECONNECT" ||
+              result.code === "AUTH_ERROR" ||
+              result.code === "DROPBOX_APP_FOLDER"
+            ? 409
+            : 404;
+    return errorJson(result.code, result.error, status);
+  }
+  return json({ index: result });
+}
+
+export async function getAccountIndexStatusHandler(
+  request: Request,
+  _user?: AuthUser,
+  params?: Record<string, string>,
+) {
+  const user = await requireAuthUser(request);
+  if (user instanceof Response) return user;
+  const accountId = params?.id;
+  if (!accountId) {
+    return errorJson("VALIDATION_ERROR", "Account id required.", 400);
+  }
+
+  const account = await prisma.connectedAccount.findFirst({
+    where: { id: accountId, userId: user.id, status: "connected" },
+    select: { provider: true },
+  });
+  if (!account) {
+    return errorJson("ACCOUNT_NOT_FOUND", "Connected account not found.", 404);
+  }
+
+  let result:
+    | Awaited<ReturnType<typeof getGoogleDriveIndexStatus>>
+    | { error: string; code: string };
+  if (account.provider === "google_drive") {
+    result = await getGoogleDriveIndexStatus({
+      userId: user.id,
+      accountId,
+    });
+  } else if (account.provider === "onedrive") {
+    const { getOneDriveIndexStatus } = await import(
+      "@/server/modules/indexing/onedrive-index"
+    );
+    result = await getOneDriveIndexStatus({
+      userId: user.id,
+      accountId,
+    });
+  } else if (account.provider === "dropbox") {
+    const { getDropboxIndexStatus } = await import(
+      "@/server/modules/indexing/dropbox-index"
+    );
+    result = await getDropboxIndexStatus({
+      userId: user.id,
+      accountId,
+    });
+  } else {
+    return errorJson(
+      "UNSUPPORTED_PROVIDER",
+      "Whole-account indexing is not available for this provider yet.",
+      400,
+    );
+  }
+
+  if ("error" in result) {
+    return errorJson(
+      result.code,
+      result.error,
+      result.code === "FEATURE_DISABLED" ? 403 : 404,
+    );
+  }
+  return json({ index: result });
 }

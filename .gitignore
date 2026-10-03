@@ -11,6 +11,9 @@ tsconfig.tsbuildinfo
 .env.local
 .env.*.local
 
+# Local agent notes (not committed)
+.local/
+
 # Databases
 *.db
 *.db-journal

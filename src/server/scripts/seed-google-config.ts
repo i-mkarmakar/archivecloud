@@ -1,11 +1,6 @@
 import { prisma } from "../config/prisma";
+import { googleDriveOAuthScopes } from "../modules/providers/scopes";
 import { encryptText } from "../utils/crypto";
-
-const scopes = [
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/userinfo.email",
-  "https://www.googleapis.com/auth/userinfo.profile",
-];
 
 async function main() {
   // Seed runs via tsx outside Next — keep raw process.env (not env.ts).
@@ -30,7 +25,7 @@ async function main() {
       clientIdEncrypted: encryptText(clientId),
       clientSecretEncrypted: encryptText(clientSecret),
       redirectUri,
-      scopes,
+      scopes: googleDriveOAuthScopes,
       status: "active",
     },
   });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/config/prisma";
 import { json } from "@/server/http/responses";
+import { scheduleCatalogIncrementalSync } from "@/server/modules/indexing/trigger-catalog-sync";
 import { scheduleFolderSyncsForAccount } from "@/server/modules/webhooks/trigger-account-syncs";
 
 const oneDriveNotificationSchema = z.object({
@@ -71,6 +72,8 @@ export async function oneDriveWebhookHandler(request: Request) {
 
   for (const accountId of matchedAccountIds) {
     scheduleFolderSyncsForAccount(accountId, "onedrive_webhook");
+    // Catalog incremental sync is separate from FolderSync.
+    scheduleCatalogIncrementalSync(accountId, "onedrive_webhook");
   }
 
   return json({ ok: true, matched: matchedAccountIds.size }, 202);

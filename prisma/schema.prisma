@@ -167,6 +167,27 @@ model ConnectedAccount {
   scopes                Json
   status                String           @default("connected") @db.VarChar(32)
   lastError             String?          @map("last_error") @db.Text
+  /** Dropbox App-folder tokens from before Full Dropbox cutover; cleared on reconnect. */
+  dropboxNeedsFullAccess Boolean         @default(false) @map("dropbox_needs_full_access")
+  /** Whole-account catalog index: idle | running | failed | complete | reconcile_aborted */
+  indexStatus            String           @default("idle") @map("index_status") @db.VarChar(32)
+  indexFilesIndexed      Int              @default(0) @map("index_files_indexed")
+  indexPageToken         String?          @map("index_page_token") @db.Text
+  indexScanId            String?          @map("index_scan_id") @db.Char(36)
+  indexLastError         String?          @map("index_last_error") @db.Text
+  indexStartedAt         DateTime?        @map("index_started_at")
+  indexFinishedAt        DateTime?        @map("index_finished_at")
+  /** Updated each scan page; stale running locks become resumable. */
+  indexHeartbeatAt       DateTime?        @map("index_heartbeat_at")
+  /** Drive changes.list page token for incremental catalog sync. */
+  indexChangesPageToken  String?          @map("index_changes_page_token") @db.Text
+  /** Set when changes token is invalid/expired — needs a fresh full scan. */
+  indexNeedsFullScan     Boolean          @default(false) @map("index_needs_full_scan")
+  /** Cron auto full-scan attempts while indexNeedsFullScan is set. */
+  indexFullScanAttempts  Int              @default(0) @map("index_full_scan_attempts")
+  indexFullScanNextAttemptAt DateTime?    @map("index_full_scan_next_attempt_at")
+  /** Provider root folder/drive id for top-level catalog membership checks. */
+  indexRootProviderId    String?          @map("index_root_provider_id") @db.VarChar(191)
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
   user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -216,9 +237,19 @@ model File {
   folderId           String?            @map("folder_id") @db.Char(36)
   provider           String             @db.VarChar(32)
   providerFileId     String             @map("provider_file_id") @db.VarChar(191)
+  /** Provider parent folder id (not an app Folder row). First parent when multiple. */
+  providerParentId   String?            @map("provider_parent_id") @db.VarChar(191)
+  /** Provider path (e.g. Dropbox path_lower) for deletion/parent resolution. */
+  providerPathLower  String?            @map("provider_path_lower") @db.VarChar(1024)
+  /** True for provider folders indexed as catalog rows (prefer over mimeType checks). */
+  isFolder           Boolean            @default(false) @map("is_folder")
+  /** Google Drive shortcut (or equivalent); not downloadable/previewable/shareable. */
+  isShortcut         Boolean            @default(false) @map("is_shortcut")
+  shortcutTargetId   String?            @map("shortcut_target_id") @db.VarChar(191)
   name               String             @db.VarChar(255)
   mimeType           String             @map("mime_type") @db.VarChar(191)
-  sizeBytes          BigInt             @map("size_bytes")
+  /** Null for Google Docs/Sheets/Slides and other types without a byte size. */
+  sizeBytes          BigInt?            @map("size_bytes")
   checksum           String?            @db.VarChar(191)
   status             String             @default("active") @db.VarChar(32)
   isStarred          Boolean            @default(false) @map("is_starred")
@@ -226,6 +257,8 @@ model File {
   isArchived         Boolean            @default(false) @map("is_archived")
   archivedAt         DateTime?          @map("archived_at")
   lastAccessedAt     DateTime?          @map("last_accessed_at")
+  /** Last whole-account scan that saw this row (reconcile uses this). */
+  lastIndexScanId    String?            @map("last_index_scan_id") @db.Char(36)
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
   deletedAt          DateTime?          @map("deleted_at")
@@ -236,6 +269,7 @@ model File {
   previewTokens      FilePreviewToken[]
   fileTags           FileTag[]
 
+  @@unique([connectedAccountId, providerFileId])
   @@index([userId])
   @@index([userId, status, createdAt])
   @@index([userId, status, folderId, createdAt])
@@ -243,8 +277,11 @@ model File {
   @@index([userId, status, isArchived, archivedAt])
   @@index([userId, status, lastAccessedAt])
   @@index([connectedAccountId])
+  @@index([connectedAccountId, lastIndexScanId])
   @@index([folderId])
   @@index([providerFileId])
+  @@index([providerParentId])
+  @@index([connectedAccountId, providerPathLower])
   @@map("files")
 }
 
@@ -420,11 +457,11 @@ model ProviderWebhookChannel {
 }
 
 model FileShare {
-  id             String    @id @default(uuid()) @db.Char(36)
-  fileId         String    @map("file_id") @db.Char(36)
-  userId         String    @map("user_id") @db.Char(36)
-  tokenHash      String    @unique @map("token_hash") @db.VarChar(255)
-  tokenEncrypted String?   @map("token_encrypted") @db.Text
+  id               String    @id @default(uuid()) @db.Char(36)
+  fileId           String    @map("file_id") @db.Char(36)
+  userId           String    @map("user_id") @db.Char(36)
+  tokenHash        String    @unique @map("token_hash") @db.VarChar(255)
+  tokenEncrypted   String?   @map("token_encrypted") @db.Text
   enabled          Boolean   @default(true)
   /** When false, public page omits owner name/avatar. */
   showOwnerProfile Boolean   @default(true) @map("show_owner_profile")

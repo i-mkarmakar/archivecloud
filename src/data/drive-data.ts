@@ -25,7 +25,8 @@ export type FileItem = {
   accountAvatarUrl?: string | null;
   accountDisplayName?: string | null;
   createdAt?: string;
-  kind: "doc" | "image" | "video" | "pdf";
+  kind: "doc" | "image" | "video" | "pdf" | "shortcut";
+  isShortcut?: boolean;
   shared: number;
   owner?: string;
   location?: string;

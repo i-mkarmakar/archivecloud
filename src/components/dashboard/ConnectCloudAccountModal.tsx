@@ -73,13 +73,13 @@ const CONNECT_PROVIDERS: ConnectProvider[] = [
   },
   {
     id: "icloud_photos",
-    label: "iCloud Photos",
+    label: "iCloud Photos (Beta)",
     authKind: "credentials",
     section: "platform",
   },
   {
     id: "icloud_drive",
-    label: "iCloud Drive",
+    label: "iCloud Drive (Beta)",
     authKind: "credentials",
     section: "platform",
   },

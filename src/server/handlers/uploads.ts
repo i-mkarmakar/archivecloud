@@ -418,6 +418,8 @@ export async function handleUploadRequest(
             name: uploadedName,
             mimeType: uploadedMimeType,
             sizeBytes: meta.sizeBytes,
+            lastIndexScanId:
+              account.indexStatus === "running" ? account.indexScanId : null,
           },
         });
         logUpload("database file created", {
@@ -425,7 +427,10 @@ export async function handleUploadRequest(
           fileId: file.id,
           accountId: account.id,
         });
-        completed.push({ ...file, sizeBytes: file.sizeBytes.toString() });
+        completed.push({
+          ...file,
+          sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
+        });
         await prisma.uploadSession.update({
           where: { id: session.id },
           data: { status: "completed", completedAt: new Date() },
@@ -807,6 +812,8 @@ export async function resumableChunkHandler(
           name: fileMeta.name || session.fileName,
           mimeType: fileMeta.mimeType || session.mimeType,
           sizeBytes: totalBytes,
+          lastIndexScanId:
+            account.indexStatus === "running" ? account.indexScanId : null,
         },
       });
     }
@@ -818,7 +825,7 @@ export async function resumableChunkHandler(
 
     await createAuditLog(user.id, "UPLOAD_FILE", "file", existingFile.id, {
       name: existingFile.name,
-      size: existingFile.sizeBytes.toString(),
+      size: existingFile.sizeBytes?.toString() ?? "0",
     });
 
     await createNotification({
@@ -841,7 +848,13 @@ export async function resumableChunkHandler(
     return json(
       {
         status: "completed",
-        file: { ...existingFile, sizeBytes: existingFile.sizeBytes.toString() },
+        file: {
+          ...existingFile,
+          sizeBytes:
+            existingFile.sizeBytes == null
+              ? null
+              : existingFile.sizeBytes.toString(),
+        },
       },
       201,
     );

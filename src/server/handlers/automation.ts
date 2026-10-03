@@ -1,12 +1,12 @@
 import { z } from "zod";
+import type { ScheduledTransfer } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
+import { runScheduledTransferTick } from "@/server/modules/automation/run-scheduled-tick";
 import { requirePlanFeature } from "@/server/modules/billing/plan-gate";
 import { isSupportedProvider } from "@/server/modules/providers/types";
 import { createAuditLog } from "@/server/utils/audit";
-import { runScheduledTransferTick } from "@/server/modules/automation/run-scheduled-tick";
-import type { ScheduledTransfer } from "@/generated/prisma/client";
 
 function serializeScheduledTask(
   task: ScheduledTransfer & {
@@ -143,7 +143,7 @@ export async function createScheduledTransferHandler(request: Request) {
       sourceProviderFileId: file.providerFileId,
       fileName: file.name,
       mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
+      sizeBytes: file.sizeBytes ?? 0n,
     },
   });
 

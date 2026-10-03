@@ -88,7 +88,7 @@ async function resolveTargets(invites: InviteRecord[]) {
       name: file.name,
       type: "file",
       mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes.toString(),
+      sizeBytes: file.sizeBytes?.toString() ?? "0",
       folderId: file.folderId,
     });
   for (const folder of folders)

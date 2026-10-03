@@ -1,4 +1,24 @@
 import { prisma } from "@/server/config/prisma";
+import { errorJson } from "@/server/http/responses";
+
+/** Block download/preview/share/transfer for Drive shortcuts. */
+export function assertFileContentActionsAllowed(file: {
+  isShortcut?: boolean;
+  status?: string;
+  deletedAt?: Date | null;
+}): Response | null {
+  if (file.isShortcut) {
+    return errorJson(
+      "SHORTCUT_NOT_SUPPORTED",
+      "Shortcuts cannot be downloaded, previewed, shared, or transferred. Open the target file instead.",
+      400,
+    );
+  }
+  if (file.status === "deleted" || file.deletedAt) {
+    return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  }
+  return null;
+}
 
 export async function getAccessibleFile(
   userId: string,
