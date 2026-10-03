@@ -22,10 +22,26 @@ export const SUPPORTED_PROVIDER_IDS = [
 
 export type SupportedProviderId = (typeof SUPPORTED_PROVIDER_IDS)[number];
 
+/** Client-safe capability notes (mirrors server PROVIDER_CATALOG for iCloud Beta). */
+export const ICLOUD_BETA_CAPABILITY_SUMMARY =
+  "Connection only for now. File listing is an empty preview; upload, download, delete, rename, and move are not available yet.";
+
+export function isICloudProvider(provider: string | undefined): boolean {
+  return provider === "icloud_drive" || provider === "icloud_photos";
+}
+
+export function providerSupportsFileTransfers(
+  provider: string | undefined,
+): boolean {
+  if (!provider) return false;
+  if (isICloudProvider(provider)) return false;
+  return isSupportedProviderId(provider);
+}
+
 export function providerLabel(provider: string | undefined): string {
   if (!provider) return "Unknown";
   const label = PROVIDER_LABELS[provider] ?? provider;
-  if (provider === "icloud_drive" || provider === "icloud_photos") {
+  if (isICloudProvider(provider)) {
     return `${label} (Beta)`;
   }
   return label;

@@ -1,13 +1,13 @@
 import "server-only";
 
-import type { Readable } from "node:stream";
 import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import type {
   ProviderBrowseResult,
   SupportedProvider,
 } from "@/server/modules/providers/types";
-import { decryptText, encryptText } from "@/server/utils/crypto";
+import { assertProviderCapability } from "@/server/modules/providers/types";
+import { encryptText } from "@/server/utils/crypto";
 
 type ICloudProvider = Extract<
   SupportedProvider,
@@ -19,32 +19,8 @@ type ICloudCreds = {
   appSpecificPassword: string;
 };
 
-const ICLOUD_NOT_AVAILABLE_MSG =
-  "iCloud file APIs require Apple CloudKit setup. " +
-  "Browsing will be enabled once a CloudKit container is configured " +
-  "with ICLOUD_CLOUDKIT_KEY_ID and ICLOUD_CLOUDKIT_PRIVATE_KEY in the " +
-  "server environment. Apple does not expose a public iCloud Drive REST API.";
-
-function getICloudCreds(account: ConnectedAccount): ICloudCreds {
-  if (!account.accessTokenEncrypted) {
-    throw new Error("iCloud credentials missing on account.");
-  }
-  const data: unknown = JSON.parse(decryptText(account.accessTokenEncrypted));
-  if (
-    typeof data !== "object" ||
-    data === null ||
-    !("appleId" in data) ||
-    !("appSpecificPassword" in data) ||
-    typeof data.appleId !== "string" ||
-    typeof data.appSpecificPassword !== "string"
-  ) {
-    throw new Error("iCloud credentials are malformed.");
-  }
-  return {
-    appleId: data.appleId,
-    appSpecificPassword: data.appSpecificPassword,
-  };
-}
+export const ICLOUD_CAPABILITY_NOTE =
+  "iCloud (Beta) supports account connection only. Browse shows an empty preview until Apple CloudKit is configured. Upload, download, delete, rename, and move are not available.";
 
 function providerLabel(provider: ICloudProvider): string {
   return provider === "icloud_photos" ? "iCloud Photos" : "iCloud Drive";
@@ -57,7 +33,7 @@ function emptyBrowseResult(provider: ICloudProvider): ProviderBrowseResult {
     breadcrumbs: [
       {
         id: "root",
-        name: `${providerLabel(provider)} · preview (CloudKit required)`,
+        name: `${providerLabel(provider)} · connection only (no file listing yet)`,
       },
     ],
   };
@@ -72,7 +48,9 @@ export async function connectICloudAccount(
     displayName?: string | null;
   },
 ) {
-  const { appleId, appSpecificPassword, provider } = params;
+  const appleId = params.appleId.trim();
+  const appSpecificPassword = params.appSpecificPassword.trim();
+  const { provider } = params;
   const displayName = params.displayName?.trim() || appleId;
 
   const creds: ICloudCreds = { appleId, appSpecificPassword };
@@ -94,20 +72,19 @@ export async function connectICloudAccount(
       accessTokenEncrypted: encryptText(JSON.stringify(creds)),
       scopes: [],
       status: "connected",
-      lastError:
-        "Preview only: browse and transfers require Apple CloudKit configuration.",
+      lastError: ICLOUD_CAPABILITY_NOTE,
     },
     update: {
       email: appleId,
       displayName,
       accessTokenEncrypted: encryptText(JSON.stringify(creds)),
       status: "connected",
-      lastError:
-        "Preview only: browse and transfers require Apple CloudKit configuration.",
+      lastError: ICLOUD_CAPABILITY_NOTE,
     },
   });
 }
 
+/** Quota sync placeholder — Apple does not expose quota on this integration path. */
 export async function syncICloudQuota(accountId: string) {
   await prisma.connectedAccount.findUniqueOrThrow({ where: { id: accountId } });
 
@@ -129,10 +106,22 @@ export async function syncICloudQuota(accountId: string) {
   });
 }
 
-async function ensureICloudAppFolder(
-  _account: ConnectedAccount,
-): Promise<string> {
-  return "root";
+export async function browseICloudPhotosFolder(
+  accountId: string,
+  userId: string,
+  _parentId: string,
+  _searchQuery?: string,
+): Promise<ProviderBrowseResult> {
+  await prisma.connectedAccount.findFirstOrThrow({
+    where: {
+      id: accountId,
+      userId,
+      provider: "icloud_photos",
+      status: "connected",
+    },
+  });
+
+  return emptyBrowseResult("icloud_photos");
 }
 
 async function browseICloudDriveFolder(
@@ -153,24 +142,6 @@ async function browseICloudDriveFolder(
   return emptyBrowseResult("icloud_drive");
 }
 
-export async function browseICloudPhotosFolder(
-  accountId: string,
-  userId: string,
-  _parentId: string,
-  _searchQuery?: string,
-): Promise<ProviderBrowseResult> {
-  await prisma.connectedAccount.findFirstOrThrow({
-    where: {
-      id: accountId,
-      userId,
-      provider: "icloud_photos",
-      status: "connected",
-    },
-  });
-
-  return emptyBrowseResult("icloud_photos");
-}
-
 export async function browseICloudFolder(
   provider: ICloudProvider,
   accountId: string,
@@ -185,33 +156,37 @@ export async function browseICloudFolder(
 }
 
 export async function getICloudFileMetadata(
-  _account: ConnectedAccount,
+  account: ConnectedAccount,
   _fileId: string,
 ): Promise<never> {
-  throw new Error(ICLOUD_NOT_AVAILABLE_MSG);
+  assertProviderCapability(account.provider, "supportsDownload");
+  throw new Error("unreachable");
 }
 
 export async function downloadICloudFileStream(
-  _account: ConnectedAccount,
+  account: ConnectedAccount,
   _fileId: string,
-): Promise<Readable> {
-  throw new Error(ICLOUD_NOT_AVAILABLE_MSG);
+): Promise<never> {
+  assertProviderCapability(account.provider, "supportsDownload");
+  throw new Error("unreachable");
 }
 
-export async function uploadICloudFileFromStream(_params: {
+export async function uploadICloudFileFromStream(params: {
   account: ConnectedAccount;
   parentId: string;
   fileName: string;
   mimeType: string;
-  body: Readable;
+  body: unknown;
   sizeBytes?: bigint;
 }): Promise<never> {
-  throw new Error(ICLOUD_NOT_AVAILABLE_MSG);
+  assertProviderCapability(params.account.provider, "supportsUpload");
+  throw new Error("unreachable");
 }
 
 export async function deleteICloudFile(
-  _account: ConnectedAccount,
+  account: ConnectedAccount,
   _fileId: string,
 ): Promise<never> {
-  throw new Error(ICLOUD_NOT_AVAILABLE_MSG);
+  assertProviderCapability(account.provider, "supportsDelete");
+  throw new Error("unreachable");
 }

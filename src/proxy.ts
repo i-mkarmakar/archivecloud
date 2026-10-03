@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { auth } from "@/lib/auth";
-import { normalizeAppPath } from "@/lib/safe-callback-url";
+import {
+  isAuthEntryPath,
+  normalizeAppPath,
+  safeCallbackUrl,
+} from "@/lib/safe-callback-url";
 
 function isPublicFileApi(pathname: string) {
   return (
@@ -20,6 +24,7 @@ function redirectLocalePrefix(request: NextRequest, pathname: string) {
 
 const publicRoutePrefixes = [
   "/auth",
+  "/login",
   "/signin",
   "/signup",
   "/verify-email",
@@ -66,6 +71,56 @@ const SESSION_COOKIE_NAMES = [
   "__Host-archivecloud.session_data",
 ];
 
+/**
+ * Route Handler prefixes that skip the proxy session redirect so handlers
+ * can return JSON 401 via requireAuthUser.
+ *
+ * Some prefixes collide with dashboard *pages* (e.g. `/shared` page vs
+ * `/shared/cloud-folders` API). Those exact page paths are excluded below.
+ */
+const apiPrefixes = [
+  "/account",
+  "/api-keys",
+  "/audit",
+  "/automation",
+  "/billing",
+  "/connected-accounts",
+  "/cron",
+  "/files",
+  "/folders",
+  "/health",
+  "/invites",
+  "/notifications",
+  "/search",
+  "/shared",
+  "/storage",
+  "/sync",
+  "/tags",
+  "/transfers",
+  "/uploads",
+  "/vf",
+  "/webhooks",
+] as const;
+
+/**
+ * App pages that share a URL prefix with Route Handlers. These must still
+ * go through the session gate (same as `/home`).
+ */
+const sessionGatedPagePaths = new Set([
+  "/shared",
+  "/search",
+  "/automation",
+  "/billing/history",
+  "/billing/success",
+]);
+
+function stripTrailingSlash(pathname: string) {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
 function isPublicRoute(pathname: string) {
   if (pathname === "/") {
     return true;
@@ -73,6 +128,17 @@ function isPublicRoute(pathname: string) {
 
   return publicRoutePrefixes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
+
+function isApiAuthBypassPath(pathname: string) {
+  const path = stripTrailingSlash(pathname);
+  if (sessionGatedPagePaths.has(path)) {
+    return false;
+  }
+
+  return apiPrefixes.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
   );
 }
 
@@ -94,8 +160,9 @@ function clearSessionCookies(response: NextResponse) {
 
 function redirectToSignIn(request: NextRequest, pathname: string) {
   const signInUrl = new URL("/auth/sign-in", request.url);
-  const callbackPath = normalizeAppPath(pathname);
-  if (callbackPath !== "/") {
+  // Never persist auth-entry aliases (e.g. /login) as callbackUrl.
+  const callbackPath = safeCallbackUrl(pathname, "");
+  if (callbackPath && !isAuthEntryPath(callbackPath)) {
     signInUrl.searchParams.set("callbackUrl", callbackPath);
   }
   const response = NextResponse.redirect(signInUrl);
@@ -115,34 +182,7 @@ export default async function proxy(request: NextRequest) {
     return localeRedirect;
   }
 
-  const apiPrefixes = [
-    "/account",
-    "/api-keys",
-    "/audit",
-    "/automation",
-    "/billing",
-    "/connected-accounts",
-    "/cron",
-    "/files",
-    "/folders",
-    "/health",
-    "/invites",
-    "/search",
-    "/shared",
-    "/storage",
-    "/sync",
-    "/tags",
-    "/transfers",
-    "/uploads",
-    "/vf",
-    "/webhooks",
-  ] as const;
-
-  if (
-    apiPrefixes.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-    )
-  ) {
+  if (isApiAuthBypassPath(pathname)) {
     return NextResponse.next();
   }
 

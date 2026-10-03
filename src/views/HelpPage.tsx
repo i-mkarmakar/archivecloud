@@ -52,17 +52,17 @@ const CLOUD_SERVICES = [
   },
   {
     id: "icloud_photos",
-    title: "iCloud Photos",
+    title: "iCloud Photos (Beta)",
     description:
-      "Connect with an app-specific password. Full browse needs CloudKit on the server.",
+      "Connection only for now. Upload, download, and file listing are not available yet.",
     href: "/settings",
     keywords: ["icloud", "photos", "apple"],
   },
   {
     id: "icloud_drive",
-    title: "iCloud Drive",
+    title: "iCloud Drive (Beta)",
     description:
-      "Connect with an app-specific password. Full browse needs CloudKit on the server.",
+      "Connection only for now. Upload, download, and file listing are not available yet.",
     href: "/settings",
     keywords: ["icloud", "drive", "apple"],
   },

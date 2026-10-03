@@ -61,6 +61,9 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
+    // Keep in sync with src/lib/validate-password.ts (PASSWORD_MIN/MAX_LENGTH).
+    minPasswordLength: 8,
+    maxPasswordLength: 128,
   },
   databaseHooks: {
     user: {
