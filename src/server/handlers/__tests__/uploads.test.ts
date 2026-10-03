@@ -252,7 +252,7 @@ describe("handleUploadRequest (media upload)", () => {
     expect(response.status).toBe(400);
     expect(body).toMatchObject({
       code: "UPLOAD_FAILED",
-      message: "Drive create failed",
+      message: "Upload failed.",
     });
   });
 });

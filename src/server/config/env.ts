@@ -168,7 +168,7 @@ const envSchema = z.object({
    */
   PUBLIC_FILES_ORIGIN: z.string().url().optional(),
 
-  /** Sliding-window public share rate limits (metadata + byte routes). */
+  /** Fixed-window public share rate limits (metadata + byte routes; Postgres-backed). */
   PUBLIC_SHARE_RATE_LIMIT_PER_IP: z.coerce
     .number()
     .min(1)

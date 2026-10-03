@@ -500,6 +500,19 @@ model ShareBandwidthDaily {
   @@map("share_bandwidth_daily")
 }
 
+/**
+ * Fixed-window counters for public share rate limits (shared across app replicas).
+ * bucketKey is `ip:<ip>` or `tok:<sha256(token)>` — never the raw share token.
+ */
+model PublicShareRateBucket {
+  bucketKey   String   @id @map("bucket_key") @db.VarChar(128)
+  windowStart DateTime @map("window_start")
+  count       Int
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("public_share_rate_buckets")
+}
+
 model FilePreviewToken {
   id        String   @id @default(uuid()) @db.Char(36)
   fileId    String   @map("file_id") @db.Char(36)

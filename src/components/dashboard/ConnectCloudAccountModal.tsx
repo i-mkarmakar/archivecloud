@@ -554,6 +554,21 @@ export function ConnectCloudAccountModal({
                         </span>
                       </label>
 
+                      <p className="flex items-start gap-2 rounded-lg border border-border bg-surface-secondary px-3 py-2.5 text-xs leading-relaxed text-muted">
+                        <CircleInfo
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground"
+                          aria-hidden
+                        />
+                        <span>
+                          <span className="font-medium text-foreground">
+                            Beta — connection only.{" "}
+                          </span>
+                          iCloud currently supports linking your Apple ID.
+                          Browse shows an empty preview. Upload, download,
+                          delete, rename, and move are not available yet.
+                        </span>
+                      </p>
+
                       <p className="flex items-start gap-2 text-xs text-muted">
                         <CircleInfo
                           className="mt-0.5 h-3.5 w-3.5 shrink-0"

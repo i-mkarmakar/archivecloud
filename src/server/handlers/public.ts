@@ -76,7 +76,7 @@ export async function getPublicFileHandler(
 ) {
   const token = parsePublicToken(params);
   if (token instanceof Response) return token;
-  const limited = enforcePublicShareRateLimit({ request, token });
+  const limited = await enforcePublicShareRateLimit({ request, token });
   if (limited) return limited;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
@@ -115,7 +115,7 @@ export async function downloadPublicFileHandler(
 ) {
   const token = parsePublicToken(params);
   if (token instanceof Response) return token;
-  const limited = enforcePublicShareRateLimit({ request, token });
+  const limited = await enforcePublicShareRateLimit({ request, token });
   if (limited) return limited;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {
@@ -138,7 +138,7 @@ export async function previewPublicFileHandler(
 ) {
   const token = parsePublicToken(params);
   if (token instanceof Response) return token;
-  const limited = enforcePublicShareRateLimit({ request, token });
+  const limited = await enforcePublicShareRateLimit({ request, token });
   if (limited) return limited;
   const result = await findSharedFile(token);
   if (result.kind === "disabled") {

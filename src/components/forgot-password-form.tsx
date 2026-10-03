@@ -17,7 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup } from "@/components/ui/field";
 import { authClient } from "@/lib/auth-client";
 import { validateEmail } from "@/lib/validate-email";
-import { validatePassword } from "@/lib/validate-password";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/validate-password";
 import { cn } from "@/lib/utils";
 
 type ForgotPasswordStep = "email" | "reset";
@@ -257,6 +261,8 @@ export function ForgotPasswordForm({
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   className="pr-9"
+                  minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={PASSWORD_MAX_LENGTH}
                 />
                 <button
                   type="button"
@@ -290,6 +296,8 @@ export function ForgotPasswordForm({
                 <Input
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
+                  minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   className="pr-9"
                 />
                 <button

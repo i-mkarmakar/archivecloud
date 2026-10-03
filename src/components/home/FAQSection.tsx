@@ -19,7 +19,7 @@ const FAQ_ITEMS = [
   {
     question: "Which cloud storage services does Archive Cloud support?",
     answer:
-      "Archive Cloud supports Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, and iCloud Drive / iCloud Photos. You can connect unlimited cloud accounts on Free and Thunder. iCloud browse and transfers need Apple CloudKit configured on the server.",
+      "Archive Cloud supports Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, and pCloud for full browse and transfers. iCloud Drive / iCloud Photos can be connected in Beta (account link only — upload, download, and listing are not available yet).",
   },
   {
     question: "Is there a data transfer limit?",

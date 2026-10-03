@@ -1260,11 +1260,11 @@ export async function previewConnectedAccountFileHandler(
       },
     });
   } catch (error) {
-    return errorJson(
-      "PREVIEW_FAILED",
-      error instanceof Error ? error.message : "Preview failed.",
-      400,
-    );
+    const { isAppHttpError } = await import("@/server/http/app-error");
+    if (isAppHttpError(error)) {
+      return errorJson(error.code, error.message, error.status);
+    }
+    return errorJson("PREVIEW_FAILED", "Preview failed.", 400);
   }
 }
 
@@ -1320,11 +1320,11 @@ export async function downloadConnectedAccountFileHandler(
       },
     });
   } catch (error) {
-    return errorJson(
-      "DOWNLOAD_FAILED",
-      error instanceof Error ? error.message : "Download failed.",
-      400,
-    );
+    const { isAppHttpError } = await import("@/server/http/app-error");
+    if (isAppHttpError(error)) {
+      return errorJson(error.code, error.message, error.status);
+    }
+    return errorJson("DOWNLOAD_FAILED", "Download failed.", 400);
   }
 }
 

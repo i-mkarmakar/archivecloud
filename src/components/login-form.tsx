@@ -28,7 +28,11 @@ import { markAppBoot } from "@/lib/app-boot";
 import { authClient } from "@/lib/auth-client";
 import { safeCallbackUrl } from "@/lib/safe-callback-url";
 import { validateEmail } from "@/lib/validate-email";
-import { validatePassword } from "@/lib/validate-password";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/validate-password";
 import { cn } from "@/lib/utils";
 
 type AuthMode = "signin" | "signup";
@@ -349,6 +353,12 @@ export function LoginForm({
               type={showPassword ? "text" : "password"}
               autoComplete={isSignIn ? "current-password" : "new-password"}
               className="pr-9"
+              {...(isSignIn
+                ? { maxLength: PASSWORD_MAX_LENGTH }
+                : {
+                    minLength: PASSWORD_MIN_LENGTH,
+                    maxLength: PASSWORD_MAX_LENGTH,
+                  })}
             />
             <button
               type="button"

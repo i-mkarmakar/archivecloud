@@ -207,7 +207,7 @@ export async function previewFileByTokenHandler(
   const { enforcePublicShareRateLimit } = await import(
     "@/server/modules/files/public-rate-limit"
   );
-  const limited = enforcePublicShareRateLimit({ request, token });
+  const limited = await enforcePublicShareRateLimit({ request, token });
   if (limited) return limited;
   const preview = await prisma.filePreviewToken.findFirst({
     where: { tokenHash: hashToken(token), expiresAt: { gt: new Date() } },

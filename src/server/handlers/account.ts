@@ -14,7 +14,7 @@ import { stopGoogleDriveWatches } from "@/server/modules/webhooks/google-drive-w
 import { createAuditLog } from "@/server/utils/audit";
 
 const setPasswordBodySchema = z.object({
-  newPassword: z.string().min(1),
+  newPassword: z.string(),
 });
 
 export async function getAccountHandler(request: Request) {
@@ -138,9 +138,13 @@ export async function setPasswordHandler(request: Request) {
       headers: await headers(),
     });
   } catch (error) {
+    console.error("[set-password]", {
+      name: error instanceof Error ? error.name : "Error",
+      message: error instanceof Error ? error.message : String(error),
+    });
     return errorJson(
       "SET_PASSWORD_FAILED",
-      error instanceof Error ? error.message : "Failed to set password.",
+      "Failed to set password. Please try again.",
       400,
     );
   }

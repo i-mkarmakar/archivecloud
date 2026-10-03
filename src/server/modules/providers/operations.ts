@@ -70,7 +70,10 @@ import type {
   ProviderBrowseResult,
   ProviderCopyResult,
 } from "@/server/modules/providers/types";
-import { isSupportedProvider } from "@/server/modules/providers/types";
+import {
+  assertProviderCapability,
+  isSupportedProvider,
+} from "@/server/modules/providers/types";
 
 const GOOGLE_APPS_PREFIX = "application/vnd.google-apps.";
 
@@ -303,10 +306,9 @@ export async function pullProviderFile(
       };
     }
     case "icloud_drive":
-    case "icloud_photos": {
-      await downloadICloudFileStream(account, providerFileId);
-      throw new Error("iCloud download is not available yet.");
-    }
+    case "icloud_photos":
+      assertProviderCapability(account.provider, "supportsDownload");
+      return downloadICloudFileStream(account, providerFileId);
     default:
       throw new Error(`Download not supported for ${account.provider}`);
   }
@@ -435,8 +437,9 @@ async function pushProviderFile(
       };
     }
     case "icloud_drive":
-    case "icloud_photos": {
-      await uploadICloudFileFromStream({
+    case "icloud_photos":
+      assertProviderCapability(account.provider, "supportsUpload");
+      return uploadICloudFileFromStream({
         account,
         parentId: destParentId?.trim() || "root",
         fileName: pulled.name,
@@ -444,8 +447,6 @@ async function pushProviderFile(
         body: pulled.stream,
         sizeBytes: pulled.sizeBytes,
       });
-      throw new Error("iCloud upload is not available yet.");
-    }
     default:
       throw new Error(`Upload not supported for ${account.provider}`);
   }
@@ -483,8 +484,8 @@ export async function deleteProviderFile(params: {
       return;
     case "icloud_drive":
     case "icloud_photos":
-      await deleteICloudFile(account, providerFileId);
-      return;
+      assertProviderCapability(account.provider, "supportsDelete");
+      return deleteICloudFile(account, providerFileId);
     default:
       throw new Error(`Delete not supported for ${account.provider}`);
   }
@@ -609,6 +610,10 @@ export async function renameProviderFile(params: {
     }
     case "google_photos":
       throw new Error("Google Photos does not support renaming media items.");
+    case "icloud_drive":
+    case "icloud_photos":
+      assertProviderCapability(account.provider, "supportsRename");
+      throw new Error("unreachable");
     default:
       throw new Error(`Rename not supported for ${account.provider}`);
   }
@@ -764,6 +769,10 @@ export async function moveProviderItem(params: {
     }
     case "google_photos":
       throw new Error("Google Photos does not support moving media items.");
+    case "icloud_drive":
+    case "icloud_photos":
+      assertProviderCapability(account.provider, "supportsMove");
+      throw new Error("unreachable");
     default:
       throw new Error(`Move not supported for ${account.provider}`);
   }

@@ -5,7 +5,11 @@ import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { type FormEvent, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
-import { validatePassword } from "@/lib/validate-password";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/validate-password";
 
 export function ProfilePasswordSection({
   hasCredentialAccount,
@@ -202,7 +206,8 @@ function PasswordField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          minLength={8}
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
           className="pr-10"
           required
         />

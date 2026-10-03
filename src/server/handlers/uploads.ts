@@ -446,14 +446,19 @@ export async function handleUploadRequest(
         syncQuotaInBackground(account.id, session.id);
       } catch (error) {
         fileStream.resume();
+        const { isAppHttpError } = await import("@/server/http/app-error");
+        const code = isAppHttpError(error) ? error.code : "UPLOAD_FAILED";
+        const message = isAppHttpError(error)
+          ? error.message
+          : "Upload failed.";
         logUpload("file upload failed", {
           fileName,
           message: error instanceof Error ? error.message : "Upload failed",
         });
         failed.push({
           fileName,
-          code: "UPLOAD_FAILED",
-          message: error instanceof Error ? error.message : "Upload failed",
+          code,
+          message,
         });
       }
     };
