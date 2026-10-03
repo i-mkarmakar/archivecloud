@@ -42,7 +42,7 @@ type PublicFile = {
   sharedBy?: {
     name: string;
     image: string | null;
-  };
+  } | null;
 };
 
 function typeBadgeLabel(
@@ -294,7 +294,8 @@ export function PublicFilePage({
     );
   }
 
-  const sharedByName = file.sharedBy?.name || "Archive Cloud user";
+  const sharedBy = file.sharedBy ?? null;
+  const sharedByName = sharedBy?.name || "Archive Cloud user";
   const sharedByInitial = sharedByName.charAt(0).toUpperCase() || "A";
   const providerName = providerLabel(file.provider).toUpperCase();
   const providerLogo = getBrandLogoSrc(file.provider ?? "");
@@ -355,25 +356,27 @@ export function PublicFilePage({
 
             <div className="my-3.5 border-t border-border" />
 
-            <div className="flex items-center gap-2.5">
-              {file.sharedBy?.image ? (
-                <img
-                  src={file.sharedBy.image}
-                  alt=""
-                  className="h-7 w-7 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                  {sharedByInitial}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Shared by{" "}
-                <span className="font-bold text-foreground">
-                  {sharedByName}
-                </span>
-              </p>
-            </div>
+            {sharedBy ? (
+              <div className="flex items-center gap-2.5">
+                {sharedBy.image ? (
+                  <img
+                    src={sharedBy.image}
+                    alt=""
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    {sharedByInitial}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Shared by{" "}
+                  <span className="font-bold text-foreground">
+                    {sharedByName}
+                  </span>
+                </p>
+              </div>
+            ) : null}
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button

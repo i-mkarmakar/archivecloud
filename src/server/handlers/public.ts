@@ -32,6 +32,7 @@ async function findSharedFile(token: string) {
     kind: "ok" as const,
     shareId: share.id,
     userId: share.userId,
+    showOwnerProfile: share.showOwnerProfile,
     file: share.file,
     sharedBy: share.user,
   };
@@ -96,10 +97,12 @@ export async function getPublicFileHandler(
       sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
       createdAt: file.createdAt,
       provider: file.provider,
-      sharedBy: {
-        name: result.sharedBy?.name?.trim() || "Archive Cloud user",
-        image: result.sharedBy?.image ?? null,
-      },
+      sharedBy: result.showOwnerProfile
+        ? {
+            name: result.sharedBy?.name?.trim() || "Archive Cloud user",
+            image: result.sharedBy?.image ?? null,
+          }
+        : null,
     },
   });
 }

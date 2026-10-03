@@ -791,6 +791,7 @@ export async function getFileShareHandler(
       fileName: file.name,
       shareId: null,
       enabled: false,
+      showOwnerProfile: true,
       url: null,
     });
   }
@@ -811,6 +812,7 @@ export async function getFileShareHandler(
       fileName: file.name,
       shareId: null,
       enabled: false,
+      showOwnerProfile: true,
       url: null,
     });
   }
@@ -822,6 +824,7 @@ export async function getFileShareHandler(
     fileName: file.name,
     shareId: share.id,
     enabled: share.enabled,
+    showOwnerProfile: share.showOwnerProfile,
     url: token ? sharePublicUrl(token) : null,
     needsRegenerate: !token,
     expiresAt: share.expiresAt?.toISOString() ?? null,
@@ -841,6 +844,9 @@ export async function shareFileHandler(
   const body = z
     .object({
       rotate: z.boolean().optional(),
+      /** Required when creating or rotating a public link. */
+      consent: z.literal(true).optional(),
+      showOwnerProfile: z.boolean().optional(),
       name: z.string().trim().min(1).max(255).optional(),
       mimeType: z.string().trim().max(191).optional(),
       sizeBytes: z.union([z.string(), z.number()]).optional(),
@@ -881,6 +887,7 @@ export async function shareFileHandler(
         url: sharePublicUrl(token),
         alreadyShared: true,
         enabled: true,
+        showOwnerProfile: existingShare.showOwnerProfile,
         status: "active" as const,
       });
     }
@@ -891,11 +898,21 @@ export async function shareFileHandler(
         url: sharePublicUrl(token),
         alreadyShared: true,
         enabled: false,
+        showOwnerProfile: existingShare.showOwnerProfile,
         status: "disabled" as const,
       });
     }
   }
 
+  if (body.consent !== true) {
+    return errorJson(
+      "CONSENT_REQUIRED",
+      "Confirm that you understand this link will be publicly accessible.",
+      400,
+    );
+  }
+
+  const showOwnerProfile = body.showOwnerProfile ?? true;
   const token = randomToken(32);
   const tokenHash = hashToken(token);
   const tokenEncrypted = encryptText(token);
@@ -909,6 +926,7 @@ export async function shareFileHandler(
         tokenHash,
         tokenEncrypted,
         enabled: true,
+        showOwnerProfile,
         expiresAt,
       },
     });
@@ -920,11 +938,27 @@ export async function shareFileHandler(
         tokenHash,
         tokenEncrypted,
         enabled: true,
+        showOwnerProfile,
         expiresAt,
       },
     });
     shareId = share.id;
   }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: user.id,
+      action: "file_share.make_public_consent",
+      entityType: "file_share",
+      entityId: shareId,
+      metadata: {
+        fileId: file.id,
+        showOwnerProfile,
+        rotate: Boolean(body.rotate),
+      },
+    },
+  });
+
   return json(
     {
       url: sharePublicUrl(token),
@@ -932,6 +966,7 @@ export async function shareFileHandler(
       fileId: file.id,
       alreadyShared: Boolean(existingShare),
       enabled: true,
+      showOwnerProfile,
       status: "active" as const,
       expiresAt: expiresAt.toISOString(),
     },
@@ -951,11 +986,17 @@ export async function setFileShareEnabledHandler(
 
   const body = z
     .object({
-      enabled: z.boolean(),
+      enabled: z.boolean().optional(),
+      showOwnerProfile: z.boolean().optional(),
       name: z.string().trim().min(1).max(255).optional(),
       mimeType: z.string().trim().max(191).optional(),
       sizeBytes: z.union([z.string(), z.number()]).optional(),
     })
+    .refine(
+      (value) =>
+        value.enabled !== undefined || value.showOwnerProfile !== undefined,
+      { message: "Provide enabled and/or showOwnerProfile." },
+    )
     .parse(await request.json());
 
   const file = await resolveShareableFile(
@@ -986,7 +1027,12 @@ export async function setFileShareEnabledHandler(
 
   const updated = await prisma.fileShare.update({
     where: { id: share.id },
-    data: { enabled: body.enabled },
+    data: {
+      ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+      ...(body.showOwnerProfile !== undefined
+        ? { showOwnerProfile: body.showOwnerProfile }
+        : {}),
+    },
   });
   const token = decryptShareToken(updated.tokenEncrypted);
 
@@ -995,6 +1041,7 @@ export async function setFileShareEnabledHandler(
     shareId: updated.id,
     fileId: file.id,
     enabled: updated.enabled,
+    showOwnerProfile: updated.showOwnerProfile,
     url: token ? sharePublicUrl(token) : null,
   });
 }
