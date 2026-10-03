@@ -37,6 +37,7 @@ model User {
   accounts               Account[]
   transferJobs           TransferJob[]
   transferUsageMonths    TransferUsageMonth[]
+  shareBandwidthDaily    ShareBandwidthDaily[]
   tags                   Tag[]
   folderTags             FolderTag[]
   scheduledTransfers    ScheduledTransfer[]
@@ -430,12 +431,30 @@ model FileShare {
   updatedAt      DateTime  @updatedAt @map("updated_at")
   file           File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bandwidthDaily ShareBandwidthDaily[]
 
   @@index([fileId])
   @@index([userId])
   @@index([userId, enabled, createdAt])
   @@index([fileId, userId, enabled, createdAt])
   @@map("file_shares")
+}
+
+/** Per-share daily public byte usage (sum by userId+day for per-user caps). Separate from TransferUsageMonth. */
+model ShareBandwidthDaily {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  shareId   String    @map("share_id") @db.Char(36)
+  day       DateTime  @map("day") @db.Date
+  bytesSent BigInt    @default(0) @map("bytes_sent")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  share     FileShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  @@unique([shareId, day])
+  @@index([userId, day])
+  @@map("share_bandwidth_daily")
 }
 
 model FilePreviewToken {

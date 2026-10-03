@@ -184,6 +184,17 @@ const envSchema = z.object({
     .min(1_000)
     .max(3_600_000)
     .default(60_000),
+
+  /**
+   * Optional overrides for public-share daily bandwidth (bytes).
+   * When unset, plan limits apply (Free: 10 GiB/user/day, 5 GiB/link/day; Thunder: unlimited).
+   */
+  SHARE_BANDWIDTH_DAILY_BYTES: z.coerce.number().int().positive().optional(),
+  SHARE_BANDWIDTH_DAILY_LINK_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
 });
 
 const isNextBuild =
