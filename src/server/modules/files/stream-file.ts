@@ -5,6 +5,7 @@ import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { errorJson } from "@/server/http/responses";
 import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
+import { publicStreamErrorResponse } from "@/server/modules/files/public-stream-errors";
 import {
   streamGoogleDriveThumbnailResponse,
   streamGoogleFileResponse,
@@ -71,12 +72,9 @@ async function streamGooglePhotosImportedFileResponse(
     const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
     return new Response(webStream, { status: 200, headers });
   } catch (error) {
-    console.error("Google Photos imported file stream failed:", error);
-    return errorJson(
-      "PHOTOS_FILE_STREAM_FAILED",
-      error instanceof Error ? error.message : "Failed to stream file.",
-      502,
-    );
+    return publicStreamErrorResponse(error, {
+      logLabel: "Google Photos imported file stream failed:",
+    });
   }
 }
 
@@ -161,14 +159,8 @@ export async function streamProviderFileResponse(
     const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
     return new Response(webStream, { status: 200, headers });
   } catch (error) {
-    console.error(
-      `Stream failed for ${file.connectedAccount.provider}:${file.providerFileId}:`,
-      error,
-    );
-    return errorJson(
-      "FILE_STREAM_FAILED",
-      error instanceof Error ? error.message : "Failed to stream file.",
-      502,
-    );
+    return publicStreamErrorResponse(error, {
+      logLabel: `Stream failed for ${file.connectedAccount.provider}:`,
+    });
   }
 }

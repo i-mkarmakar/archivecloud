@@ -4,6 +4,7 @@ import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";
 import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
+import { publicStreamErrorResponse } from "@/server/modules/files/public-stream-errors";
 import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
@@ -111,10 +112,12 @@ export async function streamGoogleFileResponse(
 
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);
-    return errorJson(
-      "GOOGLE_FILE_STREAM_FAILED",
-      message || response.statusText,
-      response.status,
+    return publicStreamErrorResponse(
+      new Error(message || response.statusText),
+      {
+        httpStatus: response.status,
+        logLabel: "Google Drive file stream failed:",
+      },
     );
   }
 
@@ -167,10 +170,12 @@ export async function streamGoogleProviderFileResponse(
 
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);
-    return errorJson(
-      "GOOGLE_FILE_STREAM_FAILED",
-      message || response.statusText,
-      response.status,
+    return publicStreamErrorResponse(
+      new Error(message || response.statusText),
+      {
+        httpStatus: response.status,
+        logLabel: "Google Drive file stream failed:",
+      },
     );
   }
 
