@@ -22,7 +22,7 @@ export function serializeFile(file: {
   providerFileId: string;
   name: string;
   mimeType: string;
-  sizeBytes: bigint;
+  sizeBytes: bigint | null;
   checksum: string | null;
   status: string;
   isStarred: boolean;
@@ -33,6 +33,10 @@ export function serializeFile(file: {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  providerParentId?: string | null;
+  isFolder?: boolean;
+  isShortcut?: boolean;
+  shortcutTargetId?: string | null;
   connectedAccount?: {
     id: string;
     email: string;
@@ -50,9 +54,13 @@ export function serializeFile(file: {
     folderId: file.folderId,
     provider: file.provider,
     providerFileId: file.providerFileId,
+    providerParentId: file.providerParentId ?? null,
+    isFolder: file.isFolder ?? false,
+    isShortcut: file.isShortcut ?? false,
+    shortcutTargetId: file.shortcutTargetId ?? null,
     name: file.name,
     mimeType: file.mimeType,
-    sizeBytes: file.sizeBytes.toString(),
+    sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
     checksum: file.checksum,
     status: file.status,
     isStarred: file.isStarred,

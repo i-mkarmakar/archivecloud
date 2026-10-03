@@ -30,6 +30,7 @@ type ShareState = {
   status: ShareStatus;
   url: string | null;
   enabled: boolean;
+  showOwnerProfile: boolean;
   needsRegenerate?: boolean;
 };
 
@@ -53,10 +54,14 @@ export function PublicLinkModal({
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [showOwnerProfile, setShowOwnerProfile] = useState(false);
   const [share, setShare] = useState<ShareState>({
     status: "none",
     url: null,
     enabled: false,
+    showOwnerProfile: false,
   });
   const [qrOpen, setQrOpen] = useState(false);
 
@@ -82,28 +87,42 @@ export function PublicLinkModal({
 
   useEffect(() => {
     if (!open || !fileId) {
-      setShare({ status: "none", url: null, enabled: false });
+      setShare({
+        status: "none",
+        url: null,
+        enabled: false,
+        showOwnerProfile: false,
+      });
+      setConfirming(false);
+      setConsentChecked(false);
+      setShowOwnerProfile(false);
       setQrOpen(false);
       return;
     }
 
     let cancelled = false;
     setLoading(true);
+    setConfirming(false);
+    setConsentChecked(false);
     void (async () => {
       try {
         const data = await apiFetch<{
           status: ShareStatus;
           url: string | null;
           enabled: boolean;
+          showOwnerProfile?: boolean;
           needsRegenerate?: boolean;
         }>(sharePath(fileId));
         if (cancelled) return;
+        const ownerVisible = data.showOwnerProfile ?? false;
         setShare({
           status: data.status,
           url: data.url,
           enabled: data.enabled,
+          showOwnerProfile: ownerVisible,
           needsRegenerate: data.needsRegenerate,
         });
+        setShowOwnerProfile(ownerVisible);
       } catch (error) {
         if (!cancelled) {
           toast.danger(
@@ -111,7 +130,12 @@ export function PublicLinkModal({
               ? error.message
               : "Failed to load public link",
           );
-          setShare({ status: "none", url: null, enabled: false });
+          setShare({
+            status: "none",
+            url: null,
+            enabled: false,
+            showOwnerProfile: false,
+          });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -124,23 +148,31 @@ export function PublicLinkModal({
   }, [open, fileId, fileName, mimeType, sizeBytes]);
 
   async function generateLink(rotate = false) {
-    if (!fileId) return;
+    if (!fileId || !consentChecked) return;
     setGenerating(true);
     try {
       const data = await apiFetch<{
         url: string;
         status: ShareStatus;
         enabled: boolean;
+        showOwnerProfile?: boolean;
       }>(sharePath(fileId), {
         method: "POST",
-        body: shareBody(rotate ? { rotate: true } : {}),
+        body: shareBody({
+          ...(rotate ? { rotate: true } : {}),
+          consent: true,
+          showOwnerProfile,
+        }),
       });
       setShare({
         status: data.status ?? "active",
         url: data.url,
         enabled: data.enabled ?? true,
+        showOwnerProfile: data.showOwnerProfile ?? showOwnerProfile,
         needsRegenerate: false,
       });
+      setConfirming(false);
+      setConsentChecked(false);
       toast.success("Public link created.");
     } catch (error) {
       toast.danger(
@@ -161,6 +193,7 @@ export function PublicLinkModal({
         status: ShareStatus;
         url: string | null;
         enabled: boolean;
+        showOwnerProfile?: boolean;
       }>(sharePath(fileId), {
         method: "PATCH",
         body: shareBody({ enabled }),
@@ -169,6 +202,7 @@ export function PublicLinkModal({
         status: data.status,
         url: data.url,
         enabled: data.enabled,
+        showOwnerProfile: data.showOwnerProfile ?? share.showOwnerProfile,
         needsRegenerate: !data.url,
       });
       if (enabled) toast.success("Public link reactivated!");
@@ -176,6 +210,43 @@ export function PublicLinkModal({
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : "Failed to update public link",
+      );
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  async function setOwnerProfileVisible(next: boolean) {
+    if (!fileId) return;
+    setToggling(true);
+    try {
+      const data = await apiFetch<{
+        status: ShareStatus;
+        url: string | null;
+        enabled: boolean;
+        showOwnerProfile?: boolean;
+      }>(sharePath(fileId), {
+        method: "PATCH",
+        body: shareBody({ showOwnerProfile: next }),
+      });
+      setShare((prev) => ({
+        ...prev,
+        status: data.status,
+        url: data.url,
+        enabled: data.enabled,
+        showOwnerProfile: data.showOwnerProfile ?? next,
+      }));
+      setShowOwnerProfile(data.showOwnerProfile ?? next);
+      toast.success(
+        next
+          ? "Your name and avatar will show on the public page."
+          : "Your name and avatar are hidden on the public page.",
+      );
+    } catch (error) {
+      toast.danger(
+        error instanceof Error
+          ? error.message
+          : "Failed to update profile visibility",
       );
     } finally {
       setToggling(false);
@@ -222,11 +293,13 @@ export function PublicLinkModal({
 
   const showEmpty =
     !loading &&
+    !confirming &&
     (share.status === "none" ||
       (share.needsRegenerate && share.status !== "disabled"));
+  const showConfirm = !loading && confirming;
   const showActive =
-    !loading && share.status === "active" && Boolean(share.url);
-  const showDisabled = !loading && share.status === "disabled";
+    !loading && !confirming && share.status === "active" && Boolean(share.url);
+  const showDisabled = !loading && !confirming && share.status === "disabled";
 
   const qrImageUrl = share.url ? qrCodeImageUrl(share.url) : "";
 
@@ -266,13 +339,84 @@ export function PublicLinkModal({
               </div>
               <Button
                 isDisabled={generating}
-                onPress={() =>
-                  void generateLink(Boolean(share.needsRegenerate))
-                }
+                onPress={() => {
+                  setConsentChecked(false);
+                  setShowOwnerProfile(true);
+                  setConfirming(true);
+                }}
               >
                 <Link className="h-4 w-4" />
-                {generating ? "Generating…" : "Generate Public Link"}
+                Generate Public Link
               </Button>
+            </div>
+          ) : null}
+
+          {showConfirm ? (
+            <div className="grid gap-4 rounded-2xl border border-border bg-muted/30 px-4 py-5">
+              <div className="grid gap-1.5">
+                <p className="text-base font-extrabold text-foreground">
+                  Make this file public?
+                </p>
+                <p className="text-sm text-muted">
+                  Anyone with the link can preview and download this file. You
+                  can deactivate the link later.
+                </p>
+              </div>
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(event) => setConsentChecked(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+                />
+                <span>
+                  I understand this creates a public link and consent to sharing
+                  this file outside my account.
+                </span>
+              </label>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    Show my name and avatar
+                  </p>
+                  <p className="text-xs text-muted">
+                    Optional on the public page
+                  </p>
+                </div>
+                <Switch
+                  isSelected={showOwnerProfile}
+                  onChange={setShowOwnerProfile}
+                  size="md"
+                  aria-label="Show my name and avatar on public page"
+                >
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                </Switch>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  isDisabled={generating}
+                  onPress={() => {
+                    setConfirming(false);
+                    setConsentChecked(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  isDisabled={!consentChecked || generating}
+                  onPress={() =>
+                    void generateLink(
+                      share.status !== "none" || Boolean(share.needsRegenerate),
+                    )
+                  }
+                >
+                  <Link className="h-4 w-4" />
+                  {generating ? "Creating…" : "Create public link"}
+                </Button>
+              </div>
             </div>
           ) : null}
 
@@ -309,10 +453,14 @@ export function PublicLinkModal({
                 <Button
                   variant="outline"
                   isDisabled={generating}
-                  onPress={() => void generateLink(true)}
+                  onPress={() => {
+                    setConsentChecked(false);
+                    setShowOwnerProfile(share.showOwnerProfile);
+                    setConfirming(true);
+                  }}
                 >
                   <Link className="h-4 w-4" />
-                  {generating ? "Generating…" : "Regenerate Public Link"}
+                  Regenerate Public Link
                 </Button>
               ) : null}
             </div>
@@ -335,6 +483,28 @@ export function PublicLinkModal({
                   onChange={(value) => void setEnabled(value)}
                   size="md"
                   aria-label="Toggle public link"
+                >
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                </Switch>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    Show my name and avatar
+                  </p>
+                  <p className="text-xs text-muted">
+                    Visitors see who shared this file
+                  </p>
+                </div>
+                <Switch
+                  isSelected={share.showOwnerProfile}
+                  isDisabled={toggling}
+                  onChange={(value) => void setOwnerProfileVisible(value)}
+                  size="md"
+                  aria-label="Show my name and avatar on public page"
                 >
                   <Switch.Control>
                     <Switch.Thumb />

@@ -5,7 +5,10 @@ import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import { getAccessibleFile } from "@/server/lib/file-access";
+import {
+  assertFileContentActionsAllowed,
+  getAccessibleFile,
+} from "@/server/lib/file-access";
 import { serializeFile, touchFileAccess } from "@/server/lib/file-serialize";
 import { streamProviderFileResponse } from "@/server/modules/files/stream-file";
 import { streamDbFileThumbnail } from "@/server/modules/files/stream-thumbnail";
@@ -201,17 +204,38 @@ export async function previewFileByTokenHandler(
   const token = params?.token;
   if (!token)
     return errorJson("PREVIEW_NOT_FOUND", "Preview token not found.", 404);
+  const { enforcePublicShareRateLimit } = await import(
+    "@/server/modules/files/public-rate-limit"
+  );
+  const limited = enforcePublicShareRateLimit({ request, token });
+  if (limited) return limited;
   const preview = await prisma.filePreviewToken.findFirst({
     where: { tokenHash: hashToken(token), expiresAt: { gt: new Date() } },
     include: { file: { include: { connectedAccount: true } } },
   });
   if (preview?.file.status !== "active")
     return errorJson("PREVIEW_NOT_FOUND", "Preview token not found.", 404);
-  return streamProviderFileResponse(
+  const blocked = assertFileContentActionsAllowed(preview.file);
+  if (blocked) return blocked;
+
+  const meterKey = `preview:${preview.id}`;
+  const { assertShareBandwidthCapacity, meterShareBandwidthResponse } =
+    await import("@/server/modules/files/share-bandwidth");
+  const capped = await assertShareBandwidthCapacity({
+    userId: preview.userId,
+    shareId: meterKey,
+  });
+  if (capped) return capped;
+
+  const response = await streamProviderFileResponse(
     preview.file,
     request.headers.get("range") ?? undefined,
-    { disposition: "inline" },
+    { disposition: "inline", signal: request.signal },
   );
+  return meterShareBandwidthResponse(response, {
+    userId: preview.userId,
+    shareId: meterKey,
+  });
 }
 
 export async function listFilesHandler(request: Request) {
@@ -491,7 +515,7 @@ export async function listTrashFilesHandler(request: Request) {
   return json({
     files: page.map((file) => ({
       ...file,
-      sizeBytes: file.sizeBytes.toString(),
+      sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
     })),
     nextCursor,
   });
@@ -608,7 +632,11 @@ export async function listSharedLinksHandler(request: Request) {
       url: null as string | null,
       createdAt: share.createdAt.toISOString(),
       expiresAt: share.expiresAt?.toISOString() ?? null,
-      file: { ...share.file, sizeBytes: share.file.sizeBytes.toString() },
+      file: {
+        ...share.file,
+        sizeBytes:
+          share.file.sizeBytes == null ? null : share.file.sizeBytes.toString(),
+      },
     })),
   });
 }
@@ -628,10 +656,27 @@ export async function syncGoogleFilesHandler(request: Request) {
     },
     select: { id: true },
   });
+
+  if (env.WHOLE_ACCOUNT_INDEXING_ENABLED) {
+    const { startOrResumeGoogleDriveIndex } = await import(
+      "@/server/modules/indexing/google-drive-index"
+    );
+    const results = [];
+    for (const account of accounts) {
+      results.push(
+        await startOrResumeGoogleDriveIndex({
+          userId: user.id,
+          accountId: account.id,
+        }),
+      );
+    }
+    return json({ status: "ok", mode: "whole_account", results });
+  }
+
   const results = [];
   for (const account of accounts)
     results.push(await syncGoogleAppFolderFiles(account.id, user.id));
-  return json({ status: "ok", results });
+  return json({ status: "ok", mode: "app_folder", results });
 }
 
 export async function getFileHandler(
@@ -760,6 +805,7 @@ export async function getFileShareHandler(
       fileName: file.name,
       shareId: null,
       enabled: false,
+      showOwnerProfile: false,
       url: null,
     });
   }
@@ -780,6 +826,7 @@ export async function getFileShareHandler(
       fileName: file.name,
       shareId: null,
       enabled: false,
+      showOwnerProfile: false,
       url: null,
     });
   }
@@ -791,6 +838,7 @@ export async function getFileShareHandler(
     fileName: file.name,
     shareId: share.id,
     enabled: share.enabled,
+    showOwnerProfile: share.showOwnerProfile,
     url: token ? sharePublicUrl(token) : null,
     needsRegenerate: !token,
     expiresAt: share.expiresAt?.toISOString() ?? null,
@@ -810,6 +858,9 @@ export async function shareFileHandler(
   const body = z
     .object({
       rotate: z.boolean().optional(),
+      /** Required when creating or rotating a public link. */
+      consent: z.literal(true).optional(),
+      showOwnerProfile: z.boolean().optional(),
       name: z.string().trim().min(1).max(255).optional(),
       mimeType: z.string().trim().max(191).optional(),
       sizeBytes: z.union([z.string(), z.number()]).optional(),
@@ -826,9 +877,11 @@ export async function shareFileHandler(
     },
     { createIfMissing: true },
   );
-  if (!file || ("virtual" in file && file.virtual)) {
+  if (!file || "virtual" in file) {
     return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   }
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
 
   const existingShare = await prisma.fileShare.findFirst({
     where: {
@@ -848,6 +901,7 @@ export async function shareFileHandler(
         url: sharePublicUrl(token),
         alreadyShared: true,
         enabled: true,
+        showOwnerProfile: existingShare.showOwnerProfile,
         status: "active" as const,
       });
     }
@@ -858,11 +912,21 @@ export async function shareFileHandler(
         url: sharePublicUrl(token),
         alreadyShared: true,
         enabled: false,
+        showOwnerProfile: existingShare.showOwnerProfile,
         status: "disabled" as const,
       });
     }
   }
 
+  if (body.consent !== true) {
+    return errorJson(
+      "CONSENT_REQUIRED",
+      "Confirm that you understand this link will be publicly accessible.",
+      400,
+    );
+  }
+
+  const showOwnerProfile = body.showOwnerProfile ?? false;
   const token = randomToken(32);
   const tokenHash = hashToken(token);
   const tokenEncrypted = encryptText(token);
@@ -876,6 +940,7 @@ export async function shareFileHandler(
         tokenHash,
         tokenEncrypted,
         enabled: true,
+        showOwnerProfile,
         expiresAt,
       },
     });
@@ -887,11 +952,27 @@ export async function shareFileHandler(
         tokenHash,
         tokenEncrypted,
         enabled: true,
+        showOwnerProfile,
         expiresAt,
       },
     });
     shareId = share.id;
   }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: user.id,
+      action: "file_share.make_public_consent",
+      entityType: "file_share",
+      entityId: shareId,
+      metadata: {
+        fileId: file.id,
+        showOwnerProfile,
+        rotate: Boolean(body.rotate),
+      },
+    },
+  });
+
   return json(
     {
       url: sharePublicUrl(token),
@@ -899,6 +980,7 @@ export async function shareFileHandler(
       fileId: file.id,
       alreadyShared: Boolean(existingShare),
       enabled: true,
+      showOwnerProfile,
       status: "active" as const,
       expiresAt: expiresAt.toISOString(),
     },
@@ -918,11 +1000,17 @@ export async function setFileShareEnabledHandler(
 
   const body = z
     .object({
-      enabled: z.boolean(),
+      enabled: z.boolean().optional(),
+      showOwnerProfile: z.boolean().optional(),
       name: z.string().trim().min(1).max(255).optional(),
       mimeType: z.string().trim().max(191).optional(),
       sizeBytes: z.union([z.string(), z.number()]).optional(),
     })
+    .refine(
+      (value) =>
+        value.enabled !== undefined || value.showOwnerProfile !== undefined,
+      { message: "Provide enabled and/or showOwnerProfile." },
+    )
     .parse(await request.json());
 
   const file = await resolveShareableFile(
@@ -953,7 +1041,12 @@ export async function setFileShareEnabledHandler(
 
   const updated = await prisma.fileShare.update({
     where: { id: share.id },
-    data: { enabled: body.enabled },
+    data: {
+      ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+      ...(body.showOwnerProfile !== undefined
+        ? { showOwnerProfile: body.showOwnerProfile }
+        : {}),
+    },
   });
   const token = decryptShareToken(updated.tokenEncrypted);
 
@@ -962,6 +1055,7 @@ export async function setFileShareEnabledHandler(
     shareId: updated.id,
     fileId: file.id,
     enabled: updated.enabled,
+    showOwnerProfile: updated.showOwnerProfile,
     url: token ? sharePublicUrl(token) : null,
   });
 }
@@ -1036,6 +1130,8 @@ export async function createPreviewTokenHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId, { activeOnly: true });
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   await touchFileAccess(user.id, file.id, "PREVIEW_FILE");
   const token = randomToken(32);
   await prisma.filePreviewToken.create({
@@ -1062,6 +1158,8 @@ export async function getViewUrlHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId);
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   const links = await getGoogleDriveWebLinks(
     file.connectedAccount,
     file.providerFileId,
@@ -1082,6 +1180,8 @@ export async function downloadFileHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId);
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   await touchFileAccess(user.id, file.id, "DOWNLOAD_FILE");
   return streamProviderFileResponse(
     file,
@@ -1101,6 +1201,8 @@ export async function thumbnailFileHandler(
   if (!fileId) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
   const file = await getAccessibleFile(user.id, fileId, { activeOnly: true });
   if (!file) return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  const blocked = assertFileContentActionsAllowed(file);
+  if (blocked) return blocked;
   return streamDbFileThumbnail(file);
 }
 

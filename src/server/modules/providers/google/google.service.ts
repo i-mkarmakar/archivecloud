@@ -11,18 +11,15 @@ import {
   classifyFileKind,
   classifyFileName,
 } from "@/server/modules/files/classify-file-kind";
+import { googleDriveOAuthScopes } from "@/server/modules/providers/scopes";
 import { decryptText, encryptText } from "@/server/utils/crypto";
+
+export { googleDriveOAuthScopes };
 
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
 const googleDriveShortcutMimeType = "application/vnd.google-apps.shortcut";
 const appFolderName = "archivecloud";
 const breakdownStaleMs = 60 * 60 * 1000;
-
-export const googleDriveOAuthScopes = [
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/userinfo.email",
-  "https://www.googleapis.com/auth/userinfo.profile",
-];
 
 function isConfiguredEnvValue(
   value: string | undefined,

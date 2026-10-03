@@ -11,15 +11,15 @@ import { prisma } from "@/server/config/prisma";
 import {
   createOAuthClient,
   getAuthedGoogleClient,
-  googleDriveOAuthScopes,
 } from "@/server/modules/providers/google/google.service";
+import { googleSharedDriveOAuthScopes } from "@/server/modules/providers/scopes";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
+export { googleSharedDriveOAuthScopes };
+
 const googleDriveFolderMimeType = "application/vnd.google-apps.folder";
 const appFolderName = "archivecloud";
-
-export const googleSharedDriveOAuthScopes = [...googleDriveOAuthScopes];
 
 function resolveGoogleSharedDriveRedirectUri(): string {
   return env.GOOGLE_SHARED_DRIVE_REDIRECT_URI;
@@ -539,9 +539,7 @@ export async function uploadGoogleSharedDriveFileFromStream(params: {
 }) {
   const auth = await getAuthedGoogleClient(params.account);
   const drive = google.drive({ version: "v3", auth });
-  const parentId =
-    params.parentId?.trim() ||
-    (await ensureGoogleSharedDriveAppFolder(params.account));
+  const parentId = params.parentId?.trim() || params.account.providerAccountId;
   const uploaded = await drive.files.create({
     requestBody: {
       name: params.fileName,

@@ -193,10 +193,17 @@ export async function createTransferCopyHandler(request: Request) {
     if (!file) {
       return errorJson("FILE_NOT_FOUND", "Source file not found.", 404);
     }
+    if (file.isShortcut) {
+      return errorJson(
+        "SHORTCUT_NOT_SUPPORTED",
+        "Shortcuts cannot be transferred. Open the target file instead.",
+        400,
+      );
+    }
     sourceProviderFileId = file.providerFileId;
     fileName = body.fileName ?? file.name;
     mimeType = file.mimeType;
-    sizeBytes = file.sizeBytes;
+    sizeBytes = file.sizeBytes ?? 0n;
     if (file.connectedAccountId !== body.sourceAccountId) {
       return errorJson(
         "VALIDATION_ERROR",

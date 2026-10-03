@@ -5,10 +5,7 @@ import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import {
-  ensureGoogleAppFolder,
-  syncGoogleQuota,
-} from "@/server/modules/providers/google/google.service";
+import { syncGoogleQuota } from "@/server/modules/providers/google/google.service";
 import {
   initGoogleDriveResumableUpload,
   putGoogleDriveResumableChunk,
@@ -366,8 +363,8 @@ export async function handleUploadRequest(
         let providerFileId = "";
         let uploadedName = fileName;
         let uploadedMimeType = meta.mimeType;
-        const appFolderId = await ensureGoogleAppFolder(account);
-        let targetParentId = appFolderId;
+        // Phase 4: upload to provider root (or chosen folder), never archivecloud.
+        let targetParentId = "root";
         if (folderId) {
           const folderRecord = await prisma.folder.findFirst({
             where: { id: folderId, userId: user.id },
@@ -418,6 +415,8 @@ export async function handleUploadRequest(
             name: uploadedName,
             mimeType: uploadedMimeType,
             sizeBytes: meta.sizeBytes,
+            lastIndexScanId:
+              account.indexStatus === "running" ? account.indexScanId : null,
           },
         });
         logUpload("database file created", {
@@ -425,7 +424,10 @@ export async function handleUploadRequest(
           fileId: file.id,
           accountId: account.id,
         });
-        completed.push({ ...file, sizeBytes: file.sizeBytes.toString() });
+        completed.push({
+          ...file,
+          sizeBytes: file.sizeBytes == null ? null : file.sizeBytes.toString(),
+        });
         await prisma.uploadSession.update({
           where: { id: session.id },
           data: { status: "completed", completedAt: new Date() },
@@ -587,8 +589,8 @@ export async function resumableInitHandler(request: Request) {
     );
   }
 
-  const appFolderId = await ensureGoogleAppFolder(account);
-  let targetParentId = appFolderId;
+  // Phase 4: resumable uploads land in provider root unless a folder is chosen.
+  let targetParentId = "root";
   if (folderId) {
     const folderRecord = await prisma.folder.findFirst({
       where: { id: folderId, userId: user.id },
@@ -807,6 +809,8 @@ export async function resumableChunkHandler(
           name: fileMeta.name || session.fileName,
           mimeType: fileMeta.mimeType || session.mimeType,
           sizeBytes: totalBytes,
+          lastIndexScanId:
+            account.indexStatus === "running" ? account.indexScanId : null,
         },
       });
     }
@@ -818,7 +822,7 @@ export async function resumableChunkHandler(
 
     await createAuditLog(user.id, "UPLOAD_FILE", "file", existingFile.id, {
       name: existingFile.name,
-      size: existingFile.sizeBytes.toString(),
+      size: existingFile.sizeBytes?.toString() ?? "0",
     });
 
     await createNotification({
@@ -841,7 +845,13 @@ export async function resumableChunkHandler(
     return json(
       {
         status: "completed",
-        file: { ...existingFile, sizeBytes: existingFile.sizeBytes.toString() },
+        file: {
+          ...existingFile,
+          sizeBytes:
+            existingFile.sizeBytes == null
+              ? null
+              : existingFile.sizeBytes.toString(),
+        },
       },
       201,
     );

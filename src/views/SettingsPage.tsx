@@ -53,13 +53,14 @@ import { authClient } from "@/lib/auth-client";
 import { sessionUserToAuthUser } from "@/lib/auth-user";
 import { sanitizeConnectAliasInput } from "@/lib/connect-alias";
 import { getProfileImageUrl } from "@/lib/gravatar";
+import { connectOAuthPopup } from "@/lib/oauth-connect";
 import { fileToAvatarDataUrl } from "@/lib/profile-avatar";
 import {
   loadProviderOrder,
   PROVIDER_ORDER_CHANGED_EVENT,
   sortAccountsByProviderOrder,
 } from "@/lib/provider-order";
-import { providerLabel } from "@/lib/providers";
+import { providerConnectUrlPath, providerLabel } from "@/lib/providers";
 import { syncGoogleProfileImageIfNeeded } from "@/lib/sync-google-avatar";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +99,13 @@ type ConnectedAccount = {
   status: string;
   lastError?: string | null;
   createdAt?: string;
+  needsReconnect?: boolean;
+  needsReconnectReason?: "scopes" | "dropbox_full_access" | null;
+  indexStatus?: string;
+  indexFilesIndexed?: number;
+  indexLastError?: string | null;
+  indexNeedsFullScan?: boolean;
+  indexFullScanAttempts?: number;
   storageAccount?: {
     totalBytes: string | null;
     usedBytes: string;
@@ -471,6 +479,34 @@ export function SettingsPage() {
       .catch(() => undefined);
   }
 
+  async function reconnectAccount(account: ConnectedAccount) {
+    const connectUrlPath = providerConnectUrlPath(account.provider);
+    if (!connectUrlPath) {
+      toast.danger("Reconnect is not available for this provider.");
+      return;
+    }
+    try {
+      const result = await connectOAuthPopup({
+        connectUrlPath,
+        popupName: `${account.provider}-reconnect`,
+      });
+      if (result.status === "success" || result.status === "redirect") {
+        reloadAfterConnect();
+        if (result.status === "success") {
+          toast.success("Account reconnected.");
+        }
+        return;
+      }
+      if (result.status === "failure") {
+        toast.danger("Reconnect failed. Please try again.");
+      }
+    } catch (error) {
+      toast.danger(
+        error instanceof Error ? error.message : "Failed to start reconnect.",
+      );
+    }
+  }
+
   function updatePrefs(patch: Partial<SettingsPrefs>) {
     setPrefs((prev) => {
       const next = { ...prev, ...patch };
@@ -587,6 +623,21 @@ export function SettingsPage() {
     loadAccounts().catch(() => undefined);
     loadLinkedAccounts().catch(() => undefined);
   }, [loadAccounts, loadLinkedAccounts]);
+
+  useEffect(() => {
+    const indexing = accounts.some(
+      (account) =>
+        (account.provider === "google_drive" ||
+          account.provider === "onedrive" ||
+          account.provider === "dropbox") &&
+        account.indexStatus === "running",
+    );
+    if (!indexing) return;
+    const id = window.setInterval(() => {
+      loadAccounts().catch(() => undefined);
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [accounts, loadAccounts]);
 
   useEffect(() => {
     setProviderOrder(loadProviderOrder());
@@ -1316,6 +1367,97 @@ export function SettingsPage() {
                             {connectedOn}
                           </p>
                         ) : null}
+                        {(account.provider === "google_drive" ||
+                          account.provider === "onedrive" ||
+                          account.provider === "dropbox") &&
+                        account.indexStatus === "running" ? (
+                          <p className="mt-2 text-xs font-medium text-primary">
+                            Indexing{" "}
+                            {(account.indexFilesIndexed ?? 0).toLocaleString()}{" "}
+                            files…
+                          </p>
+                        ) : null}
+                        {(account.provider === "google_drive" ||
+                          account.provider === "onedrive" ||
+                          account.provider === "dropbox") &&
+                        account.indexStatus === "paused" ? (
+                          <p className="mt-2 text-xs font-medium text-amber-800">
+                            Indexing paused (rate limited) — will resume
+                            automatically
+                            {account.indexLastError
+                              ? ` (${account.indexLastError})`
+                              : "."}
+                          </p>
+                        ) : null}
+                        {(account.provider === "google_drive" ||
+                          account.provider === "onedrive" ||
+                          account.provider === "dropbox") &&
+                        account.indexStatus === "reconcile_aborted" ? (
+                          <p className="mt-2 text-xs text-danger">
+                            Index reconcile paused
+                            {account.indexLastError
+                              ? `: ${account.indexLastError}`
+                              : "."}
+                          </p>
+                        ) : null}
+                        {(account.provider === "google_drive" ||
+                          account.provider === "onedrive" ||
+                          account.provider === "dropbox") &&
+                        account.indexNeedsFullScan &&
+                        account.indexStatus !== "running" &&
+                        (account.indexFullScanAttempts ?? 0) >= 5 ? (
+                          <p className="mt-2 text-xs font-medium text-danger">
+                            Auto re-sync failed — retry
+                            {account.indexLastError
+                              ? ` (${account.indexLastError})`
+                              : "."}
+                          </p>
+                        ) : null}
+                        {(account.provider === "google_drive" ||
+                          account.provider === "onedrive" ||
+                          account.provider === "dropbox") &&
+                        account.indexNeedsFullScan &&
+                        account.indexStatus !== "running" &&
+                        (account.indexFullScanAttempts ?? 0) < 5 ? (
+                          <p className="mt-2 text-xs font-medium text-amber-800">
+                            Re-sync needed
+                            {account.indexLastError
+                              ? ` — ${account.indexLastError}`
+                              : ". A full index scan will retry automatically."}
+                          </p>
+                        ) : null}
+                        {(account.provider === "google_drive" ||
+                          account.provider === "onedrive" ||
+                          account.provider === "dropbox") &&
+                        account.indexStatus === "auth_error" ? (
+                          <p className="mt-2 text-xs text-danger">
+                            Indexing paused — reconnect this account
+                            {account.indexLastError
+                              ? ` (${account.indexLastError})`
+                              : "."}
+                          </p>
+                        ) : null}
+                        {account.needsReconnect ? (
+                          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                            <p className="text-xs font-medium text-amber-900">
+                              Reconnect to see all your files
+                            </p>
+                            <p className="mt-1 text-xs text-amber-800/90">
+                              {account.needsReconnectReason ===
+                              "dropbox_full_access"
+                                ? "Dropbox must grant Full Dropbox access before whole-account indexing."
+                                : "This account is missing permissions required for full file access."}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="mt-2"
+                              onPress={() => void reconnectAccount(account)}
+                            >
+                              Reconnect
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -1456,7 +1598,10 @@ export function SettingsPage() {
               Warning
             </div>
             <p className="mt-1 text-sm leading-relaxed text-amber-800/90 sm:mt-1.5">
-              Active schedule jobs for this account will be deleted.
+              Active schedule jobs for this account will be deleted. Catalog
+              entries, stars, tags, and virtual folder entries for this account
+              will be removed from Archive Cloud. Files on the provider are not
+              touched.
             </p>
           </div>
 

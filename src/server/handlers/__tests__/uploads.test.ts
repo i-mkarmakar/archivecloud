@@ -14,14 +14,12 @@ const {
   initGoogleDriveResumableUpload,
   queryGoogleDriveResumableStatus,
   putGoogleDriveResumableChunk,
-  ensureGoogleAppFolder,
   syncGoogleQuota,
 } = vi.hoisted(() => ({
   uploadGoogleDriveMediaFile: vi.fn(),
   initGoogleDriveResumableUpload: vi.fn(),
   queryGoogleDriveResumableStatus: vi.fn(),
   putGoogleDriveResumableChunk: vi.fn(),
-  ensureGoogleAppFolder: vi.fn(),
   syncGoogleQuota: vi.fn(),
 }));
 
@@ -33,7 +31,6 @@ vi.mock("@/server/modules/providers/google-drive-upload", () => ({
 }));
 
 vi.mock("@/server/modules/providers/google/google.service", () => ({
-  ensureGoogleAppFolder,
   syncGoogleQuota,
 }));
 
@@ -133,7 +130,6 @@ function buildMultipartRequest(params: {
 describe("handleUploadRequest (media upload)", () => {
   beforeEach(() => {
     authed();
-    ensureGoogleAppFolder.mockResolvedValue("app-folder-id");
     syncGoogleQuota.mockResolvedValue(undefined);
     uploadGoogleDriveMediaFile.mockImplementation(
       async (params: {
@@ -188,7 +184,7 @@ describe("handleUploadRequest (media upload)", () => {
     expect(uploadGoogleDriveMediaFile.mock.calls[0][0]).toMatchObject({
       fileName: "hello.txt",
       mimeType: "text/plain",
-      parentId: "app-folder-id",
+      parentId: "root",
     });
   });
 
@@ -264,7 +260,6 @@ describe("handleUploadRequest (media upload)", () => {
 describe("resumableInitHandler", () => {
   beforeEach(() => {
     authed();
-    ensureGoogleAppFolder.mockResolvedValue("app-folder-id");
     syncGoogleQuota.mockResolvedValue(undefined);
   });
 
@@ -295,7 +290,7 @@ describe("resumableInitHandler", () => {
       fileName: "video.mp4",
       mimeType: "video/mp4",
       sizeBytes: 1024n,
-      parentId: "app-folder-id",
+      parentId: "root",
     });
   });
 
@@ -385,15 +380,16 @@ describe("resumableStatusHandler", () => {
       googleSessionUri: "https://upload.example/session",
       targetConnectedAccountId: "acct-1",
     });
-    prismaMock.connectedAccount.findFirstOrThrow.mockResolvedValue(
-      eligibleAccount,
-    );
-    queryGoogleDriveResumableStatus.mockResolvedValue(
-      new Response(null, {
-        status: 308,
-        headers: { range: "bytes=0-255" },
-      }),
-    );
+    prismaMock.connectedAccount.findFirst.mockResolvedValue(eligibleAccount);
+    queryGoogleDriveResumableStatus.mockResolvedValue({
+      status: 308,
+      ok: false,
+      headers: {
+        get(name: string) {
+          return name.toLowerCase() === "range" ? "bytes=0-255" : null;
+        },
+      },
+    });
 
     const response = await resumableStatus(
       new Request("http://localhost/uploads/resumable/status/sess-r1"),
@@ -414,9 +410,7 @@ describe("resumableStatusHandler", () => {
       googleSessionUri: "https://upload.example/session",
       targetConnectedAccountId: "acct-1",
     });
-    prismaMock.connectedAccount.findFirstOrThrow.mockResolvedValue(
-      eligibleAccount,
-    );
+    prismaMock.connectedAccount.findFirst.mockResolvedValue(eligibleAccount);
     queryGoogleDriveResumableStatus.mockRejectedValue(
       new Error("provider offline"),
     );
@@ -449,9 +443,7 @@ describe("resumableChunkHandler", () => {
       googleSessionUri: "https://upload.example/session",
       targetConnectedAccountId: "acct-1",
     });
-    prismaMock.connectedAccount.findFirstOrThrow.mockResolvedValue(
-      eligibleAccount,
-    );
+    prismaMock.connectedAccount.findFirst.mockResolvedValue(eligibleAccount);
     putGoogleDriveResumableChunk.mockResolvedValue(
       Response.json(
         { id: "g-file-2", name: "video.mp4", mimeType: "video/mp4" },
@@ -498,9 +490,7 @@ describe("resumableChunkHandler", () => {
       googleSessionUri: "https://upload.example/session",
       targetConnectedAccountId: "acct-1",
     });
-    prismaMock.connectedAccount.findFirstOrThrow.mockResolvedValue(
-      eligibleAccount,
-    );
+    prismaMock.connectedAccount.findFirst.mockResolvedValue(eligibleAccount);
     putGoogleDriveResumableChunk.mockResolvedValue(
       new Response("quota exceeded on drive", { status: 403 }),
     );

@@ -22,7 +22,7 @@ import {
 } from "@/components/drive/QrCodeWithLogo";
 import { ReportAbuseModal } from "@/components/drive/ReportAbuseModal";
 import { ShareBrandLogo } from "@/components/drive/ShareBrandLogo";
-import { API_URL, apiFetch, formatBytes } from "@/lib/api";
+import { API_URL, ApiRequestError, apiFetch, formatBytes } from "@/lib/api";
 import { getBrandLogoSrc } from "@/lib/brand-icons";
 import { setDocumentTitle } from "@/lib/document-title";
 import { createPlyr, ensurePlyr } from "@/lib/plyr";
@@ -42,7 +42,7 @@ type PublicFile = {
   sharedBy?: {
     name: string;
     image: string | null;
-  };
+  } | null;
 };
 
 function typeBadgeLabel(
@@ -122,6 +122,8 @@ export function PublicFilePage({
   const [file, setFile] = useState<PublicFile | null>(null);
   const [failed, setFailed] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [viewing, setViewing] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
@@ -140,14 +142,39 @@ export function PublicFilePage({
   useEffect(() => {
     setFailed(false);
     setUnavailable(false);
+    setRateLimited(false);
+    setRateLimitMessage(null);
     apiFetch<{ file: PublicFile }>(`/api/public/files/${token}`, {
       skipAuth: true,
     })
       .then((data) => setFile(data.file))
       .catch((error) => {
         setFile(null);
+        if (error instanceof ApiRequestError && error.status === 429) {
+          setRateLimited(true);
+          setRateLimitMessage(
+            error.message ||
+              "This shared link has reached its download limit for today. Please try again tomorrow.",
+          );
+          return;
+        }
         const message =
           error instanceof Error ? error.message.toLowerCase() : "";
+        const code =
+          error instanceof ApiRequestError ? error.code?.toLowerCase() : "";
+        if (
+          code === "share_bandwidth_limit" ||
+          message.includes("bandwidth") ||
+          message.includes("rate limit")
+        ) {
+          setRateLimited(true);
+          setRateLimitMessage(
+            error instanceof Error
+              ? error.message
+              : "This shared link has reached its download limit for today. Please try again tomorrow.",
+          );
+          return;
+        }
         if (message.includes("unavailable") || message.includes("disabled")) {
           setUnavailable(true);
         } else {
@@ -179,6 +206,18 @@ export function PublicFilePage({
       player?.destroy();
     };
   }, [kind, previewUrl, embed, viewing]);
+
+  if (rateLimited) {
+    return (
+      <StatusScreen
+        title="Temporarily unavailable"
+        message={
+          rateLimitMessage ??
+          "This shared link has reached its download limit for today. Please try again tomorrow."
+        }
+      />
+    );
+  }
 
   if (unavailable) {
     return (
@@ -294,7 +333,8 @@ export function PublicFilePage({
     );
   }
 
-  const sharedByName = file.sharedBy?.name || "Archive Cloud user";
+  const sharedBy = file.sharedBy ?? null;
+  const sharedByName = sharedBy?.name || "Archive Cloud user";
   const sharedByInitial = sharedByName.charAt(0).toUpperCase() || "A";
   const providerName = providerLabel(file.provider).toUpperCase();
   const providerLogo = getBrandLogoSrc(file.provider ?? "");
@@ -355,25 +395,27 @@ export function PublicFilePage({
 
             <div className="my-3.5 border-t border-border" />
 
-            <div className="flex items-center gap-2.5">
-              {file.sharedBy?.image ? (
-                <img
-                  src={file.sharedBy.image}
-                  alt=""
-                  className="h-7 w-7 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                  {sharedByInitial}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Shared by{" "}
-                <span className="font-bold text-foreground">
-                  {sharedByName}
-                </span>
-              </p>
-            </div>
+            {sharedBy ? (
+              <div className="flex items-center gap-2.5">
+                {sharedBy.image ? (
+                  <img
+                    src={sharedBy.image}
+                    alt=""
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    {sharedByInitial}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Shared by{" "}
+                  <span className="font-bold text-foreground">
+                    {sharedByName}
+                  </span>
+                </p>
+              </div>
+            ) : null}
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button

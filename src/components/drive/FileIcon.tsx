@@ -23,6 +23,10 @@ export function fileTypeIconName(
   const name = (fileName ?? "").toLowerCase();
   const ext = name.includes(".") ? (name.split(".").pop() ?? "") : "";
 
+  if (kind === "shortcut" || mime.includes("shortcut")) {
+    return "documents";
+  }
+
   if (
     kind === "image" ||
     mime.startsWith("image/") ||

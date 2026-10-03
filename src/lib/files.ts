@@ -6,7 +6,7 @@ export type ApiFile = {
   id: string;
   name: string;
   mimeType: string;
-  sizeBytes: string;
+  sizeBytes: string | null;
   createdAt: string;
   updatedAt?: string;
   folderId?: string | null;
@@ -15,6 +15,8 @@ export type ApiFile = {
   isArchived?: boolean;
   archivedAt?: string | null;
   lastAccessedAt?: string | null;
+  isShortcut?: boolean;
+  isFolder?: boolean;
   connectedAccount?: {
     id?: string;
     email: string;
@@ -31,7 +33,11 @@ export type ApiFile = {
 export function mimeToKind(
   mimeType: string,
   fileName?: string,
+  isShortcut?: boolean,
 ): FileItem["kind"] {
+  if (isShortcut || mimeType === "application/vnd.google-apps.shortcut") {
+    return "shortcut";
+  }
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.includes("pdf")) return "pdf";
@@ -49,22 +55,24 @@ export function mimeToKind(
 
 export function mapApiFileToItem(file: ApiFile): FileItem {
   const folderLabel = file.folder?.name ?? "Home";
+  const kind = mimeToKind(file.mimeType, file.name, file.isShortcut);
   return {
     id: file.id,
     name: file.name,
     mimeType: file.mimeType,
-    sizeBytes: file.sizeBytes,
+    sizeBytes: file.sizeBytes ?? undefined,
     createdAt: file.createdAt,
     accountEmail: file.connectedAccount?.email,
     accountProvider: providerLabel(file.connectedAccount?.provider),
     accountAvatarUrl: file.connectedAccount?.avatarUrl ?? null,
     accountDisplayName: file.connectedAccount?.displayName ?? null,
     date: formatDate(file.createdAt),
-    size: formatBytes(file.sizeBytes),
+    size: kind === "shortcut" ? "Shortcut" : formatBytes(file.sizeBytes ?? "0"),
     access:
       file.connectedAccount?.email ??
       providerLabel(file.connectedAccount?.provider),
-    kind: mimeToKind(file.mimeType),
+    kind,
+    isShortcut: kind === "shortcut",
     shared: 1,
     folderId: file.folderId,
     folderName: file.folder?.name,

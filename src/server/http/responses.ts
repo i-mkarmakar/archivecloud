@@ -4,8 +4,13 @@ export function json(data: unknown, status = 200) {
   return Response.json(data, { status });
 }
 
-export function errorJson(code: string, message: string, status: number) {
-  return Response.json({ code, message }, { status });
+export function errorJson(
+  code: string,
+  message: string,
+  status: number,
+  init?: { headers?: HeadersInit },
+) {
+  return Response.json({ code, message }, { status, headers: init?.headers });
 }
 
 export function handleRoute(

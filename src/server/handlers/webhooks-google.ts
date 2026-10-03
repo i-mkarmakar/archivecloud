@@ -1,6 +1,7 @@
 import { prisma } from "@/server/config/prisma";
-import { scheduleFolderSyncsForAccount } from "@/server/modules/webhooks/trigger-account-syncs";
 import { json } from "@/server/http/responses";
+import { scheduleCatalogIncrementalSync } from "@/server/modules/indexing/trigger-catalog-sync";
+import { scheduleFolderSyncsForAccount } from "@/server/modules/webhooks/trigger-account-syncs";
 
 export async function googleDriveWebhookHandler(request: Request) {
   const channelId = request.headers.get("x-goog-channel-id");
@@ -56,10 +57,10 @@ export async function googleDriveWebhookHandler(request: Request) {
     return json({ ok: true, sync: true });
   }
 
-  scheduleFolderSyncsForAccount(
-    channelAlt.connectedAccountId,
-    `google_drive_${resourceState ?? "change"}`,
-  );
+  const reason = `google_drive_${resourceState ?? "change"}`;
+  scheduleFolderSyncsForAccount(channelAlt.connectedAccountId, reason);
+  // Catalog incremental sync is separate from FolderSync.
+  scheduleCatalogIncrementalSync(channelAlt.connectedAccountId, reason);
 
   return json({ ok: true });
 }

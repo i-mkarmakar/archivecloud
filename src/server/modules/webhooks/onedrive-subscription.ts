@@ -153,6 +153,11 @@ export async function renewExpiringOneDriveSubscriptions(limit = 20): Promise<{
   let failed = 0;
 
   for (const channel of channels) {
+    if (channel.expirationAt && channel.expirationAt.getTime() < Date.now()) {
+      console.warn(
+        `OneDrive webhook subscription expired for account ${channel.connectedAccountId} (channel ${channel.channelId}); renewing. Cron should run at least every 12h (subscriptions ~2.7d, renew 24h before).`,
+      );
+    }
     try {
       const result = await ensureOneDriveSubscription(channel.connectedAccount);
       if (result.registered) renewed += 1;

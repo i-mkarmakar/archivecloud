@@ -67,16 +67,21 @@ describe("shareFileHandler", () => {
     authed();
   });
 
-  it("happy path: creates a public share link", async () => {
+  it("happy path: creates a public share link with consent", async () => {
     prismaMock.file.findFirst.mockResolvedValue(activeFile);
     prismaMock.fileShare.findFirst.mockResolvedValue(null);
     prismaMock.fileShare.create.mockResolvedValue({
       id: "share-1",
       enabled: true,
+      showOwnerProfile: true,
     });
+    prismaMock.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
     const response = await share(
-      jsonRequest("http://localhost/files/file-1/share", {}),
+      jsonRequest("http://localhost/files/file-1/share", {
+        consent: true,
+        showOwnerProfile: false,
+      }),
       { params: Promise.resolve({ id: "file-1" }) },
     );
     const body = await readJson(response);
@@ -86,9 +91,37 @@ describe("shareFileHandler", () => {
       shareId: "share-1",
       fileId: "file-1",
       enabled: true,
+      showOwnerProfile: false,
       status: "active",
       url: "http://localhost:9050/public/files/share-token-abc",
     });
+    expect(prismaMock.fileShare.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ showOwnerProfile: false }),
+      }),
+    );
+    expect(prismaMock.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "file_share.make_public_consent",
+          entityId: "share-1",
+        }),
+      }),
+    );
+  });
+
+  it("rejects create without consent", async () => {
+    prismaMock.file.findFirst.mockResolvedValue(activeFile);
+    prismaMock.fileShare.findFirst.mockResolvedValue(null);
+
+    const response = await share(
+      jsonRequest("http://localhost/files/file-1/share", {}),
+      { params: Promise.resolve({ id: "file-1" }) },
+    );
+    const body = await readJson(response);
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("CONSENT_REQUIRED");
+    expect(prismaMock.fileShare.create).not.toHaveBeenCalled();
   });
 
   it("returns 401 when unauthenticated", async () => {

@@ -18,7 +18,10 @@ export type PlanFeatureFlags = {
 
 export type PlanLimits = {
   monthlyTransferBytes: bigint | null;
-
+  /** Public share download/preview bytes per UTC day (null = unlimited). Separate from monthlyTransferBytes. */
+  dailyShareBandwidthBytes: bigint | null;
+  /** Cap for a single public link per UTC day (null = unlimited). */
+  dailyShareLinkBandwidthBytes: bigint | null;
   maxCloudAccounts: number | null;
   features: PlanFeatureFlags;
 };
@@ -45,6 +48,8 @@ export const PLANS: PlanDefinition[] = [
     cta: "Current Plan",
     limits: {
       monthlyTransferBytes: 50n * GB,
+      dailyShareBandwidthBytes: 10n * GB,
+      dailyShareLinkBandwidthBytes: 5n * GB,
       maxCloudAccounts: null,
       features: {
         automation: true,
@@ -61,6 +66,7 @@ export const PLANS: PlanDefinition[] = [
       { text: "Drag & drop upload" },
       { text: "Recent files & virtual folders" },
       { text: "Bandwidth: 50 GB/month" },
+      { text: "Public share bandwidth: 10 GB/day" },
     ],
   },
   {
@@ -71,6 +77,9 @@ export const PLANS: PlanDefinition[] = [
     cta: "Get Lifetime Access",
     limits: {
       monthlyTransferBytes: null,
+      /** Hosted Thunder: high daily public-share cap (not unlimited). Override via env. */
+      dailyShareBandwidthBytes: 100n * GB,
+      dailyShareLinkBandwidthBytes: 50n * GB,
       maxCloudAccounts: null,
       features: {
         automation: true,
@@ -82,6 +91,7 @@ export const PLANS: PlanDefinition[] = [
     features: [
       { text: "Everything in Free", highlight: true },
       { text: "Unlimited monthly bandwidth", highlight: true },
+      { text: "Public share bandwidth: 100 GB/day", highlight: true },
       { text: "Folder sync (one-way & two-way)", highlight: true },
       { text: "Automatic real-time sync", highlight: true },
       { text: "Smart distribution / routing", highlight: true },

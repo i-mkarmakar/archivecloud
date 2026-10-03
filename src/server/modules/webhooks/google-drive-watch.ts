@@ -150,6 +150,11 @@ export async function renewExpiringGoogleDriveWatches(limit = 20): Promise<{
   let failed = 0;
 
   for (const channel of channels) {
+    if (channel.expirationAt && channel.expirationAt.getTime() < Date.now()) {
+      console.warn(
+        `Google Drive changes.watch expired for account ${channel.connectedAccountId} (channel ${channel.channelId}); renewing. Cron should run at least every 12h (watches ~6d, renew 24h before).`,
+      );
+    }
     try {
       const result = await ensureGoogleDriveWatch(channel.connectedAccount);
       if (result.registered) renewed += 1;

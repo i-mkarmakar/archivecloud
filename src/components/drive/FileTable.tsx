@@ -1,4 +1,4 @@
-import { FolderOpen, EllipsisVertical, Star } from "@gravity-ui/icons";
+import { EllipsisVertical, FolderOpen, Star } from "@gravity-ui/icons";
 import { type MouseEvent, useState } from "react";
 import { AccountAccessBadge } from "@/components/drive/AccountAccessBadge";
 import { FileIcon } from "@/components/drive/FileIcon";
@@ -92,6 +92,11 @@ export function FileTable({
                     title={file.name}
                   >
                     {file.name}
+                    {file.isShortcut || file.kind === "shortcut" ? (
+                      <span className="ml-1.5 text-xs font-medium text-muted">
+                        · Shortcut
+                      </span>
+                    ) : null}
                   </h3>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
                     <span>{meta}</span>

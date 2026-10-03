@@ -4,6 +4,10 @@ import { Readable } from "node:stream";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { errorJson } from "@/server/http/responses";
+import { destroyStreamOnAbort } from "@/server/modules/files/abort-stream";
+import { applyContentLengthHeader } from "@/server/modules/files/content-length";
+import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
+import { publicStreamErrorResponse } from "@/server/modules/files/public-stream-errors";
 import {
   streamGoogleDriveThumbnailResponse,
   streamGoogleFileResponse,
@@ -11,11 +15,11 @@ import {
 import { pullProviderFile } from "@/server/modules/providers/operations";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
-type StreamOptions = { disposition?: "inline" | "attachment" };
-
-function contentDisposition(type: "inline" | "attachment", fileName: string) {
-  return `${type}; filename="${fileName.replaceAll('"', "")}"`;
-}
+export type StreamOptions = {
+  disposition?: "inline" | "attachment";
+  /** Client disconnect — aborts upstream provider fetch. */
+  signal?: AbortSignal;
+};
 
 async function findPhotosImportDest(file: FileWithAccount) {
   return prisma.transferJob.findFirst({
@@ -60,28 +64,26 @@ async function streamGooglePhotosImportedFileResponse(
       job.destAccount,
       job.destProviderFileId,
       file.name,
+      options.signal,
     );
+    destroyStreamOnAbort(pulled.stream, options.signal);
     const headers = new Headers();
-    headers.set("Content-Type", pulled.mimeType || file.mimeType);
-    if (options.disposition) {
-      headers.set(
-        "Content-Disposition",
-        contentDisposition(options.disposition, pulled.name || file.name),
-      );
-    }
-    if (pulled.sizeBytes > 0n) {
-      headers.set("Content-Length", pulled.sizeBytes.toString());
-    }
+    applyPublicByteSafetyHeaders(headers, {
+      mimeType: pulled.mimeType || file.mimeType,
+      fileName: pulled.name || file.name,
+      preferredDisposition: options.disposition ?? "attachment",
+    });
+    applyContentLengthHeader(headers, {
+      providerContentLength: pulled.providerContentLength,
+      sizeBytes: pulled.sizeBytes,
+    });
     headers.set("Cache-Control", "private, max-age=300");
     const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
     return new Response(webStream, { status: 200, headers });
   } catch (error) {
-    console.error("Google Photos imported file stream failed:", error);
-    return errorJson(
-      "PHOTOS_FILE_STREAM_FAILED",
-      error instanceof Error ? error.message : "Failed to stream file.",
-      502,
-    );
+    return publicStreamErrorResponse(error, {
+      logLabel: "Google Photos imported file stream failed:",
+    });
   }
 }
 
@@ -152,30 +154,25 @@ export async function streamProviderFileResponse(
       file.connectedAccount,
       file.providerFileId,
       file.name,
+      options.signal,
     );
+    destroyStreamOnAbort(pulled.stream, options.signal);
     const headers = new Headers();
-    headers.set("Content-Type", pulled.mimeType || file.mimeType);
-    if (options.disposition) {
-      headers.set(
-        "Content-Disposition",
-        contentDisposition(options.disposition, pulled.name || file.name),
-      );
-    }
-    if (pulled.sizeBytes > 0n) {
-      headers.set("Content-Length", pulled.sizeBytes.toString());
-    }
+    applyPublicByteSafetyHeaders(headers, {
+      mimeType: pulled.mimeType || file.mimeType,
+      fileName: pulled.name || file.name,
+      preferredDisposition: options.disposition ?? "attachment",
+    });
+    applyContentLengthHeader(headers, {
+      providerContentLength: pulled.providerContentLength,
+      sizeBytes: pulled.sizeBytes,
+    });
     headers.set("Cache-Control", "private, max-age=60");
     const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
     return new Response(webStream, { status: 200, headers });
   } catch (error) {
-    console.error(
-      `Stream failed for ${file.connectedAccount.provider}:${file.providerFileId}:`,
-      error,
-    );
-    return errorJson(
-      "FILE_STREAM_FAILED",
-      error instanceof Error ? error.message : "Failed to stream file.",
-      502,
-    );
+    return publicStreamErrorResponse(error, {
+      logLabel: `Stream failed for ${file.connectedAccount.provider}:`,
+    });
   }
 }

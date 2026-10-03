@@ -8,7 +8,6 @@ import {
   unauthenticated,
 } from "./handler-test-utils";
 
-const ensureGoogleAppFolder = vi.fn();
 const createGoogleDriveFolder = vi.fn();
 const syncGoogleQuota = vi.fn();
 const renameProviderFile = vi.fn();
@@ -16,7 +15,6 @@ const moveProviderItem = vi.fn();
 const deleteProviderFile = vi.fn();
 
 vi.mock("@/server/modules/providers/google/google.service", () => ({
-  ensureGoogleAppFolder: (...args: unknown[]) => ensureGoogleAppFolder(...args),
   createGoogleDriveFolder: (...args: unknown[]) =>
     createGoogleDriveFolder(...args),
   syncGoogleQuota: (...args: unknown[]) => syncGoogleQuota(...args),
@@ -91,7 +89,6 @@ describe("createFolderHandler", () => {
       status: "connected",
     };
     prismaMock.connectedAccount.findFirst.mockResolvedValue(account);
-    ensureGoogleAppFolder.mockResolvedValue("app-folder");
     createGoogleDriveFolder.mockResolvedValue("g-folder-new");
     prismaMock.folder.create.mockResolvedValue({
       ...folderRow,
@@ -111,7 +108,10 @@ describe("createFolderHandler", () => {
       name: "New",
       providerFolderId: "g-folder-new",
     });
-    expect(createGoogleDriveFolder).toHaveBeenCalled();
+    expect(createGoogleDriveFolder).toHaveBeenCalledWith(
+      account,
+      expect.objectContaining({ parentId: "root" }),
+    );
   });
 
   it("returns VALIDATION_ERROR for invalid Zod input", async () => {
@@ -131,7 +131,6 @@ describe("createFolderHandler", () => {
       status: "connected",
     };
     prismaMock.connectedAccount.findFirst.mockResolvedValue(account);
-    ensureGoogleAppFolder.mockResolvedValue("app-folder");
     createGoogleDriveFolder.mockRejectedValue(new Error("Drive API down"));
     prismaMock.folder.create.mockResolvedValue({
       ...folderRow,

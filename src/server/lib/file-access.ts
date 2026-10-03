@@ -1,4 +1,49 @@
 import { prisma } from "@/server/config/prisma";
+import { errorJson } from "@/server/http/responses";
+
+const BLOCKED_REASON_MESSAGES: Record<string, string> = {
+  shortcut:
+    "Shortcuts cannot be downloaded, previewed, shared, or transferred. Open the target file instead.",
+  paper:
+    "Dropbox Paper documents cannot be downloaded or shared through Archive Cloud.",
+  not_downloadable:
+    "This file is not downloadable from the provider and cannot be previewed, shared, or transferred.",
+  shared_folder:
+    "Shared-folder mounts cannot be downloaded, previewed, shared, or transferred.",
+  remote_item:
+    "Remote / shared items cannot be downloaded, previewed, shared, or transferred.",
+  team_namespace:
+    "Team-namespace items are not supported for download, preview, share, or transfer.",
+};
+
+/** Block download/preview/share/transfer for shortcuts and provider-blocked items. */
+export function assertFileContentActionsAllowed(file: {
+  isShortcut?: boolean;
+  blockedReason?: string | null;
+  status?: string;
+  deletedAt?: Date | null;
+}): Response | null {
+  const reason = file.blockedReason?.trim() || null;
+  if (reason) {
+    return errorJson(
+      "CONTENT_BLOCKED",
+      BLOCKED_REASON_MESSAGES[reason] ??
+        "This file cannot be downloaded, previewed, shared, or transferred.",
+      400,
+    );
+  }
+  if (file.isShortcut) {
+    return errorJson(
+      "SHORTCUT_NOT_SUPPORTED",
+      BLOCKED_REASON_MESSAGES.shortcut,
+      400,
+    );
+  }
+  if (file.status === "deleted" || file.deletedAt) {
+    return errorJson("FILE_NOT_FOUND", "File not found.", 404);
+  }
+  return null;
+}
 
 export async function getAccessibleFile(
   userId: string,

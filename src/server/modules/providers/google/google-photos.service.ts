@@ -11,15 +11,11 @@ import {
   createOAuthClient,
   getAuthedGoogleClient,
 } from "@/server/modules/providers/google/google.service";
-import { GOOGLE_PHOTOS_PICKER_SCOPE } from "@/server/modules/providers/google/google-photos-picker.service";
+import { googlePhotosOAuthScopes } from "@/server/modules/providers/scopes";
 import type { ProviderBrowseResult } from "@/server/modules/providers/types";
 import { decryptText, encryptText } from "@/server/utils/crypto";
 
-export const googlePhotosOAuthScopes = [
-  GOOGLE_PHOTOS_PICKER_SCOPE,
-  "https://www.googleapis.com/auth/userinfo.email",
-  "https://www.googleapis.com/auth/userinfo.profile",
-];
+export { googlePhotosOAuthScopes };
 
 function scopesEqual(a: unknown, b: string[]) {
   if (!Array.isArray(a) || a.length !== b.length) return false;
@@ -223,7 +219,7 @@ export async function browseGooglePhotosFolder(
       id: file.providerFileId,
       name: file.name,
       mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes.toString(),
+      sizeBytes: file.sizeBytes?.toString() ?? "0",
       modifiedTime: file.createdAt.toISOString(),
       dbFileId: file.id,
     })),

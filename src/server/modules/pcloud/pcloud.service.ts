@@ -629,18 +629,24 @@ export async function getPCloudFileMetadata(
 export async function downloadPCloudFileStream(
   account: ConnectedAccount,
   fileId: string,
+  signal?: AbortSignal,
 ) {
   const accessToken = await getPCloudAccessToken(account);
   const apiBase = getPCloudApiBaseForAccount(account);
   const url = new URL(`${apiBase}/downloadfile`);
   url.searchParams.set("access_token", accessToken);
   url.searchParams.set("fileid", fileId);
-  const response = await fetch(url);
+  const response = await fetch(url, { signal });
   if (!response.ok || !response.body) {
     const text = await response.text();
     throw new Error(`pCloud download failed: ${text}`);
   }
-  return Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+  return {
+    stream: Readable.fromWeb(
+      response.body as import("stream/web").ReadableStream,
+    ),
+    contentLength: response.headers.get("content-length"),
+  };
 }
 
 export async function streamPCloudThumbnailResponse(

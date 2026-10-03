@@ -5,11 +5,11 @@ import type { ConnectedAccount } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { normalizeHeaders } from "@/server/modules/providers/google/drive-stream";
 import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
+import { GOOGLE_PHOTOS_OAUTH_SCOPES } from "@/server/modules/providers/scopes";
 
 const PICKER_API = "https://photospicker.googleapis.com/v1";
 
-export const GOOGLE_PHOTOS_PICKER_SCOPE =
-  "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
+export const GOOGLE_PHOTOS_PICKER_SCOPE = GOOGLE_PHOTOS_OAUTH_SCOPES[0];
 
 export type PickerPollingConfig = {
   pollInterval?: string;

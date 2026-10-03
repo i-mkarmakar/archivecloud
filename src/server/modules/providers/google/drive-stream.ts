@@ -3,10 +3,16 @@ import "server-only";
 import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";
+import { cancelWebStreamOnAbort } from "@/server/modules/files/abort-stream";
+import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
+import { publicStreamErrorResponse } from "@/server/modules/files/public-stream-errors";
 import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
-type StreamOptions = { disposition?: "inline" | "attachment" };
+type StreamOptions = {
+  disposition?: "inline" | "attachment";
+  signal?: AbortSignal;
+};
 
 export type GoogleProviderFile = {
   providerFileId: string;
@@ -80,10 +86,6 @@ export function normalizeHeaders(
   return headers as Record<string, string>;
 }
 
-function contentDisposition(type: "inline" | "attachment", fileName: string) {
-  return `${type}; filename="${fileName.replaceAll('"', "")}"`;
-}
-
 export async function streamGoogleFileResponse(
   file: FileWithAccount,
   range: string | undefined,
@@ -91,8 +93,10 @@ export async function streamGoogleFileResponse(
 ): Promise<Response> {
   const auth = await getAuthedGoogleClient(file.connectedAccount);
   const headers = normalizeHeaders(await auth.getRequestHeaders());
+  // Disposition allowlist uses response mime (export target), not provider claim alone.
+  const preferred = options.disposition ?? "attachment";
   const exportTarget = (
-    options.disposition === "inline"
+    preferred === "inline"
       ? googlePreviewExportMimeTypes
       : googleDownloadExportMimeTypes
   )[file.mimeType];
@@ -108,31 +112,34 @@ export async function streamGoogleFileResponse(
       ...headers,
       ...(range && !exportTarget ? { Range: range } : {}),
     },
+    signal: options.signal,
   });
 
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);
-    return errorJson(
-      "GOOGLE_FILE_STREAM_FAILED",
-      message || response.statusText,
-      response.status,
+    return publicStreamErrorResponse(
+      new Error(message || response.statusText),
+      {
+        httpStatus: response.status,
+        logLabel: "Google Drive file stream failed:",
+      },
     );
   }
 
   const outHeaders = new Headers();
-  outHeaders.set("Content-Type", responseMimeType);
+  applyPublicByteSafetyHeaders(outHeaders, {
+    mimeType: responseMimeType,
+    fileName: responseFileName,
+    preferredDisposition: preferred,
+  });
   outHeaders.set("Accept-Ranges", "bytes");
-  if (options.disposition)
-    outHeaders.set(
-      "Content-Disposition",
-      contentDisposition(options.disposition, responseFileName),
-    );
 
   const contentLength = response.headers.get("content-length");
   const contentRange = response.headers.get("content-range");
   if (contentLength) outHeaders.set("Content-Length", contentLength);
   if (contentRange) outHeaders.set("Content-Range", contentRange);
 
+  cancelWebStreamOnAbort(response.body, options.signal);
   return new Response(response.body, {
     status: response.status,
     headers: outHeaders,
@@ -147,8 +154,9 @@ export async function streamGoogleProviderFileResponse(
 ): Promise<Response> {
   const auth = await getAuthedGoogleClient(account);
   const headers = normalizeHeaders(await auth.getRequestHeaders());
+  const preferred = options.disposition ?? "attachment";
   const exportTarget = (
-    options.disposition === "inline"
+    preferred === "inline"
       ? googlePreviewExportMimeTypes
       : googleDownloadExportMimeTypes
   )[file.mimeType];
@@ -164,32 +172,34 @@ export async function streamGoogleProviderFileResponse(
       ...headers,
       ...(range && !exportTarget ? { Range: range } : {}),
     },
+    signal: options.signal,
   });
 
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);
-    return errorJson(
-      "GOOGLE_FILE_STREAM_FAILED",
-      message || response.statusText,
-      response.status,
+    return publicStreamErrorResponse(
+      new Error(message || response.statusText),
+      {
+        httpStatus: response.status,
+        logLabel: "Google Drive file stream failed:",
+      },
     );
   }
 
   const outHeaders = new Headers();
-  outHeaders.set("Content-Type", responseMimeType);
+  applyPublicByteSafetyHeaders(outHeaders, {
+    mimeType: responseMimeType,
+    fileName: responseFileName,
+    preferredDisposition: preferred,
+  });
   outHeaders.set("Accept-Ranges", "bytes");
-  if (options.disposition) {
-    outHeaders.set(
-      "Content-Disposition",
-      contentDisposition(options.disposition, responseFileName),
-    );
-  }
 
   const contentLength = response.headers.get("content-length");
   const contentRange = response.headers.get("content-range");
   if (contentLength) outHeaders.set("Content-Length", contentLength);
   if (contentRange) outHeaders.set("Content-Range", contentRange);
 
+  cancelWebStreamOnAbort(response.body, options.signal);
   return new Response(response.body, {
     status: response.status,
     headers: outHeaders,
