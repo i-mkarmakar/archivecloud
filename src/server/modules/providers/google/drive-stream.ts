@@ -3,6 +3,7 @@ import "server-only";
 import { google } from "googleapis";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { errorJson } from "@/server/http/responses";
+import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
 import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
@@ -80,10 +81,6 @@ export function normalizeHeaders(
   return headers as Record<string, string>;
 }
 
-function contentDisposition(type: "inline" | "attachment", fileName: string) {
-  return `${type}; filename="${fileName.replaceAll('"', "")}"`;
-}
-
 export async function streamGoogleFileResponse(
   file: FileWithAccount,
   range: string | undefined,
@@ -91,8 +88,10 @@ export async function streamGoogleFileResponse(
 ): Promise<Response> {
   const auth = await getAuthedGoogleClient(file.connectedAccount);
   const headers = normalizeHeaders(await auth.getRequestHeaders());
+  // Disposition allowlist uses response mime (export target), not provider claim alone.
+  const preferred = options.disposition ?? "attachment";
   const exportTarget = (
-    options.disposition === "inline"
+    preferred === "inline"
       ? googlePreviewExportMimeTypes
       : googleDownloadExportMimeTypes
   )[file.mimeType];
@@ -120,13 +119,12 @@ export async function streamGoogleFileResponse(
   }
 
   const outHeaders = new Headers();
-  outHeaders.set("Content-Type", responseMimeType);
+  applyPublicByteSafetyHeaders(outHeaders, {
+    mimeType: responseMimeType,
+    fileName: responseFileName,
+    preferredDisposition: preferred,
+  });
   outHeaders.set("Accept-Ranges", "bytes");
-  if (options.disposition)
-    outHeaders.set(
-      "Content-Disposition",
-      contentDisposition(options.disposition, responseFileName),
-    );
 
   const contentLength = response.headers.get("content-length");
   const contentRange = response.headers.get("content-range");
@@ -147,8 +145,9 @@ export async function streamGoogleProviderFileResponse(
 ): Promise<Response> {
   const auth = await getAuthedGoogleClient(account);
   const headers = normalizeHeaders(await auth.getRequestHeaders());
+  const preferred = options.disposition ?? "attachment";
   const exportTarget = (
-    options.disposition === "inline"
+    preferred === "inline"
       ? googlePreviewExportMimeTypes
       : googleDownloadExportMimeTypes
   )[file.mimeType];
@@ -176,14 +175,12 @@ export async function streamGoogleProviderFileResponse(
   }
 
   const outHeaders = new Headers();
-  outHeaders.set("Content-Type", responseMimeType);
+  applyPublicByteSafetyHeaders(outHeaders, {
+    mimeType: responseMimeType,
+    fileName: responseFileName,
+    preferredDisposition: preferred,
+  });
   outHeaders.set("Accept-Ranges", "bytes");
-  if (options.disposition) {
-    outHeaders.set(
-      "Content-Disposition",
-      contentDisposition(options.disposition, responseFileName),
-    );
-  }
 
   const contentLength = response.headers.get("content-length");
   const contentRange = response.headers.get("content-range");

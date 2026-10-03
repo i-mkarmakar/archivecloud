@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import type { ConnectedAccount, File } from "@/generated/prisma/client";
 import { prisma } from "@/server/config/prisma";
 import { errorJson } from "@/server/http/responses";
+import { applyPublicByteSafetyHeaders } from "@/server/modules/files/public-byte-headers";
 import {
   streamGoogleDriveThumbnailResponse,
   streamGoogleFileResponse,
@@ -12,10 +13,6 @@ import { pullProviderFile } from "@/server/modules/providers/operations";
 
 type FileWithAccount = File & { connectedAccount: ConnectedAccount };
 type StreamOptions = { disposition?: "inline" | "attachment" };
-
-function contentDisposition(type: "inline" | "attachment", fileName: string) {
-  return `${type}; filename="${fileName.replaceAll('"', "")}"`;
-}
 
 async function findPhotosImportDest(file: FileWithAccount) {
   return prisma.transferJob.findFirst({
@@ -62,13 +59,11 @@ async function streamGooglePhotosImportedFileResponse(
       file.name,
     );
     const headers = new Headers();
-    headers.set("Content-Type", pulled.mimeType || file.mimeType);
-    if (options.disposition) {
-      headers.set(
-        "Content-Disposition",
-        contentDisposition(options.disposition, pulled.name || file.name),
-      );
-    }
+    applyPublicByteSafetyHeaders(headers, {
+      mimeType: pulled.mimeType || file.mimeType,
+      fileName: pulled.name || file.name,
+      preferredDisposition: options.disposition ?? "attachment",
+    });
     if (pulled.sizeBytes > 0n) {
       headers.set("Content-Length", pulled.sizeBytes.toString());
     }
@@ -154,13 +149,11 @@ export async function streamProviderFileResponse(
       file.name,
     );
     const headers = new Headers();
-    headers.set("Content-Type", pulled.mimeType || file.mimeType);
-    if (options.disposition) {
-      headers.set(
-        "Content-Disposition",
-        contentDisposition(options.disposition, pulled.name || file.name),
-      );
-    }
+    applyPublicByteSafetyHeaders(headers, {
+      mimeType: pulled.mimeType || file.mimeType,
+      fileName: pulled.name || file.name,
+      preferredDisposition: options.disposition ?? "attachment",
+    });
     if (pulled.sizeBytes > 0n) {
       headers.set("Content-Length", pulled.sizeBytes.toString());
     }
