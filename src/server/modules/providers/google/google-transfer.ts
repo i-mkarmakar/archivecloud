@@ -6,10 +6,7 @@ import {
   googleDownloadExportMimeTypes,
   withExtension,
 } from "@/server/modules/providers/google/drive-stream";
-import {
-  ensureGoogleAppFolder,
-  getAuthedGoogleClient,
-} from "@/server/modules/providers/google/google.service";
+import { getAuthedGoogleClient } from "@/server/modules/providers/google/google.service";
 import type { ProviderCopyResult } from "@/server/modules/providers/types";
 
 const GOOGLE_APPS_PREFIX = "application/vnd.google-apps.";
@@ -44,9 +41,7 @@ export async function copyGoogleDriveFile(params: {
   const name = params.fileName?.trim() || meta.data.name || "untitled";
   const mimeType = meta.data.mimeType ?? "application/octet-stream";
   const sizeBytes = driveFileSizeBytes(meta.data);
-  const destParentId =
-    params.destParentId?.trim() ||
-    (await ensureGoogleAppFolder(params.destAccount));
+  const destParentId = params.destParentId?.trim() || "root";
 
   const sameAccount = params.sourceAccount.id === params.destAccount.id;
   const isGoogleNative = mimeType.startsWith(GOOGLE_APPS_PREFIX);

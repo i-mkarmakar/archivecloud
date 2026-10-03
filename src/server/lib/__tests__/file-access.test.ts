@@ -17,6 +17,15 @@ describe("assertFileContentActionsAllowed", () => {
     expect(body.code).toBe("SHORTCUT_NOT_SUPPORTED");
   });
 
+  it("blocks by blockedReason", async () => {
+    const response = assertFileContentActionsAllowed({
+      blockedReason: "paper",
+    });
+    expect(response?.status).toBe(400);
+    const body = await response?.json();
+    expect(body.code).toBe("CONTENT_BLOCKED");
+  });
+
   it("blocks soft-deleted files", async () => {
     const response = assertFileContentActionsAllowed({
       status: "deleted",

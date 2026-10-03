@@ -5,10 +5,7 @@ import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import {
-  ensureGoogleAppFolder,
-  syncGoogleQuota,
-} from "@/server/modules/providers/google/google.service";
+import { syncGoogleQuota } from "@/server/modules/providers/google/google.service";
 import {
   initGoogleDriveResumableUpload,
   putGoogleDriveResumableChunk,
@@ -366,8 +363,8 @@ export async function handleUploadRequest(
         let providerFileId = "";
         let uploadedName = fileName;
         let uploadedMimeType = meta.mimeType;
-        const appFolderId = await ensureGoogleAppFolder(account);
-        let targetParentId = appFolderId;
+        // Phase 4: upload to provider root (or chosen folder), never archivecloud.
+        let targetParentId = "root";
         if (folderId) {
           const folderRecord = await prisma.folder.findFirst({
             where: { id: folderId, userId: user.id },
@@ -592,8 +589,8 @@ export async function resumableInitHandler(request: Request) {
     );
   }
 
-  const appFolderId = await ensureGoogleAppFolder(account);
-  let targetParentId = appFolderId;
+  // Phase 4: resumable uploads land in provider root unless a folder is chosen.
+  let targetParentId = "root";
   if (folderId) {
     const folderRecord = await prisma.folder.findFirst({
       where: { id: folderId, userId: user.id },

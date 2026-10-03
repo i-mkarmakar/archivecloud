@@ -66,6 +66,7 @@ export function mapOneDriveDeltaItem(item: OneDriveDeltaItem): CatalogChangeOp {
     isFolder,
     isShortcut: isRemote,
     shortcutTargetId: isRemote ? (item.remoteItem?.id ?? null) : null,
+    blockedReason: isRemote ? "remote_item" : null,
   };
 
   return { type: "upsert", item: catalog };

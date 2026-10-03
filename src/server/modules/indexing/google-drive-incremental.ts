@@ -22,7 +22,11 @@ export async function applyGoogleDriveChange(params: {
   change: GoogleDriveChangeRow;
 }): Promise<"applied" | "ignored"> {
   const op = mapGoogleDriveChangeToOp(params.change);
-  if (op.type === "ignore" || op.type === "remove_path_prefix") {
+  if (
+    op.type === "ignore" ||
+    op.type === "remove_path" ||
+    op.type === "remove_path_prefix"
+  ) {
     return "ignored";
   }
   if (op.type === "remove") {

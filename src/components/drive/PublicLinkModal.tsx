@@ -56,12 +56,12 @@ export function PublicLinkModal({
   const [toggling, setToggling] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
-  const [showOwnerProfile, setShowOwnerProfile] = useState(true);
+  const [showOwnerProfile, setShowOwnerProfile] = useState(false);
   const [share, setShare] = useState<ShareState>({
     status: "none",
     url: null,
     enabled: false,
-    showOwnerProfile: true,
+    showOwnerProfile: false,
   });
   const [qrOpen, setQrOpen] = useState(false);
 
@@ -91,11 +91,11 @@ export function PublicLinkModal({
         status: "none",
         url: null,
         enabled: false,
-        showOwnerProfile: true,
+        showOwnerProfile: false,
       });
       setConfirming(false);
       setConsentChecked(false);
-      setShowOwnerProfile(true);
+      setShowOwnerProfile(false);
       setQrOpen(false);
       return;
     }
@@ -114,7 +114,7 @@ export function PublicLinkModal({
           needsRegenerate?: boolean;
         }>(sharePath(fileId));
         if (cancelled) return;
-        const ownerVisible = data.showOwnerProfile ?? true;
+        const ownerVisible = data.showOwnerProfile ?? false;
         setShare({
           status: data.status,
           url: data.url,
@@ -134,7 +134,7 @@ export function PublicLinkModal({
             status: "none",
             url: null,
             enabled: false,
-            showOwnerProfile: true,
+            showOwnerProfile: false,
           });
         }
       } finally {

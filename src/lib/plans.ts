@@ -77,8 +77,9 @@ export const PLANS: PlanDefinition[] = [
     cta: "Get Lifetime Access",
     limits: {
       monthlyTransferBytes: null,
-      dailyShareBandwidthBytes: null,
-      dailyShareLinkBandwidthBytes: null,
+      /** Hosted Thunder: high daily public-share cap (not unlimited). Override via env. */
+      dailyShareBandwidthBytes: 100n * GB,
+      dailyShareLinkBandwidthBytes: 50n * GB,
       maxCloudAccounts: null,
       features: {
         automation: true,
@@ -90,7 +91,7 @@ export const PLANS: PlanDefinition[] = [
     features: [
       { text: "Everything in Free", highlight: true },
       { text: "Unlimited monthly bandwidth", highlight: true },
-      { text: "Unlimited public share bandwidth", highlight: true },
+      { text: "Public share bandwidth: 100 GB/day", highlight: true },
       { text: "Folder sync (one-way & two-way)", highlight: true },
       { text: "Automatic real-time sync", highlight: true },
       { text: "Smart distribution / routing", highlight: true },

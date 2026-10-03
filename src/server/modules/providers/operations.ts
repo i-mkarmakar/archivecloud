@@ -7,7 +7,6 @@ import {
   browseDropboxFolder,
   deleteDropboxFile,
   downloadDropboxFileStream,
-  ensureDropboxAppFolder,
   getDropboxAccessToken,
   getDropboxFileMetadata,
   guessDropboxMimeType,
@@ -26,7 +25,6 @@ import {
   browseOneDriveFolder,
   deleteOneDriveFile,
   downloadOneDriveFileStream,
-  ensureOneDriveAppFolder,
   getOneDriveAccessToken,
   getOneDriveFileMetadata,
   syncOneDriveQuota,
@@ -36,7 +34,6 @@ import {
   browsePCloudFolder,
   deletePCloudFile,
   downloadPCloudFileStream,
-  ensurePCloudAppFolder,
   getPCloudAccessToken,
   getPCloudApiBaseForAccount,
   getPCloudFileMetadata,
@@ -49,7 +46,6 @@ import {
 } from "@/server/modules/providers/google/drive-stream";
 import {
   browseGoogleDriveFolder,
-  ensureGoogleAppFolder,
   getAuthedGoogleClient,
   syncGoogleQuota,
 } from "@/server/modules/providers/google/google.service";
@@ -333,8 +329,7 @@ async function pushProviderFile(
     case "google_drive": {
       const auth = await getAuthedGoogleClient(account);
       const drive = google.drive({ version: "v3", auth });
-      const parent =
-        destParentId?.trim() || (await ensureGoogleAppFolder(account));
+      const parent = destParentId?.trim() || "root";
       const uploaded = await drive.files.create({
         requestBody: { name: pulled.name, parents: [parent] },
         media: { mimeType: pulled.mimeType, body: pulled.stream },
@@ -389,9 +384,7 @@ async function pushProviderFile(
     }
     case "dropbox": {
       const parent =
-        destParentId?.trim() && destParentId !== "root"
-          ? destParentId
-          : await ensureDropboxAppFolder(account);
+        destParentId?.trim() && destParentId !== "root" ? destParentId : "";
       const destPath = joinDropboxPath(parent, pulled.name);
       const uploaded = await uploadDropboxFileFromStream({
         account,
@@ -408,9 +401,7 @@ async function pushProviderFile(
     }
     case "onedrive": {
       const parent =
-        destParentId?.trim() && destParentId !== "root"
-          ? destParentId
-          : await ensureOneDriveAppFolder(account);
+        destParentId?.trim() && destParentId !== "root" ? destParentId : "root";
       const uploaded = await uploadOneDriveFileFromStream({
         account,
         parentId: parent,
@@ -428,9 +419,7 @@ async function pushProviderFile(
     }
     case "pcloud": {
       const folderId =
-        destParentId?.trim() && destParentId !== "root"
-          ? destParentId
-          : await ensurePCloudAppFolder(account);
+        destParentId?.trim() && destParentId !== "root" ? destParentId : "0";
       const uploaded = await uploadPCloudFileFromStream({
         account,
         folderId,
@@ -889,10 +878,7 @@ export async function ensureProviderChildFolder(
       return created.data.id;
     }
     case "dropbox": {
-      const parentPath =
-        !parentId || parentId === "root"
-          ? await ensureDropboxAppFolder(account)
-          : parentId;
+      const parentPath = !parentId || parentId === "root" ? "" : parentId;
       const destPath = joinDropboxPath(parentPath, name);
       const accessToken = await getDropboxAccessToken(account);
       const response = await fetch(
@@ -928,25 +914,23 @@ export async function ensureProviderChildFolder(
     }
     case "onedrive": {
       const accessToken = await getOneDriveAccessToken(account);
-      const parent =
-        !parentId || parentId === "root"
-          ? await ensureOneDriveAppFolder(account)
-          : parentId;
-      const response = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(parent)}/children`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            folder: {},
-            "@microsoft.graph.conflictBehavior": "fail",
-          }),
+      const parent = !parentId || parentId === "root" ? "root" : parentId;
+      const createUrl =
+        parent === "root"
+          ? "https://graph.microsoft.com/v1.0/me/drive/root/children"
+          : `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(parent)}/children`;
+      const response = await fetch(createUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          name,
+          folder: {},
+          "@microsoft.graph.conflictBehavior": "fail",
+        }),
+      });
       if (response.status === 409) {
         const again = await browseProviderFolder(
           account,
@@ -967,10 +951,7 @@ export async function ensureProviderChildFolder(
       return created.id;
     }
     case "pcloud": {
-      const folderId =
-        !parentId || parentId === "root"
-          ? await ensurePCloudAppFolder(account)
-          : parentId;
+      const folderId = !parentId || parentId === "root" ? "0" : parentId;
       const accessToken = await getPCloudAccessToken(account);
       const apiBase = getPCloudApiBaseForAccount(account);
       const url = new URL(`${apiBase}/createfolderifnotexists`);

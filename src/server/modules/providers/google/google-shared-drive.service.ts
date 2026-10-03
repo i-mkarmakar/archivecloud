@@ -539,9 +539,7 @@ export async function uploadGoogleSharedDriveFileFromStream(params: {
 }) {
   const auth = await getAuthedGoogleClient(params.account);
   const drive = google.drive({ version: "v3", auth });
-  const parentId =
-    params.parentId?.trim() ||
-    (await ensureGoogleSharedDriveAppFolder(params.account));
+  const parentId = params.parentId?.trim() || params.account.providerAccountId;
   const uploaded = await drive.files.create({
     requestBody: {
       name: params.fileName,

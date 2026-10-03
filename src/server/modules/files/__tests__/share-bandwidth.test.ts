@@ -74,7 +74,9 @@ describe("assertShareBandwidthCapacity", () => {
       shareId: "s1",
     });
     expect(res?.status).toBe(429);
-    expect(res?.headers.get("Retry-After")).toBe("3600");
+    const retryAfter = Number(res?.headers.get("Retry-After"));
+    expect(retryAfter).toBeGreaterThan(0);
+    expect(retryAfter).toBeLessThanOrEqual(86_400);
     const body = await res?.json();
     expect(body.code).toBe("SHARE_BANDWIDTH_LIMIT");
   });
@@ -154,5 +156,53 @@ describe("meterReadableStream", () => {
     }
 
     expect(batches).toEqual([BigInt(SHARE_BANDWIDTH_BATCH_BYTES), 10n]);
+  });
+
+  it("cuts mid-stream when remainingBudget is exhausted", async () => {
+    const batches: bigint[] = [];
+    const source = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(8));
+        controller.enqueue(new Uint8Array(8));
+        controller.close();
+      },
+    });
+
+    const metered = meterReadableStream(source, {
+      batchBytes: 100,
+      remainingBudget: 10n,
+      onBatch: (n) => {
+        batches.push(n);
+      },
+    });
+
+    const reader = metered.getReader();
+    const first = await reader.read();
+    expect(first.value?.byteLength).toBe(8);
+    const second = await reader.read();
+    expect(second.value?.byteLength).toBe(2);
+    await expect(reader.read()).rejects.toThrow(/SHARE_BANDWIDTH_LIMIT/);
+    expect(batches).toEqual([10n]);
+  });
+
+  it("flushes pending bytes on cancel", async () => {
+    const batches: bigint[] = [];
+    const source = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(20));
+      },
+    });
+
+    const metered = meterReadableStream(source, {
+      batchBytes: 1000,
+      onBatch: (n) => {
+        batches.push(n);
+      },
+    });
+
+    const reader = metered.getReader();
+    await reader.read();
+    await reader.cancel();
+    expect(batches).toEqual([20n]);
   });
 });

@@ -15,7 +15,15 @@ export type DropboxListEntry = {
   id?: string;
   size?: number;
   is_downloadable?: boolean;
-  sharing_info?: { read_only?: boolean; parent_shared_folder_id?: string };
+  sharing_info?: {
+    read_only?: boolean;
+    /** Present on the shared folder mount itself. */
+    shared_folder_id?: string;
+    /** Present on items inside a shared folder (not the mount alone). */
+    parent_shared_folder_id?: string;
+    traverse_only?: boolean;
+    no_access?: boolean;
+  };
 };
 
 export type DropboxListFolderPage = {

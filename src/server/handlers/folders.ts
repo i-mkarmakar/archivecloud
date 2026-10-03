@@ -4,7 +4,6 @@ import { requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
 import {
   createGoogleDriveFolder,
-  ensureGoogleAppFolder,
   syncGoogleQuota,
 } from "@/server/modules/providers/google/google.service";
 import {
@@ -61,11 +60,9 @@ async function ensureProviderFolderIds(
   if (!connectedAccount) return;
 
   try {
-    const appFolderId = await ensureGoogleAppFolder(connectedAccount);
-
     for (const folder of foldersWithoutId) {
       try {
-        let parentGoogleId = appFolderId;
+        let parentGoogleId = "root";
         if (folder.parentId) {
           const parentFolder = await prisma.folder.findFirst({
             where: { id: folder.parentId, userId },
@@ -190,7 +187,7 @@ export async function createFolderHandler(request: Request) {
   let providerFolderId: string | null = null;
   if (connectedAccount) {
     try {
-      let googleParentId = await ensureGoogleAppFolder(connectedAccount);
+      let googleParentId = "root";
       if (parentFolder?.providerFolderId) {
         googleParentId = parentFolder.providerFolderId;
       }
@@ -304,9 +301,7 @@ export async function updateFolderHandler(
     folderRecord.connectedAccount
   ) {
     try {
-      let newGoogleParentId = await ensureGoogleAppFolder(
-        folderRecord.connectedAccount,
-      );
+      let newGoogleParentId = "root";
       if (body.parentId) {
         const newParent = await prisma.folder.findFirst({
           where: { id: body.parentId, userId: user.id },

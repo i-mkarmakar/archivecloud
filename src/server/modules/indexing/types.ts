@@ -4,7 +4,9 @@ export type IndexPage = {
   items: CatalogIndexItem[];
   /** Soft-remove these provider file ids (e.g. OneDrive deleted facet on enum). */
   removedProviderFileIds?: string[];
-  /** Soft-remove by path prefix (Dropbox DeletedMetadata — path, not id). */
+  /** Soft-remove exact providerPathLower only (Dropbox file delete). */
+  removedPaths?: string[];
+  /** Soft-remove by path prefix (Dropbox folder DeletedMetadata — path, not id). */
   removedPathPrefixes?: string[];
   nextPageToken: string | null;
   /**
@@ -17,6 +19,7 @@ export type IndexPage = {
 export type CatalogChangeOp =
   | { type: "upsert"; item: CatalogIndexItem }
   | { type: "remove"; providerFileId: string }
+  | { type: "remove_path"; pathLower: string }
   | { type: "remove_path_prefix"; pathLower: string }
   | { type: "ignore" };
 

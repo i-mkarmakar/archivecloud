@@ -15,6 +15,8 @@ export type CatalogIndexItem = {
   isFolder: boolean;
   isShortcut: boolean;
   shortcutTargetId: string | null;
+  /** Why content actions are blocked (paper, not_downloadable, shared_folder, remote_item, …). */
+  blockedReason?: string | null;
 };
 
 /** Thrown when provider rate limits are exhausted — scan should pause, not fail. */
@@ -66,6 +68,7 @@ export function mapGoogleFileToCatalogItem(file: {
     shortcutTargetId: isShortcut
       ? (file.shortcutDetails?.targetId ?? null)
       : null,
+    blockedReason: isShortcut ? "shortcut" : null,
   };
 }
 
@@ -116,6 +119,26 @@ export async function softDeleteCatalogFile(params: {
   });
   if (rows.length === 0) return;
   await softDeleteFileIds(rows.map((row) => row.id));
+}
+
+/** Soft-delete exact providerPathLower only (Dropbox file delete). */
+export async function softDeleteCatalogByExactPath(params: {
+  connectedAccountId: string;
+  pathLower: string;
+}): Promise<number> {
+  const path = params.pathLower.replace(/\/+$/, "").toLowerCase();
+  if (!path) return 0;
+  const rows = await prisma.file.findMany({
+    where: {
+      connectedAccountId: params.connectedAccountId,
+      status: "active",
+      providerPathLower: path,
+    },
+    select: { id: true },
+  });
+  if (rows.length === 0) return 0;
+  await softDeleteFileIds(rows.map((r) => r.id));
+  return rows.length;
 }
 
 /** Soft-delete a path and all descendants (Dropbox folder delete semantics). */
@@ -184,6 +207,7 @@ function upsertArgs(params: {
       isFolder: item.isFolder,
       isShortcut: item.isShortcut,
       shortcutTargetId: item.shortcutTargetId,
+      blockedReason: item.blockedReason ?? null,
       name: item.name.slice(0, 255),
       mimeType: item.mimeType,
       sizeBytes: item.sizeBytes,
@@ -199,6 +223,7 @@ function upsertArgs(params: {
       isFolder: item.isFolder,
       isShortcut: item.isShortcut,
       shortcutTargetId: item.shortcutTargetId,
+      blockedReason: item.blockedReason ?? null,
       status: "active" as const,
       deletedAt: null,
       ...(params.lastIndexScanId !== undefined
@@ -226,6 +251,77 @@ export async function upsertCatalogItem(params: {
  * Full-scan page write: account must still be connected with matching scanId
  * in the same transaction as file upserts/removes (disconnect-safe).
  */
+type PrismaTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+async function softDeleteIdsInTx(tx: PrismaTx, ids: string[]) {
+  if (ids.length === 0) return;
+  await tx.file.updateMany({
+    where: { id: { in: ids } },
+    data: { status: "deleted", deletedAt: new Date() },
+  });
+  await tx.fileShare.updateMany({
+    where: { fileId: { in: ids }, enabled: true },
+    data: { enabled: false },
+  });
+  await tx.filePreviewToken.deleteMany({
+    where: { fileId: { in: ids } },
+  });
+  await tx.workspaceInvite.updateMany({
+    where: {
+      targetType: "file",
+      targetId: { in: ids },
+      revokedAt: null,
+    },
+    data: { revokedAt: new Date(), status: "revoked" },
+  });
+}
+
+/**
+ * When a folder moves (same Dropbox id, new path_lower), rewrite descendant
+ * path_lower values so later deletes/lookups stay correct.
+ */
+async function rewriteMovedFolderDescendantPaths(
+  tx: PrismaTx,
+  params: {
+    connectedAccountId: string;
+    providerFileId: string;
+    newPathLower: string;
+  },
+) {
+  const existing = await tx.file.findUnique({
+    where: {
+      connectedAccountId_providerFileId: {
+        connectedAccountId: params.connectedAccountId,
+        providerFileId: params.providerFileId,
+      },
+    },
+    select: { isFolder: true, providerPathLower: true },
+  });
+  const oldPath = existing?.providerPathLower
+    ?.replace(/\/+$/, "")
+    .toLowerCase();
+  const newPath = params.newPathLower.replace(/\/+$/, "").toLowerCase();
+  if (!existing?.isFolder || !oldPath || !newPath || oldPath === newPath) {
+    return;
+  }
+  const children = await tx.file.findMany({
+    where: {
+      connectedAccountId: params.connectedAccountId,
+      status: "active",
+      providerPathLower: { startsWith: `${oldPath}/` },
+    },
+    select: { id: true, providerPathLower: true },
+  });
+  for (const child of children) {
+    if (!child.providerPathLower) continue;
+    const rewritten = `${newPath}${child.providerPathLower.slice(oldPath.length)}`;
+    await tx.file.update({
+      where: { id: child.id },
+      data: { providerPathLower: rewritten },
+    });
+  }
+}
+
 export async function writeFullScanPageGuarded(params: {
   userId: string;
   connectedAccountId: string;
@@ -233,6 +329,7 @@ export async function writeFullScanPageGuarded(params: {
   scanId: string;
   items: CatalogIndexItem[];
   removedProviderFileIds?: string[];
+  removedPaths?: string[];
   removedPathPrefixes?: string[];
   indexFilesIndexed: number;
   indexPageToken: string | null;
@@ -257,6 +354,13 @@ export async function writeFullScanPageGuarded(params: {
       }
 
       for (const item of params.items) {
+        if (item.isFolder && item.providerPathLower) {
+          await rewriteMovedFolderDescendantPaths(tx, {
+            connectedAccountId: params.connectedAccountId,
+            providerFileId: item.id,
+            newPathLower: item.providerPathLower,
+          });
+        }
         await tx.file.upsert(
           upsertArgs({
             userId: params.userId,
@@ -278,28 +382,27 @@ export async function writeFullScanPageGuarded(params: {
           },
           select: { id: true },
         });
-        if (rows.length > 0) {
-          const ids = rows.map((r) => r.id);
-          await tx.file.updateMany({
-            where: { id: { in: ids } },
-            data: { status: "deleted", deletedAt: new Date() },
-          });
-          await tx.fileShare.updateMany({
-            where: { fileId: { in: ids }, enabled: true },
-            data: { enabled: false },
-          });
-          await tx.filePreviewToken.deleteMany({
-            where: { fileId: { in: ids } },
-          });
-          await tx.workspaceInvite.updateMany({
-            where: {
-              targetType: "file",
-              targetId: { in: ids },
-              revokedAt: null,
-            },
-            data: { revokedAt: new Date(), status: "revoked" },
-          });
-        }
+        await softDeleteIdsInTx(
+          tx,
+          rows.map((r) => r.id),
+        );
+      }
+
+      for (const pathLower of params.removedPaths ?? []) {
+        const path = pathLower.replace(/\/+$/, "").toLowerCase();
+        if (!path) continue;
+        const rows = await tx.file.findMany({
+          where: {
+            connectedAccountId: params.connectedAccountId,
+            status: "active",
+            providerPathLower: path,
+          },
+          select: { id: true },
+        });
+        await softDeleteIdsInTx(
+          tx,
+          rows.map((r) => r.id),
+        );
       }
 
       for (const pathLower of params.removedPathPrefixes ?? []) {
@@ -316,27 +419,10 @@ export async function writeFullScanPageGuarded(params: {
           },
           select: { id: true },
         });
-        if (rows.length === 0) continue;
-        const ids = rows.map((r) => r.id);
-        await tx.file.updateMany({
-          where: { id: { in: ids } },
-          data: { status: "deleted", deletedAt: new Date() },
-        });
-        await tx.fileShare.updateMany({
-          where: { fileId: { in: ids }, enabled: true },
-          data: { enabled: false },
-        });
-        await tx.filePreviewToken.deleteMany({
-          where: { fileId: { in: ids } },
-        });
-        await tx.workspaceInvite.updateMany({
-          where: {
-            targetType: "file",
-            targetId: { in: ids },
-            revokedAt: null,
-          },
-          data: { revokedAt: new Date(), status: "revoked" },
-        });
+        await softDeleteIdsInTx(
+          tx,
+          rows.map((r) => r.id),
+        );
       }
 
       // Heal Dropbox path-placeholder parents once the folder id is known.
@@ -368,13 +454,44 @@ export async function writeIncrementalBatchGuarded(params: {
   ops: Array<
     | { type: "upsert"; item: CatalogIndexItem }
     | { type: "remove"; providerFileId: string }
+    | { type: "remove_path"; pathLower: string }
     | { type: "remove_path_prefix"; pathLower: string }
   >;
   nextChangesToken: string;
 }): Promise<"ok" | "aborted"> {
   try {
     await prisma.$transaction(async (tx) => {
-      for (const op of params.ops) {
+      // Path deletes: longest first (nested before parents).
+      const orderedOps = [...params.ops].sort((a, b) => {
+        const pathA =
+          a.type === "remove_path" || a.type === "remove_path_prefix"
+            ? a.pathLower.length
+            : -1;
+        const pathB =
+          b.type === "remove_path" || b.type === "remove_path_prefix"
+            ? b.pathLower.length
+            : -1;
+        return pathB - pathA;
+      });
+
+      for (const op of orderedOps) {
+        if (op.type === "remove_path") {
+          const path = op.pathLower.replace(/\/+$/, "").toLowerCase();
+          if (!path) continue;
+          const rows = await tx.file.findMany({
+            where: {
+              connectedAccountId: params.connectedAccountId,
+              status: "active",
+              providerPathLower: path,
+            },
+            select: { id: true },
+          });
+          await softDeleteIdsInTx(
+            tx,
+            rows.map((r) => r.id),
+          );
+          continue;
+        }
         if (op.type === "remove_path_prefix") {
           const path = op.pathLower.replace(/\/+$/, "").toLowerCase();
           if (!path) continue;
@@ -389,27 +506,10 @@ export async function writeIncrementalBatchGuarded(params: {
             },
             select: { id: true },
           });
-          if (rows.length === 0) continue;
-          const ids = rows.map((r) => r.id);
-          await tx.file.updateMany({
-            where: { id: { in: ids } },
-            data: { status: "deleted", deletedAt: new Date() },
-          });
-          await tx.fileShare.updateMany({
-            where: { fileId: { in: ids }, enabled: true },
-            data: { enabled: false },
-          });
-          await tx.filePreviewToken.deleteMany({
-            where: { fileId: { in: ids } },
-          });
-          await tx.workspaceInvite.updateMany({
-            where: {
-              targetType: "file",
-              targetId: { in: ids },
-              revokedAt: null,
-            },
-            data: { revokedAt: new Date(), status: "revoked" },
-          });
+          await softDeleteIdsInTx(
+            tx,
+            rows.map((r) => r.id),
+          );
           continue;
         }
         if (op.type === "remove") {
@@ -421,28 +521,18 @@ export async function writeIncrementalBatchGuarded(params: {
             },
             select: { id: true },
           });
-          if (rows.length === 0) continue;
-          const ids = rows.map((r) => r.id);
-          await tx.file.updateMany({
-            where: { id: { in: ids } },
-            data: { status: "deleted", deletedAt: new Date() },
-          });
-          await tx.fileShare.updateMany({
-            where: { fileId: { in: ids }, enabled: true },
-            data: { enabled: false },
-          });
-          await tx.filePreviewToken.deleteMany({
-            where: { fileId: { in: ids } },
-          });
-          await tx.workspaceInvite.updateMany({
-            where: {
-              targetType: "file",
-              targetId: { in: ids },
-              revokedAt: null,
-            },
-            data: { revokedAt: new Date(), status: "revoked" },
-          });
+          await softDeleteIdsInTx(
+            tx,
+            rows.map((r) => r.id),
+          );
           continue;
+        }
+        if (op.item.isFolder && op.item.providerPathLower) {
+          await rewriteMovedFolderDescendantPaths(tx, {
+            connectedAccountId: params.connectedAccountId,
+            providerFileId: op.item.id,
+            newPathLower: op.item.providerPathLower,
+          });
         }
         await tx.file.upsert(
           upsertArgs({

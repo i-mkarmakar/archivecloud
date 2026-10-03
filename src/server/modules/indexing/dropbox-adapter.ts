@@ -9,11 +9,15 @@ import type {
   ProviderIndexAdapter,
 } from "@/server/modules/indexing/types";
 import {
+  assertDropboxPersonalAccount,
+  DropboxTeamAccountError,
+} from "@/server/modules/providers/dropbox/dropbox-account";
+import {
+  type DropboxListEntry,
   fetchDropboxListFolderPage,
   isDropboxAuthError,
   isDropboxRateLimitedError,
   isDropboxResetCursorError,
-  type DropboxListEntry,
 } from "@/server/modules/providers/dropbox/dropbox-list-folder";
 
 function guessMime(name: string): string {
@@ -35,17 +39,46 @@ export function dropboxParentPathLower(pathLower: string): string | null {
   return normalized.slice(0, idx);
 }
 
+/**
+ * Shared-folder mount point: folder metadata carries its own shared_folder_id.
+ * Nested files only have parent_shared_folder_id — those stay downloadable.
+ */
+export function isDropboxSharedFolderMount(entry: DropboxListEntry): boolean {
+  if (entry[".tag"] !== "folder") return false;
+  return Boolean(entry.sharing_info?.shared_folder_id);
+}
+
+export function dropboxBlockedReason(entry: DropboxListEntry): string | null {
+  if (isDropboxSharedFolderMount(entry)) return "shared_folder";
+  if (/\.paper$/i.test(entry.name)) return "paper";
+  if (entry[".tag"] === "file" && entry.is_downloadable === false) {
+    return "not_downloadable";
+  }
+  return null;
+}
+
+/**
+ * Map list_folder entry → catalog op.
+ * DeletedMetadata: exact path remove when we know it's a file; path-prefix when
+ * folder or unknown (Dropbox may omit individual children).
+ */
 export function mapDropboxEntryToOp(
   entry: DropboxListEntry,
   rootId: string,
   pathToId: Map<string, string>,
+  knownFolderPaths?: Set<string>,
 ): CatalogChangeOp {
   const pathLower = entry.path_lower?.toLowerCase();
   if (!pathLower) return { type: "ignore" };
 
   if (entry[".tag"] === "deleted") {
-    // Docs: remove entry at path and all children (path-prefix).
-    return { type: "remove_path_prefix", pathLower };
+    const wasFolder =
+      knownFolderPaths?.has(pathLower) || pathToId.has(pathLower);
+    if (wasFolder) {
+      return { type: "remove_path_prefix", pathLower };
+    }
+    // Exact path for files; also safe if unknown (no children under a file path).
+    return { type: "remove_path", pathLower };
   }
 
   if (!entry.id) return { type: "ignore" };
@@ -64,18 +97,15 @@ export function mapDropboxEntryToOp(
     pathToId.set(pathLower, entry.id);
   }
 
-  const isSharedMount = Boolean(entry.sharing_info?.parent_shared_folder_id);
-  const notDownloadable =
-    entry[".tag"] === "file" && entry.is_downloadable === false;
-  const isPaper = /\.paper$/i.test(entry.name);
-  const isShortcut = isSharedMount || notDownloadable || isPaper;
+  const blockedReason = dropboxBlockedReason(entry);
+  const isShortcut = blockedReason != null;
 
   const item: CatalogIndexItem = {
     id: entry.id,
     name: entry.name,
     mimeType: isFolder
       ? "application/vnd.archivecloud.folder"
-      : isPaper
+      : blockedReason === "paper"
         ? "application/vnd.dropbox.paper"
         : guessMime(entry.name),
     sizeBytes:
@@ -87,8 +117,14 @@ export function mapDropboxEntryToOp(
     isFolder,
     isShortcut,
     shortcutTargetId: null,
+    blockedReason,
   };
   return { type: "upsert", item };
+}
+
+/** Longest paths first so nested deletes land before parents. */
+export function orderDropboxPathDeletes(paths: string[]): string[] {
+  return [...paths].sort((a, b) => b.length - a.length || a.localeCompare(b));
 }
 
 async function ensureDropboxRootProviderId(accountId: string): Promise<string> {
@@ -103,7 +139,10 @@ async function ensureDropboxRootProviderId(accountId: string): Promise<string> {
   return DROPBOX_ROOT_PROVIDER_ID;
 }
 
-async function loadPathMap(accountId: string): Promise<Map<string, string>> {
+async function loadPathMap(accountId: string): Promise<{
+  pathToId: Map<string, string>;
+  folderPaths: Set<string>;
+}> {
   const folders = await prisma.file.findMany({
     where: {
       connectedAccountId: accountId,
@@ -113,13 +152,15 @@ async function loadPathMap(accountId: string): Promise<Map<string, string>> {
     },
     select: { providerFileId: true, providerPathLower: true },
   });
-  const map = new Map<string, string>();
+  const pathToId = new Map<string, string>();
+  const folderPaths = new Set<string>();
   for (const folder of folders) {
     if (folder.providerPathLower) {
-      map.set(folder.providerPathLower, folder.providerFileId);
+      pathToId.set(folder.providerPathLower, folder.providerFileId);
+      folderPaths.add(folder.providerPathLower);
     }
   }
-  return map;
+  return { pathToId, folderPaths };
 }
 
 function pageFromEntries(params: {
@@ -128,22 +169,49 @@ function pageFromEntries(params: {
   hasMore: boolean;
   rootId: string;
   pathToId: Map<string, string>;
+  folderPaths: Set<string>;
 }): IndexPage {
   const items: CatalogIndexItem[] = [];
+  const removedPaths: string[] = [];
   const removedPathPrefixes: string[] = [];
   for (const entry of params.entries) {
-    const op = mapDropboxEntryToOp(entry, params.rootId, params.pathToId);
-    if (op.type === "upsert") items.push(op.item);
-    else if (op.type === "remove_path_prefix") {
+    const op = mapDropboxEntryToOp(
+      entry,
+      params.rootId,
+      params.pathToId,
+      params.folderPaths,
+    );
+    if (op.type === "upsert") {
+      items.push(op.item);
+      if (op.item.isFolder && op.item.providerPathLower) {
+        params.folderPaths.add(op.item.providerPathLower);
+      }
+    } else if (op.type === "remove_path") {
+      removedPaths.push(op.pathLower);
+    } else if (op.type === "remove_path_prefix") {
       removedPathPrefixes.push(op.pathLower);
     }
   }
   return {
     items,
-    removedPathPrefixes,
+    removedPaths: orderDropboxPathDeletes(removedPaths),
+    removedPathPrefixes: orderDropboxPathDeletes(removedPathPrefixes),
     nextPageToken: params.hasMore ? params.cursor : null,
     finalChangesCursor: params.hasMore ? null : params.cursor,
   };
+}
+
+async function guardDropboxAccount(accountId: string) {
+  const account = await prisma.connectedAccount.findUniqueOrThrow({
+    where: { id: accountId },
+  });
+  if (account.dropboxNeedsFullAccess) {
+    throw new Error(
+      "DROPBOX_APP_FOLDER: Reconnect with Full Dropbox access before indexing.",
+    );
+  }
+  await assertDropboxPersonalAccount(account);
+  return account;
 }
 
 export const dropboxIndexAdapter: ProviderIndexAdapter = {
@@ -156,16 +224,9 @@ export const dropboxIndexAdapter: ProviderIndexAdapter = {
   ensureRootProviderId: ensureDropboxRootProviderId,
 
   async listIndexPage(accountId, pageToken) {
-    const account = await prisma.connectedAccount.findUniqueOrThrow({
-      where: { id: accountId },
-    });
-    if (account.dropboxNeedsFullAccess) {
-      throw new Error(
-        "DROPBOX_APP_FOLDER: Reconnect with Full Dropbox access before indexing.",
-      );
-    }
+    const account = await guardDropboxAccount(accountId);
     const rootId = await ensureDropboxRootProviderId(accountId);
-    const pathToId = await loadPathMap(accountId);
+    const { pathToId, folderPaths } = await loadPathMap(accountId);
     const page = await fetchDropboxListFolderPage(account, {
       cursor: pageToken,
       includeDeleted: false,
@@ -176,27 +237,21 @@ export const dropboxIndexAdapter: ProviderIndexAdapter = {
       hasMore: page.hasMore,
       rootId,
       pathToId,
+      folderPaths,
     });
   },
 
   async listChangesPage(accountId, pageToken) {
-    const account = await prisma.connectedAccount.findUniqueOrThrow({
-      where: { id: accountId },
-    });
-    if (account.dropboxNeedsFullAccess) {
-      throw new Error(
-        "DROPBOX_APP_FOLDER: Reconnect with Full Dropbox access before indexing.",
-      );
-    }
+    const account = await guardDropboxAccount(accountId);
     const rootId = await ensureDropboxRootProviderId(accountId);
-    const pathToId = await loadPathMap(accountId);
+    const { pathToId, folderPaths } = await loadPathMap(accountId);
     const page = await fetchDropboxListFolderPage(account, {
       cursor: pageToken,
       includeDeleted: true,
     });
     return {
       ops: page.entries.map((entry) =>
-        mapDropboxEntryToOp(entry, rootId, pathToId),
+        mapDropboxEntryToOp(entry, rootId, pathToId, folderPaths),
       ),
       nextPageToken: page.hasMore ? page.cursor : null,
       newStartPageToken: page.hasMore ? null : page.cursor,
@@ -205,6 +260,7 @@ export const dropboxIndexAdapter: ProviderIndexAdapter = {
 
   isInvalidListPageTokenError: isDropboxResetCursorError,
   isInvalidChangesTokenError: isDropboxResetCursorError,
-  isAuthError: isDropboxAuthError,
+  isAuthError: (error: unknown) =>
+    isDropboxAuthError(error) || error instanceof DropboxTeamAccountError,
   isRateLimitedError: isDropboxRateLimitedError,
 };

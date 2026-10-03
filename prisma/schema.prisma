@@ -246,6 +246,8 @@ model File {
   /** Google Drive shortcut (or equivalent); not downloadable/previewable/shareable. */
   isShortcut         Boolean            @default(false) @map("is_shortcut")
   shortcutTargetId   String?            @map("shortcut_target_id") @db.VarChar(191)
+  /** Why content actions are blocked (shared_folder, paper, not_downloadable, remote_item, team_namespace, …). */
+  blockedReason      String?            @map("blocked_reason") @db.VarChar(64)
   name               String             @db.VarChar(255)
   mimeType           String             @map("mime_type") @db.VarChar(191)
   /** Null for Google Docs/Sheets/Slides and other types without a byte size. */
@@ -464,13 +466,12 @@ model FileShare {
   tokenEncrypted   String?   @map("token_encrypted") @db.Text
   enabled          Boolean   @default(true)
   /** When false, public page omits owner name/avatar. */
-  showOwnerProfile Boolean   @default(true) @map("show_owner_profile")
+  showOwnerProfile Boolean   @default(false) @map("show_owner_profile")
   expiresAt        DateTime? @map("expires_at")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   file             File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bandwidthDaily   ShareBandwidthDaily[]
 
   @@index([fileId])
   @@index([userId])
@@ -479,17 +480,20 @@ model FileShare {
   @@map("file_shares")
 }
 
-/** Per-share daily public byte usage (sum by userId+day for per-user caps). Separate from TransferUsageMonth. */
+/**
+ * Per-link (or preview-token) daily public byte usage.
+ * shareId is a FileShare id or `preview:<previewTokenId>` (no FK — preview keys are not shares).
+ * Sum by userId+day for per-user caps. Separate from TransferUsageMonth.
+ */
 model ShareBandwidthDaily {
-  id        String    @id @default(uuid()) @db.Char(36)
-  userId    String    @map("user_id") @db.Char(36)
-  shareId   String    @map("share_id") @db.Char(36)
-  day       DateTime  @map("day") @db.Date
-  bytesSent BigInt    @default(0) @map("bytes_sent")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  share     FileShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @map("user_id") @db.Char(36)
+  shareId   String   @map("share_id") @db.VarChar(80)
+  day       DateTime @map("day") @db.Date
+  bytesSent BigInt   @default(0) @map("bytes_sent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([shareId, day])
   @@index([userId, day])

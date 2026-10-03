@@ -437,6 +437,7 @@ export async function runIndexScan(params: {
         scanId,
         items: page.items,
         removedProviderFileIds: page.removedProviderFileIds,
+        removedPaths: page.removedPaths,
         removedPathPrefixes: page.removedPathPrefixes,
         indexFilesIndexed: filesIndexed,
         indexPageToken: page.nextPageToken,
@@ -791,9 +792,11 @@ export async function runIncrementalSync(params: {
               item: import("@/server/modules/indexing/catalog-upsert").CatalogIndexItem;
             }
           | { type: "remove"; providerFileId: string }
+          | { type: "remove_path"; pathLower: string }
           | { type: "remove_path_prefix"; pathLower: string } =>
           op.type === "upsert" ||
           op.type === "remove" ||
+          op.type === "remove_path" ||
           op.type === "remove_path_prefix",
       );
       applied += ops.length;

@@ -217,11 +217,25 @@ export async function previewFileByTokenHandler(
     return errorJson("PREVIEW_NOT_FOUND", "Preview token not found.", 404);
   const blocked = assertFileContentActionsAllowed(preview.file);
   if (blocked) return blocked;
-  return streamProviderFileResponse(
+
+  const meterKey = `preview:${preview.id}`;
+  const { assertShareBandwidthCapacity, meterShareBandwidthResponse } =
+    await import("@/server/modules/files/share-bandwidth");
+  const capped = await assertShareBandwidthCapacity({
+    userId: preview.userId,
+    shareId: meterKey,
+  });
+  if (capped) return capped;
+
+  const response = await streamProviderFileResponse(
     preview.file,
     request.headers.get("range") ?? undefined,
     { disposition: "inline", signal: request.signal },
   );
+  return meterShareBandwidthResponse(response, {
+    userId: preview.userId,
+    shareId: meterKey,
+  });
 }
 
 export async function listFilesHandler(request: Request) {
@@ -791,7 +805,7 @@ export async function getFileShareHandler(
       fileName: file.name,
       shareId: null,
       enabled: false,
-      showOwnerProfile: true,
+      showOwnerProfile: false,
       url: null,
     });
   }
@@ -812,7 +826,7 @@ export async function getFileShareHandler(
       fileName: file.name,
       shareId: null,
       enabled: false,
-      showOwnerProfile: true,
+      showOwnerProfile: false,
       url: null,
     });
   }
@@ -912,7 +926,7 @@ export async function shareFileHandler(
     );
   }
 
-  const showOwnerProfile = body.showOwnerProfile ?? true;
+  const showOwnerProfile = body.showOwnerProfile ?? false;
   const token = randomToken(32);
   const tokenHash = hashToken(token);
   const tokenEncrypted = encryptText(token);

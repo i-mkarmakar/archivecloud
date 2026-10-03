@@ -138,6 +138,11 @@ export async function cronTickHandler(request: Request) {
     };
   }
 
+  const { pruneShareBandwidthDaily } = await import(
+    "@/server/modules/files/share-bandwidth"
+  );
+  const shareBandwidth = await pruneShareBandwidthDaily();
+
   return json({
     ok: true,
     at: new Date().toISOString(),
@@ -146,5 +151,6 @@ export async function cronTickHandler(request: Request) {
     watches,
     onedrive,
     catalog,
+    shareBandwidth,
   });
 }

@@ -26,9 +26,11 @@ const prismaMock = vi.hoisted(() => ({
   },
   file: {
     upsert: vi.fn(),
+    update: vi.fn(),
     updateMany: vi.fn(),
     count: vi.fn(),
     findMany: vi.fn(),
+    findUnique: vi.fn(),
   },
   fileShare: { updateMany: vi.fn() },
   filePreviewToken: { deleteMany: vi.fn() },
@@ -61,10 +63,23 @@ vi.mock("@/server/modules/providers/dropbox/dropbox-list-folder", () => ({
     ),
 }));
 
+vi.mock("@/server/modules/providers/dropbox/dropbox-account", () => ({
+  assertDropboxPersonalAccount: vi.fn(async () => undefined),
+  DropboxTeamAccountError: class DropboxTeamAccountError extends Error {
+    constructor(message = "DROPBOX_TEAM") {
+      super(message);
+      this.name = "DropboxTeamAccountError";
+    }
+  },
+  isDropboxTeamAccountError: (error: unknown) =>
+    error instanceof Error && error.message.startsWith("DROPBOX_TEAM"),
+}));
+
 import { IndexRateLimitedError } from "@/server/modules/indexing/catalog-upsert";
 import {
   dropboxParentPathLower,
   mapDropboxEntryToOp,
+  orderDropboxPathDeletes,
 } from "@/server/modules/indexing/dropbox-adapter";
 import {
   runDropboxIncrementalSync,
@@ -141,7 +156,7 @@ describe("mapDropboxEntryToOp", () => {
     });
   });
 
-  it("uses path: placeholder when parent id not yet known; deletions use path prefix", () => {
+  it("uses path: placeholder when parent id not yet known; folder deletes use prefix", () => {
     const pathToId = new Map<string, string>();
     const child = mapDropboxEntryToOp(
       {
@@ -159,6 +174,7 @@ describe("mapDropboxEntryToOp", () => {
       item: { providerParentId: "path:/missing" },
     });
 
+    pathToId.set("/docs", "id:docs");
     expect(
       mapDropboxEntryToOp(
         {
@@ -168,11 +184,34 @@ describe("mapDropboxEntryToOp", () => {
         },
         DROPBOX_ROOT_PROVIDER_ID,
         pathToId,
+        new Set(["/docs"]),
       ),
     ).toEqual({ type: "remove_path_prefix", pathLower: "/docs" });
   });
 
-  it("marks Paper / non-downloadable / shared-mount as shortcut-like", () => {
+  it("uses exact-path delete for unknown/file deletions", () => {
+    expect(
+      mapDropboxEntryToOp(
+        {
+          ".tag": "deleted",
+          name: "a.txt",
+          path_lower: "/docs/a.txt",
+        },
+        DROPBOX_ROOT_PROVIDER_ID,
+        new Map(),
+      ),
+    ).toEqual({ type: "remove_path", pathLower: "/docs/a.txt" });
+  });
+
+  it("orders path deletes longest-first", () => {
+    expect(orderDropboxPathDeletes(["/a", "/a/b/c", "/a/b"])).toEqual([
+      "/a/b/c",
+      "/a/b",
+      "/a",
+    ]);
+  });
+
+  it("marks Paper / non-downloadable / shared-folder mount with blockedReason", () => {
     const pathToId = new Map<string, string>();
     const paper = mapDropboxEntryToOp(
       {
@@ -189,8 +228,44 @@ describe("mapDropboxEntryToOp", () => {
       type: "upsert",
       item: {
         isShortcut: true,
+        blockedReason: "paper",
         mimeType: "application/vnd.dropbox.paper",
       },
+    });
+
+    const mount = mapDropboxEntryToOp(
+      {
+        ".tag": "folder",
+        name: "Shared",
+        id: "id:shared",
+        path_lower: "/shared",
+        sharing_info: { shared_folder_id: "sf1" },
+      },
+      DROPBOX_ROOT_PROVIDER_ID,
+      pathToId,
+    );
+    expect(mount).toMatchObject({
+      type: "upsert",
+      item: { blockedReason: "shared_folder", isShortcut: true },
+    });
+
+    // Nested file in a shared folder stays downloadable.
+    const nested = mapDropboxEntryToOp(
+      {
+        ".tag": "file",
+        name: "in-shared.txt",
+        id: "id:nested",
+        path_lower: "/shared/in-shared.txt",
+        size: 1,
+        is_downloadable: true,
+        sharing_info: { parent_shared_folder_id: "sf1" },
+      },
+      DROPBOX_ROOT_PROVIDER_ID,
+      pathToId,
+    );
+    expect(nested).toMatchObject({
+      type: "upsert",
+      item: { isShortcut: false, blockedReason: null },
     });
   });
 
@@ -419,6 +494,7 @@ describe("runDropboxIncrementalSync", () => {
     prismaMock.connectedAccount.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.file.upsert.mockResolvedValue({});
     prismaMock.file.findMany.mockResolvedValue([]);
+    prismaMock.file.findUnique.mockResolvedValue(null);
   });
 
   it("is a no-op when indexing flag is off", async () => {

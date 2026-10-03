@@ -54,6 +54,23 @@ export async function startOrResumeDropboxIndex(params: {
     };
   }
 
+  try {
+    const { assertDropboxPersonalAccount } = await import(
+      "@/server/modules/providers/dropbox/dropbox-account"
+    );
+    await assertDropboxPersonalAccount(account);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith("DROPBOX_TEAM")) {
+      return {
+        code: "DROPBOX_TEAM",
+        error:
+          "Dropbox Business/team accounts are not supported for whole-account indexing yet.",
+      };
+    }
+    throw error;
+  }
+
   return startOrResumeIndexScan({
     adapter: dropboxIndexAdapter,
     userId: params.userId,
