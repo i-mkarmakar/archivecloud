@@ -8,8 +8,11 @@ import {
 } from "@/components/drive/DummyModal";
 import type { FolderItem } from "@/data/drive-data";
 import { formatBytes } from "@/lib/api";
+import { providerLabel } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 import type { ConnectedAccount } from "@/views/all-files/types";
+
+export type UploadDestinationMode = "smart" | "manual";
 
 export function AllFilesUploadModal(props: {
   open: boolean;
@@ -25,6 +28,10 @@ export function AllFilesUploadModal(props: {
     value: string;
     onChange: (value: string) => void;
     accounts: ConnectedAccount[];
+    /** Ask Every Time: prompt Smart vs choose account on each upload. */
+    askEveryTime?: boolean;
+    destinationMode: UploadDestinationMode;
+    onDestinationModeChange: (mode: UploadDestinationMode) => void;
   };
   folderSelect: {
     activeFolder: FolderItem | undefined;
@@ -47,11 +54,15 @@ export function AllFilesUploadModal(props: {
     folderSelect,
   } = props;
 
+  const askEveryTime = Boolean(accountSelect.askEveryTime);
+  const showAccountSelect =
+    !askEveryTime || accountSelect.destinationMode === "manual";
+
   return (
     <DummyModal
       open={open}
       title="Upload File"
-      description="Stream file directly to selected Google Drive account."
+      description="Stream files directly to your connected cloud accounts."
       onClose={onClose}
     >
       <form onSubmit={onSubmit} className="grid gap-4">
@@ -78,8 +89,8 @@ export function AllFilesUploadModal(props: {
             Drop file here or click to browse
           </span>
           <span className="text-xs text-muted">
-            Metadata is sent before the file so upload can stream directly to
-            Google Drive.
+            Files stream to the cloud with the most available space, or the
+            account you choose.
           </span>
           <Input
             type="file"
@@ -89,22 +100,66 @@ export function AllFilesUploadModal(props: {
             required={selectedFiles.length === 0}
           />
         </div>
-        <label className="grid gap-2 text-sm font-semibold text-foreground">
-          Target Storage Account
-          <select
-            className="h-11 rounded-xl border border-border bg-white px-3 text-sm text-foreground"
-            value={accountSelect.value}
-            onChange={(event) => accountSelect.onChange(event.target.value)}
-          >
-            <option value="">Automatic (Default)</option>
-            {accountSelect.accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.email || account.displayName || account.id} (
-                {account.provider === "s3" ? "S3" : "Google Drive"})
+
+        {askEveryTime ? (
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-semibold text-foreground">
+              Use Smart File Distribution for this upload?
+            </legend>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm">
+              <input
+                type="radio"
+                name="upload-destination"
+                checked={accountSelect.destinationMode === "smart"}
+                onChange={() => accountSelect.onDestinationModeChange("smart")}
+              />
+              <span className="font-semibold">
+                Yes — Smart File Distribution
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm">
+              <input
+                type="radio"
+                name="upload-destination"
+                checked={accountSelect.destinationMode === "manual"}
+                onChange={() => accountSelect.onDestinationModeChange("manual")}
+              />
+              <span className="font-semibold">No — Choose account</span>
+            </label>
+          </fieldset>
+        ) : null}
+
+        {showAccountSelect ? (
+          <label className="grid gap-2 text-sm font-semibold text-foreground">
+            Target Storage Account
+            <select
+              className="h-11 rounded-xl border border-border bg-white px-3 text-sm text-foreground"
+              value={accountSelect.value}
+              onChange={(event) => accountSelect.onChange(event.target.value)}
+              required={
+                askEveryTime && accountSelect.destinationMode === "manual"
+              }
+            >
+              <option value="">
+                {askEveryTime
+                  ? "Select an account…"
+                  : "Automatic (Smart File Distribution)"}
               </option>
-            ))}
-          </select>
-        </label>
+              {accountSelect.accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.email || account.displayName || account.id} (
+                  {providerLabel(account.provider)})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="rounded-xl bg-background-secondary p-3 text-sm text-muted">
+            Smart File Distribution will pick the connected cloud with the most
+            available space for this upload.
+          </p>
+        )}
+
         {folderSelect.activeFolder ? (
           <p className="rounded-xl bg-background-secondary p-3 text-sm text-muted">
             Uploading to:{" "}

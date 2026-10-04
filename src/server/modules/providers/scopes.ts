@@ -10,9 +10,11 @@ export const GOOGLE_SHARED_DRIVE_OAUTH_SCOPES = [
   ...GOOGLE_DRIVE_OAUTH_SCOPES,
 ] as const;
 
-/** Picker-only — no library-wide Photos list/index. */
+/** Picker (select from library) + Library append (copy into Photos / app-created). */
 export const GOOGLE_PHOTOS_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+  "https://www.googleapis.com/auth/photoslibrary.appendonly",
+  "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
 ] as const;
@@ -33,7 +35,7 @@ export const ONEDRIVE_OAUTH_SCOPES = [
 /** pCloud OAuth has no scope strings; regional host is stored separately. */
 export const PCLOUD_OAUTH_SCOPES: readonly string[] = [];
 
-/** iCloud uses app-specific password credentials, not OAuth scopes. */
+/** iCloud uses Apple ID password + 2FA session, not OAuth scopes. */
 export const ICLOUD_OAUTH_SCOPES: readonly string[] = [];
 
 /** Legacy re-exports used by provider services / tests. */

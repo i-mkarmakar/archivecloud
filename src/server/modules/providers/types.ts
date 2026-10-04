@@ -55,7 +55,7 @@ export const PROVIDER_CATALOG: readonly ProviderCatalogEntry[] = [
     supportsBrowse: true,
     supportsUpload: true,
     supportsDownload: true,
-    supportsDelete: true,
+    supportsDelete: false,
     supportsRename: false,
     supportsMove: false,
     supportsSearch: true,
@@ -109,32 +109,31 @@ export const PROVIDER_CATALOG: readonly ProviderCatalogEntry[] = [
     supportsSearch: true,
   },
   /**
-   * iCloud: credentials connect + empty browse preview only.
-   * Apple does not expose a public iCloud Drive REST API; CloudKit is not wired.
+   * iCloud Drive / Photos: Apple ID + 2FA web session.
    */
   {
     id: "icloud_drive",
     label: "iCloud Drive",
     authKind: "credentials",
     supportsBrowse: true,
-    supportsUpload: false,
-    supportsDownload: false,
-    supportsDelete: false,
+    supportsUpload: true,
+    supportsDownload: true,
+    supportsDelete: true,
     supportsRename: false,
-    supportsMove: false,
-    supportsSearch: false,
+    supportsMove: true,
+    supportsSearch: true,
   },
   {
     id: "icloud_photos",
     label: "iCloud Photos",
     authKind: "credentials",
     supportsBrowse: true,
-    supportsUpload: false,
-    supportsDownload: false,
-    supportsDelete: false,
+    supportsUpload: true,
+    supportsDownload: true,
+    supportsDelete: true,
     supportsRename: false,
-    supportsMove: false,
-    supportsSearch: false,
+    supportsMove: true,
+    supportsSearch: true,
   },
 ] as const;
 

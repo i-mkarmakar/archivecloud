@@ -18,6 +18,7 @@ export function AllFilesSelectionBar(props: {
   copyShareLinkDirect: (fileOverride?: FileItem | null) => Promise<void>;
   downloadBatchAsZip: () => Promise<void>;
   openMoveForFiles: (filesToMove: FileItem[]) => void;
+  hideMove?: boolean;
   setDeleteOpen: Dispatch<SetStateAction<boolean>>;
   openContext: (event: MouseEvent<HTMLElement>, file: FileItem) => void;
 }) {
@@ -29,6 +30,7 @@ export function AllFilesSelectionBar(props: {
     copyShareLinkDirect,
     downloadBatchAsZip,
     openMoveForFiles,
+    hideMove = false,
     setDeleteOpen,
     openContext,
   } = props;
@@ -90,20 +92,22 @@ export function AllFilesSelectionBar(props: {
           >
             <ArrowDownToLine className="h-5 w-5" />
           </button>
-          <button
-            type="button"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-            aria-label="Move"
-            title="Move"
-            onClick={() => {
-              const selected = displayFiles.filter(
-                (file) => file.id && selectedFileIds.has(file.id),
-              );
-              openMoveForFiles(selected);
-            }}
-          >
-            <FolderArrowRight className="h-5 w-5" />
-          </button>
+          {hideMove ? null : (
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              aria-label="Move"
+              title="Move"
+              onClick={() => {
+                const selected = displayFiles.filter(
+                  (file) => file.id && selectedFileIds.has(file.id),
+                );
+                openMoveForFiles(selected);
+              }}
+            >
+              <FolderArrowRight className="h-5 w-5" />
+            </button>
+          )}
           <button
             type="button"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-black/5 dark:hover:bg-white/10"

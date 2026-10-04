@@ -200,26 +200,30 @@ export function NewScheduleModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-schedule-title"
-        className="relative z-10 flex max-h-[min(720px,calc(100dvh-1.5rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        style={{ height: "min(90dvh, 1040px)" }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between bg-primary px-4 py-2.5 text-primary-foreground">
-          <h2 id="new-schedule-title" className="text-base font-extrabold">
+        <header className="flex shrink-0 items-center justify-between bg-white px-4 py-3.5 text-foreground">
+          <h2
+            id="new-schedule-title"
+            className="text-xl font-extrabold tracking-tight"
+          >
             New schedule
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 hover:bg-white/15"
+            className="rounded-md p-1 text-muted hover:bg-surface-secondary hover:text-foreground"
             aria-label="Close"
           >
             <Xmark className="h-4 w-4" />
           </button>
         </header>
 
-        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div className="min-h-0 space-y-4 overflow-y-auto px-4 py-3 sm:px-4">
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-4">
             <OperationStep
               operation={operation}
               onChange={(op) => {
@@ -279,7 +283,9 @@ export function NewScheduleModal({
             <NameStep
               stepNumber={nameStep}
               name={name}
-              autoName={autoName}
+              operation={operation}
+              sourceName={selectedFile?.name}
+              destFolderName={selectedDestFolder?.name}
               onChange={setName}
             />
           </div>

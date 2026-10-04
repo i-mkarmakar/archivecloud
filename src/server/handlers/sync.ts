@@ -124,6 +124,14 @@ export async function createFolderSyncHandler(request: Request) {
     );
   }
 
+  if (sourceAccount.provider === "google_photos") {
+    return errorJson(
+      "UNSUPPORTED_SOURCE",
+      "Folder sync cannot use Google Photos as the source (library browse is blocked by Google). Use Photos as destination, or Copy from Google Photos.",
+      400,
+    );
+  }
+
   if (
     !isSupportedProvider(sourceAccount.provider) ||
     !isSupportedProvider(destAccount.provider)

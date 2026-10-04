@@ -11,6 +11,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@foxt/js-srp':
+        specifier: 0.0.3-patch2
+        version: 0.0.3-patch2
       '@gravity-ui/icons':
         specifier: ^2.22.0
         version: 2.22.0(react@19.2.8)
@@ -782,6 +785,9 @@ packages:
 
   '@formatjs/intl-localematcher@0.6.2':
     resolution: {integrity: sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA==}
+
+  '@foxt/js-srp@0.0.3-patch2':
+    resolution: {integrity: sha512-mCjMIf+/mwmuzSGr8CWWQDjDUqMBnw9TBnzfcBUTR2ySPoXcg6Pfb4/WPklY1TwY3Pe3f3r8q6hzWvvogInuug==}
 
   '@gravity-ui/icons@2.22.0':
     resolution: {integrity: sha512-v304kVTXbtsq8b3Uq3ZnX9R3LnRdECToeLspDgCs92C9fcID4C7dJqS3PywHKEaM4PFEZO8LRp/6JQbIm9UjHA==}
@@ -5016,6 +5022,8 @@ snapshots:
   '@formatjs/intl-localematcher@0.6.2':
     dependencies:
       tslib: 2.8.1
+
+  '@foxt/js-srp@0.0.3-patch2': {}
 
   '@gravity-ui/icons@2.22.0(react@19.2.8)':
     dependencies:

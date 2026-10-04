@@ -43,7 +43,7 @@ async function computeConnectedDriveBreakdown(userId: string) {
   };
 }
 
-const routingModes = ["most_available", "round_robin", "priority"] as const;
+const routingModes = ["most_available", "ask_every_time"] as const;
 const routingPolicySchema = z.object({
   mode: z.enum(routingModes),
   priorityAccountIds: z.array(z.string().min(1)).max(100).optional(),
@@ -53,6 +53,10 @@ function normalizePriorityAccountIds(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function normalizeRoutingMode(mode: string): (typeof routingModes)[number] {
+  return mode === "ask_every_time" ? "ask_every_time" : "most_available";
 }
 
 async function getOrCreateRoutingPolicy(userId: string) {
@@ -121,7 +125,7 @@ export async function getRoutingPolicyHandler(request: Request) {
   return json({
     policy: {
       id: policy.id,
-      mode: policy.mode,
+      mode: normalizeRoutingMode(policy.mode),
       priorityAccountIds: normalizePriorityAccountIds(
         policy.priorityAccountIds,
       ),
@@ -167,13 +171,13 @@ export async function patchRoutingPolicyHandler(request: Request) {
     update: {
       mode: body.mode,
       priorityAccountIds,
-      ...(body.mode !== "round_robin" ? { roundRobinCursor: 0 } : {}),
+      roundRobinCursor: 0,
     },
   });
   return json({
     policy: {
       id: policy.id,
-      mode: policy.mode,
+      mode: normalizeRoutingMode(policy.mode),
       priorityAccountIds: normalizePriorityAccountIds(
         policy.priorityAccountIds,
       ),

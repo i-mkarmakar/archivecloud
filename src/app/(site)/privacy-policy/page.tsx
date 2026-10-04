@@ -143,8 +143,21 @@ export default function PrivacyPage() {
                 https://www.googleapis.com/auth/photospicker.mediaitems.readonly
               </code>{" "}
               : Let you select photos and videos from Google Photos through the
-              Google Photos Picker and import the chosen items into Archive
-              Cloud.
+              Google Photos Picker and copy them into another connected cloud.
+            </li>
+            <li>
+              <code className="text-sm text-foreground">
+                https://www.googleapis.com/auth/photoslibrary.appendonly
+              </code>{" "}
+              : Let Archive Cloud upload / copy files into your Google Photos
+              library (and albums created by Archive Cloud).
+            </li>
+            <li>
+              <code className="text-sm text-foreground">
+                https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata
+              </code>{" "}
+              : Read back media and albums that Archive Cloud created in your
+              Google Photos library (for browse, preview, and download).
             </li>
             <li>
               <code className="text-sm text-foreground">
@@ -264,9 +277,8 @@ export default function PrivacyPage() {
             iCloud Photos. For those providers we store only the credentials or
             tokens needed to operate the integration (encrypted at rest where
             applicable) and metadata required to show your files in the product.
-            iCloud browse and transfers may require Apple CloudKit configuration
-            on the server. Disconnecting a provider or deleting your Archive
-            Cloud account removes that linked access data.
+            Disconnecting a provider or deleting your Archive Cloud account
+            removes that linked access data.
           </p>
         </SubSection>
       </Section>

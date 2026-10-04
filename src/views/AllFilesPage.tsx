@@ -17,11 +17,13 @@ import {
   useState,
 } from "react";
 import { ConnectCloudAccountModal } from "@/components/dashboard/ConnectCloudAccountModal";
+import { GooglePhotosEmptyState } from "@/components/dashboard/GooglePhotosEmptyState";
 import { GooglePhotosHowtoModal } from "@/components/dashboard/GooglePhotosHowtoModal";
 import {
   type GooglePhotosImportHandle,
   GooglePhotosImportPanel,
 } from "@/components/dashboard/GooglePhotosImportPanel";
+import { ICloudPhotosCopyModal } from "@/components/dashboard/ICloudPhotosCopyModal";
 import {
   CONNECT_ONBOARDING_DESCRIPTION,
   NoConnectedAccountsEmptyState,
@@ -161,6 +163,11 @@ export function AllFilesPage() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveSource, setMoveSource] = useState<MoveSource | null>(null);
   const [moveItemName, setMoveItemName] = useState("");
+  const [icloudCopyOpen, setIcloudCopyOpen] = useState(false);
+  const [icloudCopyMode, setIcloudCopyMode] = useState<"copy" | "move">("copy");
+  const [icloudCopyFiles, setIcloudCopyFiles] = useState<
+    Array<{ name: string; providerFileId: string }>
+  >([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -231,6 +238,10 @@ export function AllFilesPage() {
   const [homeConnectProviderId, setHomeConnectProviderId] =
     useState<SupportedProviderId | null>(null);
   const [selectedTargetAccountId, setSelectedTargetAccountId] = useState("");
+  const [askEveryTime, setAskEveryTime] = useState(false);
+  const [uploadDestinationMode, setUploadDestinationMode] = useState<
+    "smart" | "manual"
+  >("smart");
   const [linkedFolders, setLinkedFolders] = useState<FolderItem[]>([]);
   const [linkedFiles, setLinkedFiles] = useState<FileItem[]>([]);
   const [linkedBreadcrumbs, setLinkedBreadcrumbs] = useState<
@@ -472,19 +483,31 @@ export function AllFilesPage() {
         }
 
         const parentId = cloudFolderId || "root";
-        const browse = await apiFetch<ProviderBrowseResult>(
-          `/connected-accounts/${account.id}/browse?parentId=${encodeURIComponent(parentId)}&limit=${LINKED_BROWSE_LIMIT}`,
-        );
-        if (gen !== linkedBrowseGenRef.current) return;
-        setLinkedFolders(
-          (browse.folders ?? []).map((folder) =>
-            mapLinkedFolder(account, folder),
-          ),
-        );
-        setLinkedFiles(
-          (browse.files ?? []).map((file) => mapLinkedFile(account, file)),
-        );
-        setLinkedBreadcrumbs(browse.breadcrumbs ?? []);
+        try {
+          const browse = await apiFetch<ProviderBrowseResult>(
+            `/connected-accounts/${account.id}/browse?parentId=${encodeURIComponent(parentId)}&limit=${LINKED_BROWSE_LIMIT}`,
+          );
+          if (gen !== linkedBrowseGenRef.current) return;
+          setLinkedFolders(
+            (browse.folders ?? []).map((folder) =>
+              mapLinkedFolder(account, folder),
+            ),
+          );
+          setLinkedFiles(
+            (browse.files ?? []).map((file) => mapLinkedFile(account, file)),
+          );
+          setLinkedBreadcrumbs(browse.breadcrumbs ?? []);
+        } catch (error) {
+          if (gen !== linkedBrowseGenRef.current) return;
+          setLinkedFolders([]);
+          setLinkedFiles([]);
+          setLinkedBreadcrumbs([]);
+          toast.danger(
+            error instanceof Error
+              ? error.message
+              : "Could not load this cloud account.",
+          );
+        }
         return;
       }
 
@@ -593,6 +616,12 @@ export function AllFilesPage() {
   }, [activeFolderId, searchQuery, filterAccountId, activeSort, cloudFolderId]);
 
   useEffect(() => {
+    void apiFetch<{ policy: { mode: string } }>("/storage/routing-policy")
+      .then((data) => setAskEveryTime(data.policy.mode === "ask_every_time"))
+      .catch(() => undefined);
+  }, [uploadOpen]);
+
+  useEffect(() => {
     if (!(moveOpen || folderOpen) || allFoldersLoadedRef.current) return;
     void loadAllFoldersCatalog().catch(() => undefined);
   }, [moveOpen, folderOpen]);
@@ -629,12 +658,18 @@ export function AllFilesPage() {
     !activeFolderId &&
     !searchQuery &&
     !cloudFolderId;
+  const isICloudAccountView =
+    Boolean(selectedAccount) &&
+    (selectedAccount?.provider === "icloud_photos" ||
+      selectedAccount?.provider === "icloud_drive");
 
   useEffect(() => {
-    if (photosHowto && isGooglePhotosAccountView) {
+    // Open as soon as the connect redirect asks for it — don't wait for
+    // Photos account view (accounts list can load a tick later).
+    if (photosHowto) {
       setPhotosHowtoOpen(true);
     }
-  }, [photosHowto, isGooglePhotosAccountView]);
+  }, [photosHowto]);
 
   function dismissPhotosHowto() {
     setPhotosHowtoOpen(false);
@@ -722,19 +757,39 @@ export function AllFilesPage() {
   async function uploadFile(event: FormEvent) {
     event.preventDefault();
     if (selectedFiles.length === 0) return;
+
+    let routing: {
+      targetAccountId?: string | null;
+      useSmartDistribution?: boolean;
+    };
+    if (askEveryTime) {
+      if (uploadDestinationMode === "smart") {
+        routing = { useSmartDistribution: true };
+      } else if (!selectedTargetAccountId) {
+        toast.danger("Select a storage account for this upload.");
+        return;
+      } else {
+        routing = { targetAccountId: selectedTargetAccountId };
+      }
+    } else {
+      routing = selectedTargetAccountId
+        ? { targetAccountId: selectedTargetAccountId }
+        : { useSmartDistribution: true };
+    }
+
     setLoading(true);
 
     const uploadingFiles = [...selectedFiles];
     const targetFolderId = activeFolderId || selectedFolderId;
-    const targetAccountId = selectedTargetAccountId || null;
 
     setSelectedFiles([]);
     setSelectedFolderId("");
     setSelectedTargetAccountId("");
+    setUploadDestinationMode("smart");
     setUploadOpen(false);
 
     try {
-      await uploadFiles(uploadingFiles, targetFolderId, targetAccountId);
+      await uploadFiles(uploadingFiles, targetFolderId, routing);
     } catch (err) {
       console.error("Upload initiation failed:", err);
     } finally {
@@ -994,7 +1049,49 @@ export function AllFilesPage() {
     }
   }
 
+  function openIcloudTransferForFiles(
+    filesToCopy: FileItem[],
+    mode: "copy" | "move" = "copy",
+  ) {
+    const items = filesToCopy
+      .map((file) => ({
+        name: file.name,
+        providerFileId: file.providerFileId ?? "",
+      }))
+      .filter((file) => file.providerFileId);
+    if (items.length === 0) {
+      toast.danger("Select items from iCloud to transfer.");
+      return;
+    }
+    setIcloudCopyMode(mode);
+    setIcloudCopyFiles(items);
+    setIcloudCopyOpen(true);
+  }
+
   function openMoveForFiles(filesToMove: FileItem[]) {
+    if (isGooglePhotosAccountView) {
+      toast.danger("Google Photos does not support move. Use Copy instead.");
+      return;
+    }
+    if (isICloudAccountView) {
+      openIcloudTransferForFiles(filesToMove, "move");
+      return;
+    }
+    const photosAccountIds = new Set(
+      connectedAccounts
+        .filter((account) => account.provider === "google_photos")
+        .map((account) => account.id),
+    );
+    if (
+      filesToMove.some(
+        (file) =>
+          file.connectedAccountId &&
+          photosAccountIds.has(file.connectedAccountId),
+      )
+    ) {
+      toast.danger("Google Photos does not support move. Use Copy instead.");
+      return;
+    }
     const ids = filesToMove.map((file) => file.id).filter(Boolean) as string[];
     if (ids.length === 0) return;
 
@@ -1840,7 +1937,7 @@ export function AllFilesPage() {
                         name="google_photos"
                         className="h-4 w-4"
                       />
-                      Import
+                      Copy
                     </Button>
                   ) : null}
 
@@ -1871,6 +1968,7 @@ export function AllFilesPage() {
                 ref={photosImportRef}
                 toolbarMode
                 account={selectedAccount}
+                destinations={connectedAccounts}
                 onImported={() => {
                   loadAll().catch(() => undefined);
                   void loadLinkedStorage(connectedAccounts);
@@ -1891,6 +1989,7 @@ export function AllFilesPage() {
                     items={displayFolders}
                     mobileTwoColumns
                     sizeScale="xs"
+                    previewRows={2}
                     onFolderMenu={openFolderMenu}
                     onFolderOpen={openFolder}
                     onDropItem={handleDropItem}
@@ -1920,6 +2019,7 @@ export function AllFilesPage() {
                 <FolderGrid
                   items={displayFolders}
                   sizeScale="xs"
+                  previewRows={2}
                   onFolderMenu={openFolderMenu}
                   onFolderOpen={openFolder}
                   onDropItem={handleDropItem}
@@ -1934,9 +2034,38 @@ export function AllFilesPage() {
               copyShareLinkDirect={copyShareLinkDirect}
               downloadBatchAsZip={downloadBatchAsZip}
               openMoveForFiles={openMoveForFiles}
+              hideMove={isGooglePhotosAccountView}
               setDeleteOpen={setDeleteOpen}
               openContext={openContext}
             />
+            {isICloudAccountView && selectedFileIds.size > 0 ? (
+              <div className="mt-2 flex justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onPress={() => {
+                    const selected = displayFiles.filter(
+                      (file) => file.id && selectedFileIds.has(file.id),
+                    );
+                    openIcloudTransferForFiles(selected, "copy");
+                  }}
+                >
+                  Copy
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={() => {
+                    const selected = displayFiles.filter(
+                      (file) => file.id && selectedFileIds.has(file.id),
+                    );
+                    openIcloudTransferForFiles(selected, "move");
+                  }}
+                >
+                  Move
+                </Button>
+              </div>
+            ) : null}
             {cutFolder ? (
               <p className="mt-3 rounded-xl bg-surface-secondary p-3 text-sm font-semibold text-foreground">
                 <CopyCheck className="mr-2 inline h-4 w-4" />
@@ -1944,7 +2073,13 @@ export function AllFilesPage() {
                 area to paste here.
               </p>
             ) : null}
-            {isGooglePhotosAccountView && displayFiles.length === 0 ? null : (
+            {isGooglePhotosAccountView && displayFiles.length === 0 ? (
+              <GooglePhotosEmptyState
+                onCopy={() => {
+                  photosImportRef.current?.startImport();
+                }}
+              />
+            ) : (
               <DriveSection
                 title="All files"
                 variant="plain"
@@ -2101,6 +2236,17 @@ export function AllFilesPage() {
           }
           setContextMenu({ x: 0, y: 0, file: null });
         }}
+        hideMove={
+          isGooglePhotosAccountView ||
+          Boolean(
+            activeFile?.connectedAccountId &&
+              connectedAccounts.some(
+                (account) =>
+                  account.id === activeFile.connectedAccountId &&
+                  account.provider === "google_photos",
+              ),
+          )
+        }
         onRemove={() => {
           setDeleteOpen(true);
           setContextMenu({ x: 0, y: 0, file: null });
@@ -2235,6 +2381,9 @@ export function AllFilesPage() {
           value: selectedTargetAccountId,
           onChange: setSelectedTargetAccountId,
           accounts: connectedAccounts,
+          askEveryTime,
+          destinationMode: uploadDestinationMode,
+          onDestinationModeChange: setUploadDestinationMode,
         }}
         folderSelect={{
           activeFolder,
@@ -2661,6 +2810,20 @@ export function AllFilesPage() {
           </div>
         </DummyModal>
       )}
+      <ICloudPhotosCopyModal
+        open={icloudCopyOpen}
+        onClose={() => {
+          setIcloudCopyOpen(false);
+          setIcloudCopyFiles([]);
+        }}
+        sourceAccountId={selectedAccount?.id ?? ""}
+        files={icloudCopyFiles}
+        destinations={connectedAccounts}
+        mode={icloudCopyMode}
+        onQueued={() => {
+          clearSelection();
+        }}
+      />
       <GooglePhotosHowtoModal
         open={photosHowtoOpen}
         onClose={dismissPhotosHowto}

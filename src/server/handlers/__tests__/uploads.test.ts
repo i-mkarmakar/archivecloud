@@ -10,28 +10,28 @@ import {
 } from "./handler-test-utils";
 
 const {
-  uploadGoogleDriveMediaFile,
+  pushPulledFileToProvider,
+  syncProviderQuota,
   initGoogleDriveResumableUpload,
   queryGoogleDriveResumableStatus,
   putGoogleDriveResumableChunk,
-  syncGoogleQuota,
 } = vi.hoisted(() => ({
-  uploadGoogleDriveMediaFile: vi.fn(),
+  pushPulledFileToProvider: vi.fn(),
+  syncProviderQuota: vi.fn(),
   initGoogleDriveResumableUpload: vi.fn(),
   queryGoogleDriveResumableStatus: vi.fn(),
   putGoogleDriveResumableChunk: vi.fn(),
-  syncGoogleQuota: vi.fn(),
 }));
 
 vi.mock("@/server/modules/providers/google-drive-upload", () => ({
-  uploadGoogleDriveMediaFile,
   initGoogleDriveResumableUpload,
   queryGoogleDriveResumableStatus,
   putGoogleDriveResumableChunk,
 }));
 
-vi.mock("@/server/modules/providers/google/google.service", () => ({
-  syncGoogleQuota,
+vi.mock("@/server/modules/providers/operations", () => ({
+  pushPulledFileToProvider,
+  syncProviderQuota,
 }));
 
 import {
@@ -130,18 +130,18 @@ function buildMultipartRequest(params: {
 describe("handleUploadRequest (media upload)", () => {
   beforeEach(() => {
     authed();
-    syncGoogleQuota.mockResolvedValue(undefined);
-    uploadGoogleDriveMediaFile.mockImplementation(
-      async (params: {
-        body: Readable;
-        fileName: string;
-        mimeType: string;
-      }) => {
-        await drainReadable(params.body);
+    syncProviderQuota.mockResolvedValue(undefined);
+    pushPulledFileToProvider.mockImplementation(
+      async (
+        _account: unknown,
+        pulled: { stream: Readable; name: string; mimeType: string },
+      ) => {
+        await drainReadable(pulled.stream);
         return {
-          id: "g-file-1",
-          name: params.fileName,
-          mimeType: params.mimeType,
+          destProviderFileId: "g-file-1",
+          name: pulled.name,
+          mimeType: pulled.mimeType,
+          sizeBytes: 0n,
         };
       },
     );
@@ -180,11 +180,10 @@ describe("handleUploadRequest (media upload)", () => {
       name: "hello.txt",
       sizeBytes: String(content.length),
     });
-    expect(uploadGoogleDriveMediaFile).toHaveBeenCalledTimes(1);
-    expect(uploadGoogleDriveMediaFile.mock.calls[0][0]).toMatchObject({
-      fileName: "hello.txt",
+    expect(pushPulledFileToProvider).toHaveBeenCalledTimes(1);
+    expect(pushPulledFileToProvider.mock.calls[0][1]).toMatchObject({
+      name: "hello.txt",
       mimeType: "text/plain",
-      parentId: "root",
     });
   });
 
@@ -231,9 +230,9 @@ describe("handleUploadRequest (media upload)", () => {
   it("returns UPLOAD_FAILED when the provider seam errors", async () => {
     mockEligibleAccounts();
     prismaMock.uploadSession.create.mockResolvedValue({ id: "sess-fail" });
-    uploadGoogleDriveMediaFile.mockImplementation(
-      async (params: { body: Readable }) => {
-        await drainReadable(params.body);
+    pushPulledFileToProvider.mockImplementation(
+      async (_account: unknown, pulled: { stream: Readable }) => {
+        await drainReadable(pulled.stream);
         throw new Error("Drive create failed");
       },
     );
@@ -260,7 +259,7 @@ describe("handleUploadRequest (media upload)", () => {
 describe("resumableInitHandler", () => {
   beforeEach(() => {
     authed();
-    syncGoogleQuota.mockResolvedValue(undefined);
+    syncProviderQuota.mockResolvedValue(undefined);
   });
 
   it("happy path: creates a resumable session via the seam", async () => {
@@ -430,7 +429,7 @@ describe("resumableStatusHandler", () => {
 describe("resumableChunkHandler", () => {
   beforeEach(() => {
     authed();
-    syncGoogleQuota.mockResolvedValue(undefined);
+    syncProviderQuota.mockResolvedValue(undefined);
   });
 
   it("happy path: completes a chunk upload via the seam", async () => {

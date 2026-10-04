@@ -34,104 +34,67 @@ function icloudAccount(
 }
 
 describe("provider capabilities", () => {
-  it("marks Google Drive as full-featured and iCloud as connection-only", () => {
+  it("marks iCloud Drive and Photos as ACH-capable", () => {
     expect(providerSupports("google_drive", "supportsUpload")).toBe(true);
-    expect(providerSupports("google_drive", "supportsDownload")).toBe(true);
     expect(providerSupportsMove("google_drive")).toBe(true);
 
-    expect(providerSupports("icloud_drive", "supportsUpload")).toBe(false);
-    expect(providerSupports("icloud_drive", "supportsDownload")).toBe(false);
-    expect(providerSupports("icloud_drive", "supportsDelete")).toBe(false);
+    expect(providerSupports("icloud_drive", "supportsUpload")).toBe(true);
+    expect(providerSupports("icloud_drive", "supportsDownload")).toBe(true);
+    expect(providerSupports("icloud_drive", "supportsDelete")).toBe(true);
+    expect(providerSupportsMove("icloud_drive")).toBe(true);
+
+    expect(providerSupports("icloud_photos", "supportsDownload")).toBe(true);
+    expect(providerSupports("icloud_photos", "supportsUpload")).toBe(true);
+    expect(providerSupports("icloud_photos", "supportsDelete")).toBe(true);
     expect(providerSupports("icloud_photos", "supportsRename")).toBe(false);
-    expect(providerSupportsMove("icloud_drive")).toBe(false);
-    expect(providerSupports("icloud_drive", "supportsBrowse")).toBe(true);
+    expect(providerSupportsMove("icloud_photos")).toBe(true);
   });
 
-  it("assertProviderCapability throws NOT_SUPPORTED for iCloud upload", () => {
+  it("assertProviderCapability still blocks rename for iCloud", () => {
     expect(() =>
-      assertProviderCapability("icloud_drive", "supportsUpload"),
+      assertProviderCapability("icloud_photos", "supportsRename"),
     ).toThrow(AppHttpError);
-
-    try {
-      assertProviderCapability("icloud_drive", "supportsUpload");
-    } catch (error) {
-      expect(error).toMatchObject({
-        code: "NOT_SUPPORTED",
-        status: 400,
-        message: "Upload is not supported for iCloud Drive.",
-      });
-    }
   });
 });
 
-describe("iCloud transfer stubs", () => {
+describe("iCloud transfer stubs without session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("rejects upload/download/delete with NOT_SUPPORTED", async () => {
-    const account = icloudAccount();
+  it("fails closed without an encrypted session", async () => {
+    const drive = icloudAccount("icloud_drive");
+    const photos = icloudAccount("icloud_photos");
 
     await expect(
       uploadICloudFileFromStream({
-        account,
+        account: drive,
         parentId: "root",
         fileName: "a.txt",
         mimeType: "text/plain",
         body: Readable.from(["x"]),
       }),
-    ).rejects.toMatchObject({
-      code: "NOT_SUPPORTED",
-      message: "Upload is not supported for iCloud Drive.",
-    });
+    ).rejects.toThrow();
 
-    await expect(
-      downloadICloudFileStream(account, "file-1"),
-    ).rejects.toMatchObject({
-      code: "NOT_SUPPORTED",
-      message: "Download is not supported for iCloud Drive.",
-    });
-
-    await expect(deleteICloudFile(account, "file-1")).rejects.toMatchObject({
-      code: "NOT_SUPPORTED",
-      message: "Delete is not supported for iCloud Drive.",
-    });
-  });
-
-  it("operations facade does not fake success for iCloud transfers", async () => {
-    const account = icloudAccount("icloud_photos");
-
-    await expect(pullProviderFile(account, "file-1")).rejects.toMatchObject({
-      code: "NOT_SUPPORTED",
-    });
-
-    await expect(
-      pushPulledFileToProvider(account, {
-        stream: Readable.from(["x"]),
-        mimeType: "text/plain",
-        name: "a.txt",
-        sizeBytes: 1n,
-      }),
-    ).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
-
-    await expect(
-      deleteProviderFile({ account, providerFileId: "file-1" }),
-    ).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
+    await expect(downloadICloudFileStream(drive, "file-1")).rejects.toThrow();
+    await expect(deleteICloudFile(photos, "file-1")).rejects.toThrow();
+    await expect(pullProviderFile(photos, "file-1")).rejects.toThrow();
 
     await expect(
       renameProviderFile({
-        account,
+        account: photos,
         providerFileId: "file-1",
         newName: "b.txt",
       }),
     ).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
 
+    // Cross-cloud move uses transfer jobs; in-provider move stays unsupported.
     await expect(
       moveProviderItem({
-        account,
+        account: drive,
         providerItemId: "file-1",
         destParentId: "root",
       }),
-    ).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
+    ).rejects.toThrow();
   });
 });

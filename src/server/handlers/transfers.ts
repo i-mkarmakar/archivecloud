@@ -133,7 +133,7 @@ export async function createTransferCopyHandler(request: Request) {
       sourceProviderFileId: z.string().min(1),
       destParentId: z.string().min(1).optional().nullable(),
       fileName: z.string().trim().min(1).max(255).optional(),
-
+      type: z.enum(["copy", "move"]).optional().default("copy"),
       sourceFileId: z.string().min(1).optional(),
     })
     .parse(await request.json());
@@ -172,6 +172,13 @@ export async function createTransferCopyHandler(request: Request) {
     return errorJson(
       "UNSUPPORTED_PROVIDER",
       "Cloud-to-cloud copy currently supports all connected providers in the catalog.",
+      400,
+    );
+  }
+  if (sourceAccount.provider === "google_photos") {
+    return errorJson(
+      "UNSUPPORTED_SOURCE",
+      "Copy from Google Photos using the Photos Copy flow (picker + destination).",
       400,
     );
   }
@@ -240,7 +247,7 @@ export async function createTransferCopyHandler(request: Request) {
   const job = await prisma.transferJob.create({
     data: {
       userId: user.id,
-      type: "copy",
+      type: body.type,
       status: "queued",
       sourceAccountId: body.sourceAccountId,
       destAccountId: body.destAccountId,
@@ -258,7 +265,7 @@ export async function createTransferCopyHandler(request: Request) {
 
   await createAuditLog(
     user.id,
-    "TRANSFER_COPY_QUEUED",
+    body.type === "move" ? "TRANSFER_MOVE_QUEUED" : "TRANSFER_COPY_QUEUED",
     "transfer_job",
     job.id,
     {

@@ -18,11 +18,18 @@ export type UploadProgressState = {
   files: UploadProgressFile[];
 };
 
+export type UploadRoutingOptions = {
+  targetAccountId?: string | null;
+  /** When Ask Every Time is on, user chose Smart File Distribution for this upload. */
+  useSmartDistribution?: boolean;
+};
+
 type ResumableSession = {
   sessionId: string;
   file: File;
   folderId?: string | null;
   targetAccountId?: string | null;
+  useSmartDistribution?: boolean;
 };
 
 type UploadContextType = {
@@ -31,12 +38,20 @@ type UploadContextType = {
   uploadFiles: (
     files: File[],
     folderId: string | null,
-    targetAccountId?: string | null,
+    routing?: UploadRoutingOptions | string | null,
   ) => Promise<void>;
   retryFailedUpload: (fileName: string) => Promise<void>;
 };
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
+
+function normalizeRouting(
+  routing?: UploadRoutingOptions | string | null,
+): UploadRoutingOptions {
+  if (routing == null) return {};
+  if (typeof routing === "string") return { targetAccountId: routing };
+  return routing;
+}
 
 export function UploadProvider({ children }: { children: ReactNode }) {
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState>({
@@ -50,12 +65,65 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     Record<string, ResumableSession>
   >({});
 
+  async function uploadMultipartFile(
+    file: File,
+    folderId: string | null,
+    onProgress: (percent: number) => void,
+    routing: UploadRoutingOptions,
+    accountId?: string,
+  ) {
+    const form = new FormData();
+    form.append("sizeBytes", String(file.size));
+    form.append("fileName", file.name);
+    form.append("mimeType", file.type || "application/octet-stream");
+    if (folderId) form.append("folderId", folderId);
+    if (accountId || routing.targetAccountId) {
+      form.append(
+        "targetAccountId",
+        accountId || routing.targetAccountId || "",
+      );
+    }
+    if (routing.useSmartDistribution) {
+      form.append("useSmartDistribution", "true");
+    }
+    form.append("file-0", file, file.name);
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_URL}/uploads`);
+      xhr.withCredentials = true;
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || event.total <= 0) return;
+        onProgress(
+          Math.min(99, Math.round((event.loaded / event.total) * 100)),
+        );
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(100);
+          resolve();
+          return;
+        }
+        let message = "Upload failed";
+        try {
+          const body = JSON.parse(xhr.responseText) as { message?: string };
+          if (body.message) message = body.message;
+        } catch {
+          /* ignore */
+        }
+        reject(new Error(message));
+      };
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(form);
+    });
+  }
+
   async function uploadSingleFileResumable(
     file: File,
     folderId: string | null,
     onProgress: (percent: number) => void,
     sessionIdToRetry?: string,
-    targetAccountId?: string | null,
+    routing: UploadRoutingOptions = {},
   ) {
     const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (must be multiple of 256KB for Google Drive)
     let sessionId = sessionIdToRetry || "";
@@ -63,27 +131,55 @@ export function UploadProvider({ children }: { children: ReactNode }) {
 
     setResumableSessions((prev) => ({
       ...prev,
-      [file.name]: { sessionId, file, folderId, targetAccountId },
+      [file.name]: {
+        sessionId,
+        file,
+        folderId,
+        targetAccountId: routing.targetAccountId,
+        useSmartDistribution: routing.useSmartDistribution,
+      },
     }));
 
     if (!sessionId) {
-      const initData = await apiFetch<{ sessionId: string; provider: string }>(
-        "/uploads/resumable/init",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            fileName: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: String(file.size),
-            folderId: folderId || undefined,
-            targetAccountId: targetAccountId || undefined,
-          }),
-        },
-      );
-      sessionId = initData.sessionId;
+      const initData = await apiFetch<{
+        sessionId?: string;
+        provider?: string;
+        uploadMode?: "multipart";
+        accountId?: string;
+      }>("/uploads/resumable/init", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: String(file.size),
+          folderId: folderId || undefined,
+          targetAccountId: routing.targetAccountId || undefined,
+          useSmartDistribution: routing.useSmartDistribution || undefined,
+        }),
+      });
+
+      if (initData.uploadMode === "multipart") {
+        await uploadMultipartFile(
+          file,
+          folderId,
+          onProgress,
+          routing,
+          initData.accountId,
+        );
+        return;
+      }
+
+      sessionId = initData.sessionId || "";
+      if (!sessionId) throw new Error("Upload session was not created.");
       setResumableSessions((prev) => ({
         ...prev,
-        [file.name]: { sessionId, file, folderId, targetAccountId },
+        [file.name]: {
+          sessionId,
+          file,
+          folderId,
+          targetAccountId: routing.targetAccountId,
+          useSmartDistribution: routing.useSmartDistribution,
+        },
       }));
     } else {
       const statusData = await apiFetch<{ status: string; offset: string }>(
@@ -135,9 +231,10 @@ export function UploadProvider({ children }: { children: ReactNode }) {
   async function uploadFiles(
     filesToUpload: File[],
     targetFolderId: string | null,
-    targetAccountId?: string | null,
+    routing?: UploadRoutingOptions | string | null,
   ) {
     if (filesToUpload.length === 0) return;
+    const options = normalizeRouting(routing);
 
     setUploadProgress({
       open: true,
@@ -183,7 +280,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
             });
           },
           undefined,
-          targetAccountId,
+          options,
         );
       } catch (err) {
         console.error("File upload failed:", file.name, err);
@@ -250,8 +347,11 @@ export function UploadProvider({ children }: { children: ReactNode }) {
             };
           });
         },
-        session.sessionId,
-        session.targetAccountId,
+        session.sessionId || undefined,
+        {
+          targetAccountId: session.targetAccountId,
+          useSmartDistribution: session.useSmartDistribution,
+        },
       );
 
       window.dispatchEvent(new Event("archivecloud:storage-changed"));

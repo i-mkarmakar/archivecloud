@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronDown } from "@gravity-ui/icons";
+import { Button, Dropdown, Label, type Selection } from "@heroui/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -8,24 +10,65 @@ export function ScheduleStep({
   title,
   description,
   children,
+  isLast = false,
+  state = "active",
 }: {
   n: number;
   title: string;
   description: string;
   children: ReactNode;
+  isLast?: boolean;
+  /** locked = not yet reachable; active = current; complete = finished */
+  state?: "locked" | "active" | "complete";
 }) {
+  const locked = state === "locked";
+  const complete = state === "complete";
+
   return (
-    <section className="space-y-2">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+    <section
+      className={cn("relative space-y-2", !isLast && "pb-6")}
+      aria-disabled={locked || undefined}
+    >
+      {!isLast ? (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute top-6 bottom-0 left-[9px] w-px",
+            complete ? "bg-primary/40" : "bg-border",
+          )}
+        />
+      ) : null}
+      <div className="relative flex items-start gap-2">
+        <span
+          className={cn(
+            "relative z-10 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ring-4 ring-white",
+            locked && "bg-surface-secondary text-muted-foreground",
+            state === "active" && "bg-primary text-primary-foreground",
+            complete && "bg-primary text-primary-foreground",
+          )}
+        >
           {n}
         </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-extrabold text-foreground">{title}</h3>
+        <div className={cn("min-w-0 flex-1", locked && "opacity-50")}>
+          <h3
+            className={cn(
+              "text-sm font-extrabold",
+              locked ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {title}
+          </h3>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="pl-7">{children}</div>
+      <div
+        className={cn(
+          "relative pl-7",
+          locked && "pointer-events-none opacity-40",
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -97,29 +140,42 @@ export function PickerSelect({
   disabled?: boolean;
   icon: ReactNode;
 }) {
+  const selected = options.find((o) => o.id === value);
+  const label = selected?.label ?? placeholder;
+
   return (
-    <label className="relative block min-w-0 flex-1">
-      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted">
-        {icon}
-      </span>
-      <select
+    <Dropdown className="min-w-0 flex-1">
+      <Button
+        variant="secondary"
+        isDisabled={disabled || options.length === 0}
         className={cn(
-          "h-9 w-full appearance-none rounded-lg border border-border bg-white py-1.5 pl-8 pr-7 text-xs font-medium",
-          disabled
-            ? "cursor-not-allowed text-muted-foreground opacity-70"
-            : "text-foreground",
+          "h-9 w-full justify-between rounded-full border border-border bg-white px-3 text-xs font-medium",
+          selected ? "text-foreground" : "text-muted-foreground",
         )}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">{placeholder}</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-muted">{icon}</span>
+          <span className="truncate">{label}</span>
+        </span>
+        <ChevronDown className="size-3.5 shrink-0 text-muted" />
+      </Button>
+      <Dropdown.Popover className="min-w-[220px]">
+        <Dropdown.Menu
+          selectionMode="single"
+          selectedKeys={value ? new Set([value]) : new Set()}
+          onSelectionChange={(keys: Selection) => {
+            if (keys === "all") return;
+            const key = [...keys][0];
+            if (typeof key === "string") onChange(key);
+          }}
+        >
+          {options.map((o) => (
+            <Dropdown.Item key={o.id} id={o.id} textValue={o.label}>
+              <Label>{o.label}</Label>
+            </Dropdown.Item>
+          ))}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
   );
 }

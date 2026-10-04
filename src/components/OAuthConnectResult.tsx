@@ -34,6 +34,13 @@ export function OAuthConnectResult({
       }, 250);
       return;
     }
+    // Full-page Google Photos connect: land on Photos + show howto (ACH-style).
+    if (ok && messageType === "GOOGLE_PHOTOS_CONNECTED" && accountId) {
+      router.replace(
+        `/home?accountId=${encodeURIComponent(accountId)}&photosHowto=1`,
+      );
+      return;
+    }
     router.replace(ok ? "/home" : "/settings");
   }, [accountId, messageType, ok, router, status]);
 

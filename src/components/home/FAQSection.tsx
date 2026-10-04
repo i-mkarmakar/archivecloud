@@ -19,7 +19,7 @@ const FAQ_ITEMS = [
   {
     question: "Which cloud storage services does Archive Cloud support?",
     answer:
-      "Archive Cloud supports Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, and pCloud for full browse and transfers. iCloud Drive / iCloud Photos can be connected in Beta (account link only — upload, download, and listing are not available yet).",
+      "Archive Cloud supports Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, and iCloud Drive / Photos. iCloud connects with Apple ID + 2FA for browse, copy, and move.",
   },
   {
     question: "Is there a data transfer limit?",

@@ -40,21 +40,46 @@ async function streamGooglePhotosImportedFileResponse(
   _range: string | undefined,
   options: StreamOptions = {},
 ): Promise<Response> {
+  // App-created / uploaded-into Photos: bytes live on Photos itself.
+  try {
+    const pulled = await pullProviderFile(
+      file.connectedAccount,
+      file.providerFileId,
+      file.name,
+      options.signal,
+    );
+    destroyStreamOnAbort(pulled.stream, options.signal);
+    const headers = new Headers();
+    applyPublicByteSafetyHeaders(headers, {
+      mimeType: pulled.mimeType || file.mimeType,
+      fileName: pulled.name || file.name,
+      preferredDisposition: options.disposition ?? "attachment",
+    });
+    applyContentLengthHeader(headers, {
+      providerContentLength: pulled.providerContentLength,
+      sizeBytes: pulled.sizeBytes,
+    });
+    headers.set("Cache-Control", "private, max-age=300");
+    const webStream = Readable.toWeb(pulled.stream) as ReadableStream;
+    return new Response(webStream, { status: 200, headers });
+  } catch {
+    // Fall through: picker copies store durable bytes on another cloud.
+  }
+
   const job = await findPhotosImportDest(file);
 
   if (!job?.destProviderFileId || !job.destAccount) {
     return errorJson(
       "PHOTOS_FILE_BYTES_UNAVAILABLE",
-      "This Google Photos import has no stored copy yet. Connect another cloud and import again.",
+      "This Google Photos item has no stored copy yet. Copy it to another cloud first.",
       404,
     );
   }
 
-  // Skip if dest was the same photos account (reference-only import).
   if (job.destAccount.provider === "google_photos") {
     return errorJson(
       "PHOTOS_FILE_BYTES_UNAVAILABLE",
-      "This Google Photos import has no stored copy yet. Connect another cloud and import again.",
+      "This Google Photos item has no stored copy yet. Copy it to another cloud first.",
       404,
     );
   }

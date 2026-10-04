@@ -3,7 +3,6 @@
 import {
   Bell,
   Camera,
-  ChevronDown,
   CircleInfo,
   Envelope,
   FileText,
@@ -14,14 +13,7 @@ import {
   TrashBin,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import {
-  Button,
-  Dropdown,
-  Label,
-  type Selection,
-  Switch,
-  toast,
-} from "@heroui/react";
+import { Button, Switch, toast } from "@heroui/react";
 import Link from "next/link";
 import {
   type ChangeEvent,
@@ -124,18 +116,12 @@ type LinkedAccount = {
 
 const PREFS_KEY = "archivecloud:settings-prefs";
 
-type RoutingMode = "most_available" | "round_robin" | "priority";
+type RoutingMode = "most_available" | "ask_every_time";
 type RoutingPolicy = {
   mode: RoutingMode;
   priorityAccountIds: string[];
   roundRobinCursor: number;
 };
-
-const ROUTING_MODE_OPTIONS: { id: RoutingMode; label: string }[] = [
-  { id: "most_available", label: "Most available space" },
-  { id: "round_robin", label: "Round robin" },
-  { id: "priority", label: "Priority order" },
-];
 
 type SettingsPrefs = {
   newsletter: boolean;
@@ -700,7 +686,11 @@ export function SettingsPage() {
         },
       );
       setRoutingPolicy(data.policy);
-      toast.success("Upload routing policy updated.");
+      toast.success(
+        data.policy.mode === "ask_every_time"
+          ? "Smart File Distribution is deactivated."
+          : "Smart File Distribution is activated.",
+      );
     } catch (error) {
       toast.danger(
         error instanceof Error
@@ -710,6 +700,16 @@ export function SettingsPage() {
     } finally {
       setRoutingSaving(false);
     }
+  }
+
+  const smartDistributionOn = routingPolicy.mode !== "ask_every_time";
+
+  function setSmartDistribution(enabled: boolean) {
+    if (enabled === smartDistributionOn) return;
+    void saveRoutingPolicy({
+      ...routingPolicy,
+      mode: enabled ? "most_available" : "ask_every_time",
+    });
   }
 
   async function onAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -1118,74 +1118,55 @@ export function SettingsPage() {
                 Smart File Distribution
               </h3>
               <p className="mt-2 text-sm text-muted">
-                Automatically route uploads across Google Drive, Dropbox,
-                OneDrive, and other connected clouds based on available space
-                and your routing policy.
+                Smart File Distribution automatically routes your uploaded files
+                or folders to Google Drive, Dropbox, OneDrive, pCloud, iCloud
+                Photos, or other connected clouds based on the current storage
+                usage of each platform. We calculate the storage fill percentage
+                and store your files on the cloud service with the most
+                available space.
+              </p>
+              <p className="mt-2 text-sm text-muted">
+                You can turn this off or choose to be asked each time during
+                file upload.
               </p>
               {hasSmartDistribution ? (
-                <div className="mt-4 grid gap-3 sm:max-w-md">
-                  <div className="grid gap-2 text-sm font-semibold text-foreground">
-                    Routing mode
-                    <Dropdown>
-                      <Button
-                        variant="secondary"
-                        className="h-11 w-full justify-between rounded-xl border border-border bg-white px-3 text-sm font-medium"
-                        isDisabled={routingSaving}
-                      >
-                        {ROUTING_MODE_OPTIONS.find(
-                          (o) => o.id === routingPolicy.mode,
-                        )?.label ?? "Most available space"}
-                        <ChevronDown className="size-4 shrink-0 text-muted" />
-                      </Button>
-                      <Dropdown.Popover className="min-w-[220px]">
-                        <Dropdown.Menu
-                          selectionMode="single"
-                          selectedKeys={new Set([routingPolicy.mode])}
-                          onSelectionChange={(keys: Selection) => {
-                            if (keys === "all") return;
-                            const key = [...keys][0];
-                            if (
-                              typeof key === "string" &&
-                              ROUTING_MODE_OPTIONS.some((o) => o.id === key)
-                            ) {
-                              void saveRoutingPolicy({
-                                ...routingPolicy,
-                                mode: key as RoutingMode,
-                              });
-                            }
-                          }}
-                        >
-                          {ROUTING_MODE_OPTIONS.map((option) => (
-                            <Dropdown.Item
-                              key={option.id}
-                              id={option.id}
-                              textValue={option.label}
-                            >
-                              <Label>{option.label}</Label>
-                            </Dropdown.Item>
-                          ))}
-                        </Dropdown.Menu>
-                      </Dropdown.Popover>
-                    </Dropdown>
-                  </div>
-                  <p className="text-xs text-muted">
-                    Set account priority order on the{" "}
-                    <Link
-                      href="/quota"
-                      className="font-semibold text-foreground underline-offset-4 hover:underline"
-                    >
-                      Quota Tracker
-                    </Link>{" "}
-                    page.
-                  </p>
+                <div className="mt-4 flex items-center justify-center gap-3 sm:justify-start">
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      smartDistributionOn ? "text-muted" : "text-foreground",
+                    )}
+                  >
+                    Ask Every Time
+                  </span>
+                  <PrefSwitch
+                    isSelected={smartDistributionOn}
+                    isDisabled={routingSaving}
+                    onChange={setSmartDistribution}
+                    aria-label="Smart file distribution"
+                  />
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      smartDistributionOn ? "text-foreground" : "text-muted",
+                    )}
+                  >
+                    Smart File Distribution
+                  </span>
                 </div>
               ) : canUpgrade ? (
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+                  <span className="text-sm font-semibold text-foreground">
+                    Ask Every Time
+                  </span>
                   <PrefSwitch
                     isSelected={false}
                     onChange={() => setUpgradeOpen(true)}
                     aria-label="Smart file distribution"
                   />
+                  <span className="text-sm font-semibold text-muted">
+                    Smart File Distribution
+                  </span>
                   <Button size="sm" onPress={() => setUpgradeOpen(true)}>
                     Upgrade to Enable
                   </Button>

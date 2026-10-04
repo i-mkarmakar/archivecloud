@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleInfo, Clock } from "@gravity-ui/icons";
+import { ArrowRight, CircleInfo, Clock } from "@gravity-ui/icons";
 import { cn } from "@/lib/utils";
 import {
   accountLabel,
@@ -30,12 +30,8 @@ export function ScheduleSummary({
   destFolderName: string | null;
   showDest: boolean;
 }) {
-  const title =
-    operation === "delete"
-      ? `Delete ${sourceName || "…"}`
-      : operation === "move"
-        ? `Move ${sourceName || "…"}`
-        : `Copy ${sourceName || "…"}`;
+  const from = sourceName || "…";
+  const to = destFolderName || "folder";
 
   return (
     <aside className="hidden min-h-0 border-l border-border bg-[#f7f9fa] lg:flex lg:flex-col">
@@ -45,7 +41,17 @@ export function ScheduleSummary({
         </p>
 
         <div>
-          <p className="text-sm font-extrabold text-foreground">{title}</p>
+          <p className="text-sm font-extrabold text-foreground">
+            {operation === "delete" ? (
+              `Delete ${from}`
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                {operation === "move" ? "Move" : "Copy"} {from}
+                <ArrowRight className="size-3.5 shrink-0" />
+                {to}
+              </span>
+            )}
+          </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             <span
               className={cn(

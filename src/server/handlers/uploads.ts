@@ -1,17 +1,21 @@
 import { Readable, Transform } from "node:stream";
 import Busboy from "busboy";
 import { z } from "zod";
+import type { ConnectedAccount } from "@/generated/prisma/client";
 import { env } from "@/server/config/env";
 import { prisma } from "@/server/config/prisma";
 import { type AuthUser, requireAuthUser } from "@/server/http/auth";
 import { errorJson, json } from "@/server/http/responses";
-import { syncGoogleQuota } from "@/server/modules/providers/google/google.service";
 import {
   initGoogleDriveResumableUpload,
   putGoogleDriveResumableChunk,
   queryGoogleDriveResumableStatus,
-  uploadGoogleDriveMediaFile,
 } from "@/server/modules/providers/google-drive-upload";
+import {
+  pushPulledFileToProvider,
+  syncProviderQuota,
+} from "@/server/modules/providers/operations";
+import { providerSupports } from "@/server/modules/providers/types";
 import { createAuditLog } from "@/server/utils/audit";
 import { createNotification } from "@/server/utils/notifications";
 
@@ -21,64 +25,59 @@ type UploadMeta = {
   mimeType: string;
   sizeBytes: bigint;
   folderId?: string;
+  targetAccountId?: string;
+  useSmartDistribution?: boolean;
 };
-type RoutingMode = "most_available" | "round_robin" | "priority";
-
 function logUpload(message: string, metadata?: Record<string, unknown>) {
   console.info("[upload]", message, metadata ?? "");
 }
 
-function syncQuotaInBackground(accountId: string, sessionId: string) {
-  logUpload("quota sync started", { accountId, sessionId });
-  syncGoogleQuota(accountId)
-    .then(() => logUpload("quota sync completed", { accountId, sessionId }))
+function syncQuotaInBackground(account: ConnectedAccount, sessionId: string) {
+  logUpload("quota sync started", { accountId: account.id, sessionId });
+  void syncProviderQuota(account)
+    .then(() =>
+      logUpload("quota sync completed", {
+        accountId: account.id,
+        sessionId,
+      }),
+    )
     .catch((error) =>
       logUpload("quota sync failed", {
-        accountId,
+        accountId: account.id,
         sessionId,
         message: error instanceof Error ? error.message : "Unknown error",
       }),
     );
 }
 
-function normalizePriorityAccountIds(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-function byPriority<T extends { account: { id: string; createdAt: Date } }>(
-  items: T[],
-  priorityAccountIds: string[],
-) {
-  const order = new Map(priorityAccountIds.map((id, index) => [id, index]));
-  return [...items].sort((a, b) => {
-    const aOrder = order.get(a.account.id);
-    const bOrder = order.get(b.account.id);
-    if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
-    if (aOrder !== undefined) return -1;
-    if (bOrder !== undefined) return 1;
-    return a.account.createdAt.getTime() - b.account.createdAt.getTime();
-  });
-}
+type SelectAccountResult =
+  | { ok: true; account: ConnectedAccount }
+  | {
+      ok: false;
+      code: "UPLOAD_ACCOUNT_REQUIRED" | "NO_ACCOUNT_WITH_ENOUGH_SPACE";
+      message: string;
+    };
 
 async function selectAccount(
   userId: string,
   sizeBytes: bigint,
   reservedBytesByAccount = new Map<string, bigint>(),
   targetAccountId?: string | null,
-) {
+  options?: { forceSmart?: boolean },
+): Promise<SelectAccountResult> {
   const accounts = await prisma.connectedAccount.findMany({
     where: {
       userId,
-      provider: "google_drive",
       status: "connected",
       ...(targetAccountId ? { id: targetAccountId } : {}),
     },
     include: { storageAccount: true },
   });
+  const uploadCapable = accounts.filter((account) =>
+    providerSupports(account.provider, "supportsUpload"),
+  );
 
-  const stale = accounts.filter(
+  const stale = uploadCapable.filter(
     (account) =>
       !account.storageAccount?.lastSyncedAt ||
       account.storageAccount.lastSyncedAt.getTime() < Date.now() - 5 * 60_000,
@@ -86,7 +85,7 @@ async function selectAccount(
   await Promise.allSettled(
     stale.map(async (account) => {
       try {
-        await syncGoogleQuota(account.id);
+        await syncProviderQuota(account);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Quota sync failed";
@@ -107,13 +106,14 @@ async function selectAccount(
   const fresh = await prisma.connectedAccount.findMany({
     where: {
       userId,
-      provider: "google_drive",
       status: "connected",
+      ...(targetAccountId ? { id: targetAccountId } : {}),
     },
     include: { storageAccount: true },
   });
 
   const eligible = fresh
+    .filter((account) => providerSupports(account.provider, "supportsUpload"))
     .map((account) => ({
       account,
       availableBytes:
@@ -128,11 +128,25 @@ async function selectAccount(
         availableBytes === null || availableBytes >= sizeBytes,
     );
 
-  if (eligible.length === 0) return null;
+  if (eligible.length === 0) {
+    return {
+      ok: false,
+      code: "NO_ACCOUNT_WITH_ENOUGH_SPACE",
+      message: "No connected storage account has enough space for this upload.",
+    };
+  }
 
   if (targetAccountId) {
     const target = eligible.find((e) => e.account.id === targetAccountId);
-    return target?.account ?? null;
+    if (!target) {
+      return {
+        ok: false,
+        code: "NO_ACCOUNT_WITH_ENOUGH_SPACE",
+        message:
+          "No connected storage account has enough space for this upload.",
+      };
+    }
+    return { ok: true, account: target.account };
   }
 
   const policy = await prisma.uploadRoutingPolicy.upsert({
@@ -140,37 +154,30 @@ async function selectAccount(
     create: { userId, mode: "most_available", priorityAccountIds: [] },
     update: {},
   });
-  const mode = (
-    ["most_available", "round_robin", "priority"].includes(policy.mode)
-      ? policy.mode
-      : "most_available"
-  ) as RoutingMode;
-  const priorityAccountIds = normalizePriorityAccountIds(
-    policy.priorityAccountIds,
-  );
-
-  if (mode === "priority")
-    return byPriority(eligible, priorityAccountIds)[0]?.account ?? null;
-
-  if (mode === "round_robin") {
-    const ordered = byPriority(eligible, priorityAccountIds);
-    const selected =
-      ordered[policy.roundRobinCursor % ordered.length]?.account ??
-      ordered[0]?.account ??
-      null;
-    await prisma.uploadRoutingPolicy.update({
-      where: { userId },
-      data: { roundRobinCursor: policy.roundRobinCursor + 1 },
-    });
-    return selected;
+  if (policy.mode === "ask_every_time" && !options?.forceSmart) {
+    return {
+      ok: false,
+      code: "UPLOAD_ACCOUNT_REQUIRED",
+      message:
+        "Choose Smart File Distribution or a storage account for this upload.",
+    };
   }
 
-  return eligible.sort((a, b) => {
+  const selected = eligible.sort((a, b) => {
     if (a.availableBytes === null && b.availableBytes === null) return 0;
     if (a.availableBytes === null) return 1;
     if (b.availableBytes === null) return -1;
     return Number(b.availableBytes - a.availableBytes);
   })[0]?.account;
+
+  if (!selected) {
+    return {
+      ok: false,
+      code: "NO_ACCOUNT_WITH_ENOUGH_SPACE",
+      message: "No connected storage account has enough space for this upload.",
+    };
+  }
+  return { ok: true, account: selected };
 }
 
 function requestHeadersRecord(request: Request): Record<string, string> {
@@ -214,6 +221,8 @@ export async function handleUploadRequest(
       fileName?: string;
       mimeType?: string;
       folderId?: string;
+      targetAccountId?: string;
+      useSmartDistribution?: boolean;
     } = {};
     let batchMeta: UploadMeta[] | null = null;
     let responded = false;
@@ -238,12 +247,16 @@ export async function handleUploadRequest(
           mimeType: string;
           sizeBytes: string | number;
           folderId?: string;
+          targetAccountId?: string;
+          useSmartDistribution?: boolean;
         }) => ({
           fieldName: item.fieldName,
           fileName: item.fileName,
           mimeType: item.mimeType,
           sizeBytes: BigInt(item.sizeBytes),
           folderId: item.folderId,
+          targetAccountId: item.targetAccountId,
+          useSmartDistribution: item.useSmartDistribution,
         }),
       ) as UploadMeta[];
 
@@ -262,6 +275,8 @@ export async function handleUploadRequest(
         mimeType:
           fields.mimeType || info.mimeType || "application/octet-stream",
         folderId: fields.folderId,
+        targetAccountId: fields.targetAccountId,
+        useSmartDistribution: fields.useSmartDistribution,
       };
     };
 
@@ -296,7 +311,7 @@ export async function handleUploadRequest(
         }
 
         const folderId = meta.folderId || null;
-        let targetAccountId: string | undefined;
+        let targetAccountId = meta.targetAccountId;
         if (folderId) {
           const folderRecord = await prisma.folder.findFirstOrThrow({
             where: { id: folderId, userId: user.id, deletedAt: null },
@@ -306,22 +321,23 @@ export async function handleUploadRequest(
           }
         }
 
-        const account = await selectAccount(
+        const selected = await selectAccount(
           user.id,
           meta.sizeBytes,
           reservedBytesByAccount,
           targetAccountId,
+          { forceSmart: Boolean(meta.useSmartDistribution) },
         );
-        if (!account) {
+        if (!selected.ok) {
           fileStream.resume();
           failed.push({
             fileName,
-            code: "NO_ACCOUNT_WITH_ENOUGH_SPACE",
-            message:
-              "No connected storage account has enough space for this upload.",
+            code: selected.code,
+            message: selected.message,
           });
           return;
         }
+        const account = selected.account;
         reservedBytesByAccount.set(
           account.id,
           (reservedBytesByAccount.get(account.id) ?? 0n) + meta.sizeBytes,
@@ -341,6 +357,7 @@ export async function handleUploadRequest(
         logUpload("file upload started", {
           sessionId: session.id,
           accountId: account.id,
+          provider: account.provider,
           fileName,
           sizeBytes: meta.sizeBytes.toString(),
         });
@@ -360,10 +377,6 @@ export async function handleUploadRequest(
         });
         fileStream.pipe(countingStream);
 
-        let providerFileId = "";
-        let uploadedName = fileName;
-        let uploadedMimeType = meta.mimeType;
-        // Phase 4: upload to provider root (or chosen folder), never archivecloud.
         let targetParentId = "root";
         if (folderId) {
           const folderRecord = await prisma.folder.findFirst({
@@ -373,19 +386,23 @@ export async function handleUploadRequest(
             targetParentId = folderRecord.providerFolderId;
           }
         }
-        const uploaded = await uploadGoogleDriveMediaFile({
+        const uploaded = await pushPulledFileToProvider(
           account,
-          fileName,
-          mimeType: meta.mimeType,
-          parentId: targetParentId,
-          body: countingStream,
-        });
-        providerFileId = uploaded.id;
-        uploadedName = uploaded.name;
-        uploadedMimeType = uploaded.mimeType;
-        logUpload("google upload completed", {
+          {
+            stream: countingStream,
+            mimeType: meta.mimeType,
+            name: fileName,
+            sizeBytes: meta.sizeBytes,
+          },
+          targetParentId,
+        );
+        const providerFileId = uploaded.destProviderFileId;
+        const uploadedName = uploaded.name;
+        const uploadedMimeType = uploaded.mimeType;
+        logUpload("provider upload completed", {
           sessionId: session.id,
           accountId: account.id,
+          provider: account.provider,
           fileName,
         });
 
@@ -410,7 +427,7 @@ export async function handleUploadRequest(
             userId: user.id,
             connectedAccountId: account.id,
             folderId,
-            provider: "google_drive",
+            provider: account.provider,
             providerFileId,
             name: uploadedName,
             mimeType: uploadedMimeType,
@@ -443,7 +460,7 @@ export async function handleUploadRequest(
             : "/home",
           metadata: { fileId: file.id, folderId: folderId ?? null },
         });
-        syncQuotaInBackground(account.id, session.id);
+        syncQuotaInBackground(account, session.id);
       } catch (error) {
         fileStream.resume();
         const { isAppHttpError } = await import("@/server/http/app-error");
@@ -468,6 +485,11 @@ export async function handleUploadRequest(
       if (name === "fileName") fields.fileName = value;
       if (name === "mimeType") fields.mimeType = value;
       if (name === "folderId") fields.folderId = value;
+      if (name === "targetAccountId")
+        fields.targetAccountId = value || undefined;
+      if (name === "useSmartDistribution")
+        fields.useSmartDistribution =
+          value === "1" || value === "true" || value === "yes";
       if (name === "filesMeta") batchMeta = parseBatchMeta(value);
     });
 
@@ -553,6 +575,7 @@ export async function resumableInitHandler(request: Request) {
       sizeBytes: z.string(),
       folderId: z.string().nullable().optional(),
       targetAccountId: z.string().nullable().optional(),
+      useSmartDistribution: z.boolean().optional(),
     })
     .parse(await request.json());
 
@@ -573,24 +596,25 @@ export async function resumableInitHandler(request: Request) {
     }
   }
 
-  const account = await selectAccount(
+  const selected = await selectAccount(
     user.id,
     sizeBytes,
     undefined,
     targetAccountId,
+    { forceSmart: Boolean(body.useSmartDistribution) },
   );
-  if (!account)
-    return errorJson(
-      "NO_ACCOUNT_WITH_ENOUGH_SPACE",
-      "No connected storage account has enough space.",
-      400,
-    );
+  if (!selected.ok) return errorJson(selected.code, selected.message, 400);
+  const account = selected.account;
 
+  // Non-Google providers use multipart streaming (resumable is Drive-only).
   if (account.provider !== "google_drive") {
-    return errorJson(
-      "UNSUPPORTED_PROVIDER",
-      "Only Google Drive resumable uploads are supported.",
-      400,
+    return json(
+      {
+        uploadMode: "multipart" as const,
+        accountId: account.id,
+        provider: account.provider,
+      },
+      200,
     );
   }
 
@@ -845,7 +869,7 @@ export async function resumableChunkHandler(
       },
     });
 
-    syncQuotaInBackground(account.id, session.id);
+    syncQuotaInBackground(account, session.id);
 
     return json(
       {

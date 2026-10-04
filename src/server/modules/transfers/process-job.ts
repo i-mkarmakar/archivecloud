@@ -1,10 +1,13 @@
 import "server-only";
 
 import { prisma } from "@/server/config/prisma";
+import { downloadPickedMediaStream } from "@/server/modules/providers/google/google-photos-picker.service";
+import { pushPulledFileToProvider } from "@/server/modules/providers/operations";
 import {
   copyBetweenProviders,
   deleteProviderFile,
 } from "@/server/modules/transfers/copy-between-providers";
+import { takePhotosPickerPayload } from "@/server/modules/transfers/photos-picker-job-payload";
 import {
   assertTransferCapacity,
   recordTransferUsage,
@@ -88,22 +91,51 @@ async function processTransferJob(jobId: string) {
       return;
     }
 
-    await assertTransferCapacity(job.userId, job.sizeBytes);
+    if (job.sourceAccount.provider === "google_photos" && job.type === "move") {
+      throw new Error("Google Photos does not support move. Use Copy instead.");
+    }
 
-    const result = await copyBetweenProviders({
-      sourceAccount: job.sourceAccount,
-      destAccount: job.destAccount,
-      sourceProviderFileId: job.sourceProviderFileId,
-      destParentId: job.destParentId,
-      fileName: job.fileName,
-    });
+    await assertTransferCapacity(
+      job.userId,
+      job.sizeBytes > 0n ? job.sizeBytes : 1n,
+    );
+
+    let result: {
+      destProviderFileId: string;
+      name: string;
+      mimeType: string;
+      sizeBytes: bigint;
+    };
+
+    if (job.sourceAccount.provider === "google_photos") {
+      const item = takePhotosPickerPayload(jobId);
+      if (!item) {
+        throw new Error(
+          "Photos picker download expired. Select the items and copy again.",
+        );
+      }
+      const pulled = await downloadPickedMediaStream(job.sourceAccount, item);
+      result = await pushPulledFileToProvider(
+        job.destAccount,
+        pulled,
+        job.destParentId,
+      );
+    } else {
+      result = await copyBetweenProviders({
+        sourceAccount: job.sourceAccount,
+        destAccount: job.destAccount,
+        sourceProviderFileId: job.sourceProviderFileId,
+        destParentId: job.destParentId,
+        fileName: job.fileName,
+      });
+    }
 
     const billedBytes =
       result.sizeBytes > 0n
         ? result.sizeBytes
         : job.sizeBytes > 0n
           ? job.sizeBytes
-          : 0n;
+          : 1n;
 
     await recordTransferUsage(job.userId, billedBytes);
 
@@ -126,6 +158,43 @@ async function processTransferJob(jobId: string) {
           sizeBytes: billedBytes,
         },
       });
+    }
+
+    // Photos account view lists source-side records; keep them for browse/preview.
+    if (job.sourceAccount.provider === "google_photos") {
+      const existingSource = await prisma.file.findFirst({
+        where: {
+          userId: job.userId,
+          connectedAccountId: job.sourceAccountId,
+          provider: "google_photos",
+          providerFileId: job.sourceProviderFileId,
+        },
+      });
+      if (existingSource) {
+        await prisma.file.update({
+          where: { id: existingSource.id },
+          data: {
+            name: result.name,
+            mimeType: result.mimeType,
+            sizeBytes: billedBytes,
+            status: "active",
+            deletedAt: null,
+          },
+        });
+      } else {
+        await prisma.file.create({
+          data: {
+            userId: job.userId,
+            connectedAccountId: job.sourceAccountId,
+            provider: "google_photos",
+            providerFileId: job.sourceProviderFileId,
+            name: result.name,
+            mimeType: result.mimeType,
+            sizeBytes: billedBytes,
+            status: "active",
+          },
+        });
+      }
     }
 
     if (job.type === "move") {
@@ -168,6 +237,9 @@ async function processTransferJob(jobId: string) {
         sourceAccountId: job.sourceAccountId,
         destAccountId: job.destAccountId,
         sizeBytes: billedBytes.toString(),
+        ...(job.sourceAccount.provider === "google_photos"
+          ? { via: "google_photos_picker" }
+          : {}),
       },
     );
     await createNotification({

@@ -23,6 +23,7 @@ type Props = {
   onRename: () => void;
   onDownload: () => void;
   onMove: () => void;
+  hideMove?: boolean;
   onRemove: () => void;
   onManageTags: () => void;
   onPublicLink: () => void;
@@ -68,6 +69,7 @@ export function FileContextMenu({
   onRename,
   onDownload,
   onMove,
+  hideMove = false,
   onRemove,
   onManageTags,
   onPublicLink,
@@ -114,11 +116,13 @@ export function FileContextMenu({
           label="Download"
           onClick={() => run(onDownload)}
         />
-        <MenuItem
-          icon={ArrowsExpand}
-          label="Move"
-          onClick={() => run(onMove)}
-        />
+        {hideMove ? null : (
+          <MenuItem
+            icon={ArrowsExpand}
+            label="Move"
+            onClick={() => run(onMove)}
+          />
+        )}
         <MenuItem
           icon={TrashBin}
           label="Remove"

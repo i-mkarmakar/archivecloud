@@ -46,23 +46,23 @@ const CLOUD_SERVICES = [
     id: "google_photos",
     title: "Google Photos",
     description:
-      "Import selected photos and videos via the Google Photos Picker.",
+      "Copy out via Photos Picker, or copy files into Photos. Full library browse is blocked by Google.",
     href: "/settings",
     keywords: ["photos", "google photos"],
   },
   {
     id: "icloud_photos",
-    title: "iCloud Photos (Beta)",
+    title: "iCloud Photos",
     description:
-      "Connection only for now. Upload, download, and file listing are not available yet.",
+      "Sign in with Apple ID + 2FA, then browse, copy, and move your photo library.",
     href: "/settings",
     keywords: ["icloud", "photos", "apple"],
   },
   {
     id: "icloud_drive",
-    title: "iCloud Drive (Beta)",
+    title: "iCloud Drive",
     description:
-      "Connection only for now. Upload, download, and file listing are not available yet.",
+      "Sign in with Apple ID + 2FA, then browse, copy, and move Drive files.",
     href: "/settings",
     keywords: ["icloud", "drive", "apple"],
   },

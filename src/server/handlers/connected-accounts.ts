@@ -1225,7 +1225,7 @@ export async function previewConnectedAccountFileHandler(
     if (!file) {
       return errorJson(
         "PHOTOS_FILE_BYTES_UNAVAILABLE",
-        "This Google Photos import has no stored copy yet. Import again with another cloud connected.",
+        "This Google Photos item has no stored copy yet. Copy it to another cloud first.",
         404,
       );
     }

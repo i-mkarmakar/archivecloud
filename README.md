@@ -2,7 +2,7 @@
 
 # Archive Cloud
 
-Archive Cloud is a multi-cloud storage gateway web app. Connect Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos into one virtual storage dashboard. Users can register with email/password or Google, connect cloud accounts, track combined quota, upload files through the backend into a dedicated `archivecloud` folder on each provider, organize files with virtual folders, preview and share files, sync the app database from connected storage, and route uploads to the account with enough free space. (iCloud account connect works today; full browse and transfers need Apple CloudKit configured on the server.)
+Archive Cloud is a multi-cloud storage gateway web app. Connect Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos into one virtual storage dashboard. Users can register with email/password or Google, connect cloud accounts, track combined quota, upload files through the backend into a dedicated `archivecloud` folder on each provider, organize files with virtual folders, preview and share files, sync the app database from connected storage, and route uploads to the account with enough free space. iCloud Drive and Photos connect with Apple ID + 2FA for browse, copy, and move.
 
 ## License
 

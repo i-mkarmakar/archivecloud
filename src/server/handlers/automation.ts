@@ -130,6 +130,23 @@ export async function createScheduledTransferHandler(request: Request) {
     );
   }
 
+  if (file.connectedAccount?.provider === "google_photos") {
+    if (operation === "move") {
+      return errorJson(
+        "UNSUPPORTED_OPERATION",
+        "Google Photos does not support move. Use Copy instead.",
+        400,
+      );
+    }
+    if (operation === "copy") {
+      return errorJson(
+        "UNSUPPORTED_SOURCE",
+        "Scheduled copy from Google Photos is not supported. Use Copy from Google Photos.",
+        400,
+      );
+    }
+  }
+
   const scheduled = await prisma.scheduledTransfer.create({
     data: {
       userId: user.id,

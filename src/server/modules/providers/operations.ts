@@ -16,8 +16,10 @@ import {
 } from "@/server/modules/dropbox/dropbox.service";
 import {
   browseICloudFolder,
+  createICloudDriveFolder,
   deleteICloudFile,
   downloadICloudFileStream,
+  getICloudFileMetadata,
   syncICloudQuota,
   uploadICloudFileFromStream,
 } from "@/server/modules/icloud/icloud.service";
@@ -835,6 +837,12 @@ export async function getProviderFileMeta(
         sizeBytes: BigInt(metadata.size ?? 0),
       };
     }
+    case "icloud_photos": {
+      return getICloudFileMetadata(account, providerFileId);
+    }
+    case "icloud_drive": {
+      return getICloudFileMetadata(account, providerFileId);
+    }
     default:
       throw new Error(`Metadata not supported for ${account.provider}`);
   }
@@ -979,10 +987,20 @@ export async function ensureProviderChildFolder(
       return String(data.metadata.folderid);
     }
     case "google_photos": {
-      throw new Error(
-        "Google Photos does not support nested folder creation for sync.",
+      const parent = parentId?.trim() || "root";
+      if (parent !== "root" && parent !== "library") {
+        // Photos albums are flat — create under library root only.
+        throw new Error(
+          "Google Photos albums cannot be nested. Choose the Photos library root.",
+        );
+      }
+      const { createGooglePhotosAlbum } = await import(
+        "@/server/modules/providers/google/google-photos.service"
       );
+      return createGooglePhotosAlbum(account, name);
     }
+    case "icloud_drive":
+      return createICloudDriveFolder(account, parentId || "root", name);
     default:
       throw new Error(
         `Creating folders is not supported for ${account.provider}`,

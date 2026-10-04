@@ -8,7 +8,7 @@ const PROVIDERS = [
   "Dropbox",
   "pCloud",
   "OneDrive",
-  "iCloud (Beta)",
+  "iCloud Photos",
 ] as const;
 
 export function CloudProviderGrid() {

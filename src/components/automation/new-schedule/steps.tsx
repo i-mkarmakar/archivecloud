@@ -2,8 +2,6 @@
 
 import {
   ArrowRight,
-  Calendar,
-  Clock,
   Cloud,
   Copy,
   FolderOpen,
@@ -238,38 +236,32 @@ export function WhenToRunStep({
         ))}
       </div>
 
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <label
           htmlFor="schedule-run-date"
-          className="grid gap-1 text-xs font-semibold text-foreground"
+          className="grid w-[11.5rem] gap-1 text-xs font-semibold text-foreground"
         >
           Date ({tz})
-          <span className="relative">
-            <Calendar className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-            <Input
-              id="schedule-run-date"
-              type="date"
-              value={runDate}
-              onChange={(e) => onDateChange(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-white pr-8 text-xs"
-            />
-          </span>
+          <Input
+            id="schedule-run-date"
+            type="date"
+            value={runDate}
+            onChange={(e) => onDateChange(e.target.value)}
+            className="h-9 rounded-full border border-border bg-white text-xs"
+          />
         </label>
         <label
           htmlFor="schedule-run-time"
-          className="grid gap-1 text-xs font-semibold text-foreground"
+          className="grid w-[9.5rem] gap-1 text-xs font-semibold text-foreground"
         >
           Run time ({tz})
-          <span className="relative">
-            <Clock className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-            <Input
-              id="schedule-run-time"
-              type="time"
-              value={runTime}
-              onChange={(e) => onTimeChange(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-white pr-8 text-xs"
-            />
-          </span>
+          <Input
+            id="schedule-run-time"
+            type="time"
+            value={runTime}
+            onChange={(e) => onTimeChange(e.target.value)}
+            className="h-9 rounded-full border border-border bg-white text-xs"
+          />
         </label>
       </div>
       <p className="mt-1.5 text-[11px] text-muted-foreground">
@@ -280,15 +272,45 @@ export function WhenToRunStep({
   );
 }
 
+function ScheduleAutoNameParts({
+  operation,
+  sourceName,
+  destFolderName,
+  className,
+}: {
+  operation: ScheduleOperation;
+  sourceName?: string | null;
+  destFolderName?: string | null;
+  className?: string;
+}) {
+  const op =
+    operation === "delete" ? "Delete" : operation === "move" ? "Move" : "Copy";
+  const from = sourceName || "folder";
+  if (operation === "delete") {
+    return <span className={className}>{`${op} ${from}`}</span>;
+  }
+  return (
+    <span className={cn("inline-flex items-center gap-1", className)}>
+      {op} {from}
+      <ArrowRight className="size-3 shrink-0" />
+      {destFolderName || "folder"}
+    </span>
+  );
+}
+
 export function NameStep({
   stepNumber,
   name,
-  autoName,
+  operation,
+  sourceName,
+  destFolderName,
   onChange,
 }: {
   stepNumber: number;
   name: string;
-  autoName: string;
+  operation: ScheduleOperation;
+  sourceName?: string | null;
+  destFolderName?: string | null;
   onChange: (value: string) => void;
 }) {
   return (
@@ -296,16 +318,32 @@ export function NameStep({
       n={stepNumber}
       title="Name & confirm"
       description="A friendly label for this schedule. Leave blank to auto-derive."
+      isLast
     >
-      <Input
-        value={name}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={autoName}
-        className="h-9 rounded-lg border border-border bg-white text-xs"
-      />
-      <p className="mt-1.5 text-[11px] text-muted-foreground">
-        Leave blank to auto-derive:{" "}
-        <span className="font-semibold text-foreground">{autoName}</span>
+      <div className="relative">
+        <Input
+          value={name}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 rounded-full border border-border bg-white text-xs"
+        />
+        {!name.trim() ? (
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-muted-foreground">
+            <ScheduleAutoNameParts
+              operation={operation}
+              sourceName={sourceName}
+              destFolderName={destFolderName}
+            />
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+        Leave blank to auto-derive:
+        <ScheduleAutoNameParts
+          operation={operation}
+          sourceName={sourceName}
+          destFolderName={destFolderName}
+          className="font-semibold text-foreground"
+        />
       </p>
     </ScheduleStep>
   );

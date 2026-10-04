@@ -2,7 +2,7 @@
 
 import {
   ArrowRight,
-  ArrowsRotateRight,
+  ArrowRightArrowLeft,
   CircleInfo,
   Cloud,
   FolderOpen,
@@ -50,6 +50,27 @@ function accountLabel(account: SyncPairAccount) {
   return `${providerLabel(account.provider)} · ${account.displayName || account.email}`;
 }
 
+function AutoNameParts({
+  direction,
+  source,
+  dest,
+  className,
+}: {
+  direction: "one_way" | "two_way" | "";
+  source: string;
+  dest: string;
+  className?: string;
+}) {
+  const Icon = direction === "two_way" ? ArrowRightArrowLeft : ArrowRight;
+  return (
+    <span className={cn("inline-flex items-center gap-1", className)}>
+      Auto-sync: {source}
+      <Icon className="size-3 shrink-0" />
+      {dest}
+    </span>
+  );
+}
+
 async function loadFolders(accountId: string): Promise<BrowseFolder[]> {
   const data = await apiFetch<{ folders: BrowseFolder[] }>(
     `/connected-accounts/${accountId}/browse?parentId=root`,
@@ -65,7 +86,7 @@ export function NewSyncPairModal({
   creating,
   onCreate,
 }: Props) {
-  const [direction, setDirection] = useState<"one_way" | "two_way">("one_way");
+  const [direction, setDirection] = useState<"one_way" | "two_way" | "">("");
   const [sourceAccountId, setSourceAccountId] = useState("");
   const [sourceParentId, setSourceParentId] = useState("");
   const [destAccountId, setDestAccountId] = useState("");
@@ -83,7 +104,7 @@ export function NewSyncPairModal({
 
   useEffect(() => {
     if (!open) return;
-    setDirection("one_way");
+    setDirection("");
     setSourceAccountId("");
     setDestAccountId("");
     setSourceParentId("");
@@ -156,7 +177,18 @@ export function NewSyncPairModal({
       : `Auto-sync: ${sourceFolderName} → ${destFolderName}`;
   }, [direction, sourceAccount, destAccount, sourceFolderName, destFolderName]);
 
-  const canCreate = Boolean(sourceAccountId && destAccountId) && !creating;
+  const canCreate =
+    Boolean(direction && sourceAccountId && destAccountId) && !creating;
+
+  const step1Done = Boolean(direction);
+  const step2Done = Boolean(sourceAccountId);
+  const step3Done = Boolean(destAccountId);
+  const stepState = (done: boolean, unlocked: boolean) =>
+    done
+      ? ("complete" as const)
+      : unlocked
+        ? ("active" as const)
+        : ("locked" as const);
 
   const sourceFolderOptions = [
     { id: "root", label: "Root / default" },
@@ -168,7 +200,7 @@ export function NewSyncPairModal({
   ];
 
   async function submit() {
-    if (!canCreate) return;
+    if (!canCreate || !direction) return;
     await onCreate({
       sourceAccountId,
       destAccountId,
@@ -197,37 +229,54 @@ export function NewSyncPairModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-sync-pair-title"
-        className="relative z-10 flex max-h-[min(1040px,calc(100dvh-1.5rem))] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        style={{ height: "min(90dvh, 1040px)" }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between bg-white px-4 py-2.5 text-foreground">
-          <h2 id="new-sync-pair-title" className="text-base font-extrabold">
-            New auto-sync pair
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1 text-muted hover:bg-surface-secondary hover:text-foreground"
-            aria-label="Close"
-          >
-            <Xmark className="h-4 w-4" />
-          </button>
+        <header className="grid shrink-0 bg-white text-foreground lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <h2
+              id="new-sync-pair-title"
+              className="text-xl font-extrabold tracking-tight"
+            >
+              New auto-sync pair
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1 text-muted hover:bg-surface-secondary hover:text-foreground lg:hidden"
+              aria-label="Close"
+            >
+              <Xmark className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="hidden items-center justify-end border-l border-border bg-[#f7f9fa] px-3 py-3.5 lg:flex">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1 text-muted hover:bg-surface-secondary hover:text-foreground"
+              aria-label="Close"
+            >
+              <Xmark className="h-4 w-4" />
+            </button>
+          </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <div className="min-h-0 space-y-4 overflow-y-auto px-4 py-3 sm:px-4">
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-4">
             <ScheduleStep
               n={1}
               title="Sync direction"
               description="One-way mirrors the source into the destination. Two-way keeps both folders identical."
+              state={stepState(step1Done, true)}
             >
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setDirection("one_way")}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-bold transition-colors",
+                    "inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
                     direction === "one_way"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-white text-foreground hover:bg-surface-secondary",
@@ -240,13 +289,13 @@ export function NewSyncPairModal({
                   type="button"
                   onClick={() => setDirection("two_way")}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-bold transition-colors",
+                    "inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
                     direction === "two_way"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-white text-foreground hover:bg-surface-secondary",
                   )}
                 >
-                  <ArrowsRotateRight className="h-4 w-4" />
+                  <ArrowRightArrowLeft className="h-4 w-4" />
                   Two-way sync
                 </button>
               </div>
@@ -256,11 +305,12 @@ export function NewSyncPairModal({
               n={2}
               title="Source folder"
               description="Pick the folder whose changes will be mirrored."
+              state={stepState(step2Done, step1Done)}
             >
               <div className="flex flex-col gap-2 sm:flex-row">
                 <PickerSelect
                   value={sourceAccountId}
-                  disabled={accountsLoading}
+                  disabled={!step1Done || accountsLoading}
                   placeholder="Pick a source account"
                   icon={<Cloud className="h-3.5 w-3.5" />}
                   options={accounts.map((a) => ({
@@ -295,11 +345,12 @@ export function NewSyncPairModal({
               n={3}
               title="Destination folder"
               description="Where mirrored items will land."
+              state={stepState(step3Done, step2Done)}
             >
               <div className="flex flex-col gap-2 sm:flex-row">
                 <PickerSelect
                   value={destAccountId}
-                  disabled={accountsLoading}
+                  disabled={!step2Done || accountsLoading}
                   placeholder="Pick a destination account"
                   icon={<Cloud className="h-3.5 w-3.5" />}
                   options={accounts.map((a) => ({
@@ -334,18 +385,35 @@ export function NewSyncPairModal({
               n={4}
               title="Name & confirm"
               description="A friendly label for this pair. Leave blank to auto-derive."
+              isLast
+              state={stepState(false, step3Done)}
             >
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={autoName}
-                className="h-9 text-xs"
-              />
-              <p className="mt-1.5 text-[11px] text-muted">
-                Leave blank to auto-derive:{" "}
-                <span className="font-semibold text-foreground">
-                  {autoName}
-                </span>
+              <div className="relative sm:max-w-[calc(50%-0.25rem)]">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  fullWidth
+                  disabled={!step3Done}
+                  className="h-9 rounded-full text-xs"
+                />
+                {!name.trim() ? (
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-muted-foreground">
+                    <AutoNameParts
+                      direction={direction}
+                      source={sourceAccount ? sourceFolderName : "folder"}
+                      dest={destAccount ? destFolderName : "folder"}
+                    />
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] text-muted">
+                Leave blank to auto-derive:
+                <AutoNameParts
+                  direction={direction}
+                  source={sourceAccount ? sourceFolderName : "folder"}
+                  dest={destAccount ? destFolderName : "folder"}
+                  className="font-semibold text-foreground"
+                />
               </p>
             </ScheduleStep>
           </div>
@@ -358,11 +426,23 @@ export function NewSyncPairModal({
 
               <div>
                 <p className="text-sm font-extrabold text-foreground">
-                  {name.trim() || autoName}
+                  {name.trim() ? (
+                    name.trim()
+                  ) : (
+                    <AutoNameParts
+                      direction={direction}
+                      source={sourceAccount ? sourceFolderName : "folder"}
+                      dest={destAccount ? destFolderName : "folder"}
+                    />
+                  )}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   <span className="rounded bg-primary px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-primary-foreground uppercase">
-                    {direction === "two_way" ? "Two-way" : "One-way"}
+                    {direction === "two_way"
+                      ? "Two-way"
+                      : direction === "one_way"
+                        ? "One-way"
+                        : "Direction"}
                   </span>
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-primary uppercase">
                     Folder pair
@@ -414,16 +494,39 @@ export function NewSyncPairModal({
           </aside>
         </div>
 
-        <footer className="flex shrink-0 flex-col gap-2 bg-white px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CircleInfo className="h-3.5 w-3.5 shrink-0" />
-            All set. Review the summary on the right.
-          </p>
-          <div className="flex flex-row gap-2 sm:justify-end">
+        <footer className="grid shrink-0 bg-white lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between lg:justify-start">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CircleInfo className="h-3.5 w-3.5 shrink-0" />
+              All set. Review the summary on the right.
+            </p>
+            <div className="flex flex-row gap-2 sm:justify-end lg:hidden">
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-w-0 flex-1 sm:flex-none"
+                onPress={onClose}
+                isDisabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                className="min-w-0 flex-1 sm:flex-none"
+                isDisabled={!canCreate}
+                onPress={() => {
+                  void submit();
+                }}
+              >
+                {creating ? "Creating…" : "Create sync pair"}
+              </Button>
+            </div>
+          </div>
+          <div className="hidden items-center justify-end gap-2 border-l border-border bg-[#f7f9fa] px-3 py-2.5 lg:flex">
             <Button
               size="sm"
               variant="outline"
-              className="min-w-0 flex-1 sm:flex-none"
               onPress={onClose}
               isDisabled={creating}
             >
@@ -432,7 +535,6 @@ export function NewSyncPairModal({
             <Button
               size="sm"
               variant="primary"
-              className="min-w-0 flex-1 sm:flex-none"
               isDisabled={!canCreate}
               onPress={() => {
                 void submit();

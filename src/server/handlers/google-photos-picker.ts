@@ -6,19 +6,16 @@ import {
   accountHasPhotosPickerScope,
   createPickerSession,
   deletePickerSession,
-  downloadPickedMediaStream,
   GooglePhotosPickerError,
   getOwnedGooglePhotosAccount,
   getPickerSession,
   listPickedMediaItems,
   normalizePickedMediaItem,
 } from "@/server/modules/providers/google/google-photos-picker.service";
-import { pushPulledFileToProvider } from "@/server/modules/providers/operations";
 import { isSupportedProvider } from "@/server/modules/providers/types";
-import {
-  assertTransferCapacity,
-  recordTransferUsage,
-} from "@/server/modules/transfers/usage";
+import { stashPhotosPickerPayload } from "@/server/modules/transfers/photos-picker-job-payload";
+import { enqueueTransferJob } from "@/server/modules/transfers/process-job";
+import { assertTransferCapacity } from "@/server/modules/transfers/usage";
 import { createAuditLog } from "@/server/utils/audit";
 
 function pickerErrorResponse(error: unknown) {
@@ -257,7 +254,7 @@ export async function importGooglePhotosPickerMediaHandler(
     const body = z
       .object({
         sessionId: z.string().min(1),
-        destAccountId: z.string().min(1).optional(),
+        destAccountId: z.string().min(1),
         destParentId: z.string().min(1).optional().nullable(),
         mediaItemIds: z.array(z.string().min(1)).optional(),
       })
@@ -265,50 +262,34 @@ export async function importGooglePhotosPickerMediaHandler(
 
     const sourceAccount = await getOwnedGooglePhotosAccount(accountId, user.id);
 
-    // Durable bytes need a non-Photos cloud; fall back to first connected one.
-    let destAccount =
-      body.destAccountId != null
-        ? await prisma.connectedAccount.findFirst({
-            where: {
-              id: body.destAccountId,
-              userId: user.id,
-              status: "connected",
-            },
-          })
-        : null;
-    if (body.destAccountId && !destAccount) {
+    // ACH-style: caller picks destination cloud (+ folder). No silent fallback.
+    const destAccount = await prisma.connectedAccount.findFirst({
+      where: {
+        id: body.destAccountId,
+        userId: user.id,
+        status: "connected",
+      },
+    });
+    if (!destAccount) {
       return errorJson(
         "ACCOUNT_NOT_FOUND",
         "Destination account not found.",
         404,
       );
     }
-    if (!destAccount) {
-      destAccount = await prisma.connectedAccount.findFirst({
-        where: {
-          userId: user.id,
-          status: "connected",
-          provider: { not: "google_photos" },
-          id: { not: sourceAccount.id },
-        },
-        orderBy: { createdAt: "asc" },
-      });
+    if (!isSupportedProvider(destAccount.provider)) {
+      return errorJson(
+        "UNSUPPORTED_PROVIDER",
+        "Destination provider is not supported.",
+        400,
+      );
     }
-    if (destAccount) {
-      if (!isSupportedProvider(destAccount.provider)) {
-        return errorJson(
-          "UNSUPPORTED_PROVIDER",
-          "Destination provider is not supported.",
-          400,
-        );
-      }
-      if (destAccount.provider === "google_photos") {
-        return errorJson(
-          "UNSUPPORTED_DESTINATION",
-          "Choose a destination other than Google Photos.",
-          400,
-        );
-      }
+    if (destAccount.provider === "google_photos") {
+      return errorJson(
+        "UNSUPPORTED_DESTINATION",
+        "Choose a destination other than Google Photos.",
+        400,
+      );
     }
 
     const session = await getPickerSession(sourceAccount, body.sessionId);
@@ -331,6 +312,7 @@ export async function importGooglePhotosPickerMediaHandler(
     if (items.length === 0) {
       return json({
         imported: 0,
+        queued: 0,
         failed: 0,
         jobs: [],
         message: "No media selected.",
@@ -354,9 +336,6 @@ export async function importGooglePhotosPickerMediaHandler(
       fileId: string | null;
     }> = [];
 
-    let imported = 0;
-    let failed = 0;
-
     for (const item of items) {
       const normalized = normalizePickedMediaItem(item);
       const providerFileId =
@@ -366,145 +345,53 @@ export async function importGooglePhotosPickerMediaHandler(
         data: {
           userId: user.id,
           type: "copy",
-          status: "running",
+          status: "queued",
           sourceAccountId: sourceAccount.id,
-          destAccountId: destAccount?.id ?? sourceAccount.id,
+          destAccountId: destAccount.id,
           sourceProviderFileId: providerFileId,
           destParentId: body.destParentId ?? null,
           fileName: normalized.filename,
           mimeType: normalized.mimeType,
           sizeBytes: 0n,
-          startedAt: new Date(),
         },
       });
 
-      try {
-        let sizeBytes = 0n;
-        let destProviderFileId: string | null = null;
-        let mimeType = normalized.mimeType;
-        let fileName = normalized.filename;
+      stashPhotosPickerPayload(job.id, item);
+      enqueueTransferJob(job.id);
 
-        if (destAccount) {
-          const pulled = await downloadPickedMediaStream(sourceAccount, item);
-          const result = await pushPulledFileToProvider(
-            destAccount,
-            pulled,
-            body.destParentId,
-          );
-          sizeBytes = result.sizeBytes;
-          destProviderFileId = result.destProviderFileId;
-          mimeType = result.mimeType;
-          fileName = result.name;
-
-          await recordTransferUsage(
-            user.id,
-            result.sizeBytes > 0n ? result.sizeBytes : 1n,
-          );
-        } else {
-          // Reference-only: no other cloud to hold bytes yet.
-          await recordTransferUsage(user.id, 1n);
-        }
-
-        const existing = await prisma.file.findFirst({
-          where: {
-            userId: user.id,
-            connectedAccountId: sourceAccount.id,
-            provider: "google_photos",
-            providerFileId,
-          },
-        });
-        const file = existing
-          ? await prisma.file.update({
-              where: { id: existing.id },
-              data: {
-                name: fileName,
-                mimeType,
-                sizeBytes,
-                status: "active",
-                deletedAt: null,
-              },
-            })
-          : await prisma.file.create({
-              data: {
-                userId: user.id,
-                connectedAccountId: sourceAccount.id,
-                provider: "google_photos",
-                providerFileId,
-                name: fileName,
-                mimeType,
-                sizeBytes,
-                status: "active",
-              },
-            });
-
-        await prisma.transferJob.update({
-          where: { id: job.id },
-          data: {
-            status: "completed",
-            destProviderFileId,
-            mimeType,
-            fileName,
-            sizeBytes,
-            transferredBytes: sizeBytes > 0n ? sizeBytes : 1n,
-            completedAt: new Date(),
-          },
-        });
-
-        await createAuditLog(
-          user.id,
-          "TRANSFER_COPY_COMPLETED",
-          "transfer_job",
-          job.id,
-          {
-            sourceAccountId: sourceAccount.id,
-            destAccountId: destAccount?.id ?? null,
-            fileId: file.id,
-            fileName,
-            via: "google_photos_picker",
-          },
-        );
-
-        jobs.push({
-          id: job.id,
-          fileName,
-          status: "completed",
-          errorMessage: null,
-          destProviderFileId,
-          fileId: file.id,
-        });
-        imported += 1;
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Import failed.";
-        await prisma.transferJob.update({
-          where: { id: job.id },
-          data: {
-            status: "failed",
-            errorMessage: message,
-            completedAt: new Date(),
-          },
-        });
-        jobs.push({
-          id: job.id,
+      await createAuditLog(
+        user.id,
+        "TRANSFER_COPY_QUEUED",
+        "transfer_job",
+        job.id,
+        {
+          sourceAccountId: sourceAccount.id,
+          destAccountId: destAccount.id,
           fileName: normalized.filename,
-          status: "failed",
-          errorMessage: message,
-          destProviderFileId: null,
-          fileId: null,
-        });
-        failed += 1;
-      }
+          via: "google_photos_picker",
+        },
+      );
+
+      jobs.push({
+        id: job.id,
+        fileName: normalized.filename,
+        status: "queued",
+        errorMessage: null,
+        destProviderFileId: null,
+        fileId: null,
+      });
     }
 
     try {
       await deletePickerSession(sourceAccount, body.sessionId);
     } catch {
-      // Session cleanup is best-effort after import.
+      // Session cleanup is best-effort; download URLs were stashed on each job.
     }
 
     return json({
-      imported,
-      failed,
+      imported: 0,
+      queued: jobs.length,
+      failed: 0,
       count: items.length,
       jobs,
     });

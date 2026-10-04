@@ -15,7 +15,8 @@ import {
 import { oauthConnectStartResponse } from "@/server/http/oauth-connect-response";
 import { errorJson, json } from "@/server/http/responses";
 import {
-  connectICloudAccount,
+  completeICloudMfa,
+  startICloudConnect,
   syncICloudQuota,
 } from "@/server/modules/icloud/icloud.service";
 import { notifyAccountConnected } from "@/server/utils/notifications";
@@ -624,10 +625,15 @@ export async function googleSharedDriveCallbackHandler(request: Request) {
 }
 
 const icloudConnectSchema = z.object({
-  appleId: z.string().email(),
-  appSpecificPassword: z.string().min(1),
+  appleId: z.string().min(1),
+  password: z.string().min(1),
   provider: z.enum(["icloud_drive", "icloud_photos"]),
   alias: z.string().trim().min(1).max(50).optional(),
+});
+
+const icloudMfaSchema = z.object({
+  challengeId: z.string().min(1),
+  code: z.string().min(4).max(12),
 });
 
 export async function connectICloudHandler(request: Request) {
@@ -638,12 +644,19 @@ export async function connectICloudHandler(request: Request) {
     const body = icloudConnectSchema.parse(await request.json());
     const alias =
       normalizeConnectAlias(body.alias) ?? defaultProviderAlias(body.provider);
-    const account = await connectICloudAccount(user.id, {
+    const result = await startICloudConnect({
+      userId: user.id,
       appleId: body.appleId,
-      appSpecificPassword: body.appSpecificPassword,
+      password: body.password,
       provider: body.provider,
       displayName: alias,
     });
+
+    if (result.status === "mfa_required") {
+      return json({ needsMfa: true, challengeId: result.challengeId });
+    }
+
+    const { account } = result;
     await syncICloudQuota(account.id);
     await notifyAccountConnected({
       userId: user.id,
@@ -660,5 +673,37 @@ export async function connectICloudHandler(request: Request) {
     const message =
       error instanceof Error ? error.message : "Failed to connect iCloud.";
     return errorJson("ICLOUD_CONNECT_FAILED", message, 400);
+  }
+}
+
+export async function completeICloudMfaHandler(request: Request) {
+  try {
+    const user = await requireAuthUser(request);
+    if (user instanceof Response) return user;
+
+    const body = icloudMfaSchema.parse(await request.json());
+    const account = await completeICloudMfa({
+      userId: user.id,
+      challengeId: body.challengeId,
+      code: body.code,
+    });
+    await syncICloudQuota(account.id);
+    await notifyAccountConnected({
+      userId: user.id,
+      provider: account.provider as "icloud_drive" | "icloud_photos",
+      accountId: account.id,
+      displayName: account.displayName,
+    });
+    return credentialAccountResponse(account);
+  } catch (error) {
+    console.error("iCloud MFA failed:", error);
+    if (error instanceof z.ZodError) {
+      return errorJson("VALIDATION_ERROR", "Invalid request body.", 400);
+    }
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to verify Apple ID code.";
+    return errorJson("ICLOUD_MFA_FAILED", message, 400);
   }
 }

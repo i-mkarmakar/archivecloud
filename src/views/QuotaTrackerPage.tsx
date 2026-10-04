@@ -29,7 +29,7 @@ type ConnectedAccount = {
     lastSyncedAt: string | null;
   } | null;
 };
-type RoutingMode = "most_available" | "round_robin" | "priority";
+type RoutingMode = "most_available" | "ask_every_time";
 type RoutingPolicy = {
   mode: RoutingMode;
   priorityAccountIds: string[];
@@ -210,48 +210,40 @@ export function QuotaTrackerPage() {
 
   async function saveRoutingPolicy(nextPolicy: RoutingPolicy) {
     setRoutingPolicy(nextPolicy);
-    const data = await apiFetch<{ policy: RoutingPolicy }>(
-      "/storage/routing-policy",
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          mode: nextPolicy.mode,
-          priorityAccountIds: nextPolicy.priorityAccountIds,
-        }),
-      },
-    );
-    setRoutingPolicy(data.policy);
-    toast.success("Upload routing policy updated.");
+    try {
+      const data = await apiFetch<{ policy: RoutingPolicy }>(
+        "/storage/routing-policy",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            mode: nextPolicy.mode,
+            priorityAccountIds: nextPolicy.priorityAccountIds,
+          }),
+        },
+      );
+      setRoutingPolicy(data.policy);
+      toast.success(
+        data.policy.mode === "ask_every_time"
+          ? "Smart File Distribution is deactivated."
+          : "Smart File Distribution is activated.",
+      );
+    } catch (error) {
+      toast.danger(
+        error instanceof Error
+          ? error.message
+          : "Failed to update routing policy",
+      );
+    }
   }
 
-  function orderedAccounts() {
-    const byId = new Map(accounts.map((account) => [account.id, account]));
-    const ordered = routingPolicy.priorityAccountIds
-      .map((id) => byId.get(id))
-      .filter((account): account is ConnectedAccount => Boolean(account));
-    const orderedIds = new Set(ordered.map((account) => account.id));
-    return [
-      ...ordered,
-      ...accounts.filter((account) => !orderedIds.has(account.id)),
-    ];
-  }
+  const smartDistributionOn = routingPolicy.mode !== "ask_every_time";
 
-  function moveAccount(accountId: string, direction: -1 | 1) {
-    const ids = orderedAccounts().map((account) => account.id);
-    const index = ids.indexOf(accountId);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= ids.length) return;
-    const nextIds = [...ids];
-    const [item] = nextIds.splice(index, 1);
-    nextIds.splice(target, 0, item);
-    saveRoutingPolicy({ ...routingPolicy, priorityAccountIds: nextIds }).catch(
-      (error) =>
-        toast.danger(
-          error instanceof Error
-            ? error.message
-            : "Failed to update routing policy",
-        ),
-    );
+  function setSmartDistribution(enabled: boolean) {
+    if (enabled === smartDistributionOn) return;
+    void saveRoutingPolicy({
+      ...routingPolicy,
+      mode: enabled ? "most_available" : "ask_every_time",
+    });
   }
 
   const usedPct = usagePercent(summary);
@@ -377,83 +369,40 @@ export function QuotaTrackerPage() {
           </div>
 
           <section className="mt-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h2 className="text-lg font-extrabold">Upload Routing</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Choose how new uploads pick connected storage accounts.
-                </p>
-              </div>
-              <label className="grid gap-2 text-sm font-semibold lg:w-64">
-                Routing mode
-                <select
-                  className="h-11 rounded-xl border border-border bg-surface px-3 text-sm"
-                  value={routingPolicy.mode}
-                  onChange={(event) =>
-                    saveRoutingPolicy({
-                      ...routingPolicy,
-                      mode: event.target.value as RoutingMode,
-                    }).catch((error) =>
-                      toast.danger(
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to update routing policy",
-                      ),
-                    )
-                  }
-                >
-                  <option value="most_available">Most available</option>
-                  <option value="round_robin">Round robin</option>
-                  <option value="priority">Priority order</option>
-                </select>
-              </label>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {orderedAccounts().map((account, index) => (
-                <div
-                  key={account.id}
-                  className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-foreground">
-                      <ProviderIcon />
-                    </div>
-                    <div>
-                      <p className="font-semibold">
-                        {account.displayName || account.email}
-                      </p>
-                      <p className="text-sm text-muted">
-                        Google Drive ·{" "}
-                        {formatBytes(account.storageAccount?.usedBytes)} used ·{" "}
-                        {availableLabel(account)} free
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => moveAccount(account.id, -1)}
-                      isDisabled={index === 0}
-                    >
-                      Up
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => moveAccount(account.id, 1)}
-                      isDisabled={index === accounts.length - 1}
-                    >
-                      Down
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {accounts.length === 0 ? (
-                <p className="text-sm text-muted">
-                  Connect storage accounts to configure routing.
-                </p>
-              ) : null}
+            <h2 className="text-lg font-extrabold">Smart File Distribution</h2>
+            <p className="mt-1 text-sm text-muted">
+              Automatically route uploads to the connected cloud with the most
+              available space, or ask every time during upload.
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  smartDistributionOn ? "text-muted" : "text-foreground",
+                )}
+              >
+                Ask Every Time
+              </span>
+              <Switch
+                isSelected={smartDistributionOn}
+                onChange={setSmartDistribution}
+                size="md"
+                aria-label="Smart file distribution"
+              >
+                <Switch.Content>
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                </Switch.Content>
+              </Switch>
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  smartDistributionOn ? "text-foreground" : "text-muted",
+                )}
+              >
+                Smart File Distribution
+              </span>
             </div>
           </section>
 
