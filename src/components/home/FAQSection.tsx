@@ -19,7 +19,7 @@ const FAQ_ITEMS = [
   {
     question: "Which cloud storage services does Archive Cloud support?",
     answer:
-      "Archive Cloud supports Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, and iCloud Drive / Photos. iCloud connects with Apple ID + 2FA for browse, copy, and move.",
+      "Archive Cloud supports Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, and iCloud Drive / Photos. iCloud connects with Apple ID + 2FA for browse, upload, download, copy, move, and delete (rename is not supported).",
   },
   {
     question: "Is there a data transfer limit?",
@@ -34,7 +34,7 @@ const FAQ_ITEMS = [
   {
     question: "How secure is Archive Cloud for cloud-to-cloud transfers?",
     answer:
-      "Providers connect with official OAuth where supported. Archive Cloud does not store your provider passwords, and your files remain in your cloud accounts rather than on Archive Cloud as permanent storage.",
+      "Most providers connect with official OAuth. iCloud uses Apple ID + 2FA and stores an encrypted session (not plaintext logs). Your files remain in your cloud accounts rather than on Archive Cloud as permanent storage.",
   },
   {
     question: "Does Archive Cloud support real-time folder sync?",

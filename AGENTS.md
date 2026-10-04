@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Archive Cloud is a multi-cloud storage gateway. It lets users sign up/sign in with email/password or Google, connect cloud accounts (Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, iCloud Drive, iCloud Photos), track combined quota, upload files through the backend into a dedicated `archivecloud` folder on each provider, organize files in virtual folders, preview/download/share files, sync app database file records from connected storage, invite other users to files/folders, copy/move files across clouds, and route uploads to a connected account with enough free space.
+Archive Cloud is a multi-cloud storage gateway. It lets users sign up/sign in with email/password or Google, connect cloud accounts (Google Drive, Google Photos, Google Shared Drive, OneDrive, Dropbox, pCloud, iCloud Drive, iCloud Photos), track combined quota, upload files through the backend (OAuth providers use a dedicated `archivecloud` folder; iCloud and Google Photos use the provider library/root), organize files in virtual folders, preview/download/share files, sync app database file records from connected storage, invite other users to files/folders, copy/move files across clouds, and route uploads to a connected account with enough free space. iCloud connects with Apple ID + 2FA (browse/upload/download/copy/move/delete; rename not supported).
 
 ## Repository Structure
 
@@ -24,7 +24,7 @@ Single full-stack Next.js app at the repo root:
 - PostgreSQL 18+
 - Google Cloud project with Google Drive API enabled (for Google providers + Google sign-in)
 - Google OAuth client ID and secret
-- Optional: Dropbox, Microsoft (OneDrive), pCloud, and iCloud credentials for those providers
+- Optional: Dropbox, Microsoft (OneDrive), and pCloud OAuth credentials for those providers. iCloud needs no server app credentials (user Apple ID + 2FA at connect time).
 
 ## Stack
 
@@ -147,7 +147,7 @@ API calls from the browser use same-origin paths (`/files`, `/uploads`, etc.) wi
 - Never log OAuth client secrets, Better Auth secrets, encryption keys, or raw public share tokens.
 - Google tokens are encrypted before database storage.
 - Share and preview tokens are stored as hashes where applicable.
-- Uploaded files must stream through backend to the provider `archivecloud` folder (or equivalent); do not store uploaded files on disk.
+- Uploaded files must stream through backend to the provider (`archivecloud` folder for OAuth clouds, or provider library/root for iCloud / Google Photos); do not store uploaded files on disk.
 - Keep Better Auth session handling centralized; do not change without explicit reason.
 
 ## Database Rules
@@ -232,8 +232,8 @@ Uploads:
 - Frontend sends metadata first as `filesMeta`: JSON array of `{ fieldName, fileName, mimeType, sizeBytes, folderId? }`.
 - File fields then match `filesMeta[*].fieldName`, e.g. `file-0`, `file-1`.
 - Backend selects a connected account with enough available quota and streams each file to that provider.
-- Provider uploads are placed under the root folder named `archivecloud` (or provider equivalent); virtual folders remain app/database-only.
-- Provider sync treats the `archivecloud` folder as source of truth for physical files.
+- OAuth provider uploads are placed under the root folder named `archivecloud` (or provider equivalent); iCloud / Google Photos use the provider library/root. Virtual folders remain app/database-only.
+- For OAuth clouds, provider sync treats the `archivecloud` folder as source of truth for physical files where that model applies.
 
 ## Verification
 

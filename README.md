@@ -2,7 +2,7 @@
 
 # Archive Cloud
 
-Archive Cloud is a multi-cloud storage gateway web app. Connect Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos into one virtual storage dashboard. Users can register with email/password or Google, connect cloud accounts, track combined quota, upload files through the backend into a dedicated `archivecloud` folder on each provider, organize files with virtual folders, preview and share files, sync the app database from connected storage, and route uploads to the account with enough free space. iCloud Drive and Photos connect with Apple ID + 2FA for browse, copy, and move.
+Archive Cloud is a multi-cloud storage gateway web app. Connect Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos into one virtual storage dashboard. Users can register with email/password or Google, connect cloud accounts, track combined quota, upload and transfer files through the backend (OAuth providers use a dedicated `archivecloud` folder; iCloud and Google Photos use the provider library/root), organize files with virtual folders, preview and share files, sync the app database from connected storage, and route uploads to the account with enough free space. iCloud Drive and Photos connect with Apple ID + 2FA for browse, upload, download, copy, move, and delete (rename is not supported).
 
 ## License
 
@@ -14,7 +14,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) for det
 
 - Multi-cloud storage gateway in one dashboard: Google Drive, Dropbox, OneDrive, pCloud, Google Photos, Google Shared Drive, and iCloud Drive / iCloud Photos.
 - Direct upload stream to connected cloud storage. Files are not stored on the server.
-- Provider uploads are stored under a root `archivecloud` folder (or provider equivalent).
+- OAuth provider uploads land under a root `archivecloud` folder (or provider equivalent). iCloud and Google Photos use the provider library/root instead.
+- iCloud Drive / Photos: Apple ID + 2FA session (no Apple developer app credentials). Browse, upload, download, copy, move, delete; rename is not supported.
 - Upload routing policies: most-available, round-robin, and priority-order modes.
 - Cross-cloud move and copy transfers between connected accounts.
 - Resumable uploads for large files.
@@ -23,7 +24,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) for det
 - Email/password auth (with email OTP verification) plus Google sign-in/register.
 - Password reset via email OTP (Resend).
 - Multi-account storage quota summary and Quota Tracker page.
-- Manual sync from the provider `archivecloud` folder back into PostgreSQL.
+- Manual sync from connected providers back into PostgreSQL (`archivecloud` folder for OAuth clouds; library/root for iCloud / Google Photos).
 - Virtual folders, tags, and cross-cloud search.
 - File preview, download, rename, move, share, invite, and delete actions.
 - Public shared file links with preview and download.
@@ -69,7 +70,7 @@ docker-compose.dev.yml   Local Postgres for `pnpm dev`
 - pnpm (when running outside Docker)
 - PostgreSQL 18+
 - Google Cloud project with Google Drive API enabled (for Google Drive connect and Google sign-in)
-- Optional: Dropbox, Microsoft Azure (OneDrive), pCloud, and Resend credentials for those providers and email OTP
+- Optional: Dropbox, Microsoft Azure (OneDrive), pCloud, and Resend credentials for those providers and email OTP. iCloud needs no server OAuth app — users sign in with Apple ID + 2FA at connect time.
 
 ## 1. Quick Setup (Recommended)
 
@@ -408,7 +409,9 @@ Auth is handled by Better Auth at `/api/auth/*` (custom sign-in/sign-up UI).
 - `GET /connected-accounts`
 - `POST /connected-accounts/:id/sync-quota`
 - `DELETE /connected-accounts/:id`
-- Similar routes for Dropbox, OneDrive, pCloud, Google Photos, and Google Shared Drive
+- Similar OAuth routes for Dropbox, OneDrive, pCloud, Google Photos, and Google Shared Drive
+- `POST /connected-accounts/icloud/connect` — Apple ID + password (may return MFA challenge)
+- `POST /connected-accounts/icloud/mfa` — complete Apple 2FA
 
 **Storage:**
 

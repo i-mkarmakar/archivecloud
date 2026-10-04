@@ -54,7 +54,7 @@ const CLOUD_SERVICES = [
     id: "icloud_photos",
     title: "iCloud Photos",
     description:
-      "Sign in with Apple ID + 2FA, then browse, copy, and move your photo library.",
+      "Sign in with Apple ID + 2FA, then browse, upload, download, copy, move, and delete photos (rename not supported).",
     href: "/settings",
     keywords: ["icloud", "photos", "apple"],
   },
@@ -62,7 +62,7 @@ const CLOUD_SERVICES = [
     id: "icloud_drive",
     title: "iCloud Drive",
     description:
-      "Sign in with Apple ID + 2FA, then browse, copy, and move Drive files.",
+      "Sign in with Apple ID + 2FA, then browse, upload, download, copy, move, and delete files (rename not supported).",
     href: "/settings",
     keywords: ["icloud", "drive", "apple"],
   },

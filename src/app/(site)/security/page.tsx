@@ -10,9 +10,9 @@ export const metadata: Metadata = createPageMetadata(
 
 const SECURITY_POINTS = [
   {
-    title: "OAuth, not passwords",
+    title: "Provider auth, encrypted sessions",
     description:
-      "Google Drive, Photos, Shared Drive, OneDrive, Dropbox, and pCloud connect with official OAuth. iCloud Drive and Photos use Apple ID + 2FA to create an encrypted trusted session. Secrets are never stored in plaintext logs.",
+      "Google Drive, Photos, Shared Drive, OneDrive, Dropbox, and pCloud connect with official OAuth. iCloud Drive and Photos use Apple ID + 2FA; the trusted session is encrypted at rest. Secrets are never stored in plaintext logs.",
     icon: Key,
   },
   {
@@ -44,7 +44,7 @@ export default function SecurityPage() {
       </h1>
       <p className="mt-4 text-[#64748B]">
         Archive Cloud is a gateway across the providers you already trust. We
-        focus on encrypted credentials, least-privilege OAuth, and
+        focus on encrypted credentials, OAuth or Apple ID session auth, and
         stream-through transfers so your content stays in your clouds.
       </p>
 
